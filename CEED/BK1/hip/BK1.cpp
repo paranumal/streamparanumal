@@ -26,15 +26,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
 #define dfloat_t double
 
 #define READ_TO_REGISTER 1
-
-#define CUDA_SYMBOL(a) a
-
 
 __forceinline__ __device__ __host__  int ijN(const int i, const int j, const int N){
 
@@ -55,7 +51,7 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 }
 
 // switch:
-// 1 to use CUDA 10.0 stream recording
+// 1 to use HIP 10.0 stream recording
 // 0 to use traditional enqueing of kernels
 #define USE_GRAPH 0
 
@@ -104,9 +100,9 @@ void randAlloc(int N, dfloat_t **h_a, dfloat_t **c_a){
   for(int n=0;n<N;++n)
     h_a[0][n] = drand48();
 
-  cudaMalloc(c_a, N*sizeof(dfloat_t));
+  hipMalloc(c_a, N*sizeof(dfloat_t));
 
-  cudaMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), hipMemcpyHostToDevice);
 
 }
 
@@ -1329,19 +1325,19 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   int NoddDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
   int NevenDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
   
-  cudaMalloc(c_oddDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
-  cudaMalloc(c_evenDofToQuad, NevenDofToQuad*sizeof(dfloat_t));
+  hipMalloc(c_oddDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
+  hipMalloc(c_evenDofToQuad, NevenDofToQuad*sizeof(dfloat_t));
   
-  cudaMemcpy(*c_oddDofToQuad,  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t),  cudaMemcpyHostToDevice);
-  cudaMemcpy(*c_evenDofToQuad, h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(*c_oddDofToQuad,  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t),  hipMemcpyHostToDevice);
+  hipMemcpy(*c_evenDofToQuad, h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t), hipMemcpyHostToDevice);
   
-  cudaMemcpyToSymbol(CUDA_SYMBOL(const_oddDofToQuad),  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t));
-  cudaMemcpyToSymbol(CUDA_SYMBOL(const_evenDofToQuad), h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
-  cudaMemcpyToSymbol(CUDA_SYMBOL(const_DofToQuad),     h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat_t));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToQuad),  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToQuad), h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToQuad),     h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat_t));
 }
 
 
-void runBK1Kernel(cudaStream_t stream, int Nq, int cubNq, int numElements,
+void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
 				 dfloat_t *c_op,
 				 dfloat_t *c_DofToQuad, dfloat_t *c_oddDofToQuad, dfloat_t *c_evenDofToQuad,
 				 dfloat_t *c_solIn, dfloat_t *c_solOut, int mode){
@@ -1352,17 +1348,17 @@ void runBK1Kernel(cudaStream_t stream, int Nq, int cubNq, int numElements,
     dim3 B(cubNq*cubNq, Nblock, 1);					\
     									\
     if(mode==1)								\
-      BK1RegisterKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
-    else if(mode==2)							\
-      BK1ConstantKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+      hipLaunchKernelGGL(BK1RegisterKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+    else if(mode==2)      									\
+      hipLaunchKernelGGL(BK1ConstantKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==3)							\
-      BK1SharedKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+      hipLaunchKernelGGL(BK1SharedKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==4)							\
-      BK1GlobalKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+      hipLaunchKernelGGL(BK1GlobalKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==5)							\
-      BK1MonolithicGlobalKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+      hipLaunchKernelGGL(BK1MonolithicGlobalKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==6)							\
-      BK1MonolithicConstantKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+      hipLaunchKernelGGL(BK1MonolithicConstantKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
   }
   
 #define ERR printf("BK1Register with Nq=%d, cubNq=%d not available", Nq, cubNq); exit(-1)
@@ -1506,13 +1502,13 @@ void runBK1Kernel(cudaStream_t stream, int Nq, int cubNq, int numElements,
 }
 
 
-dfloat_t nothingTest(cudaStream_t stream, int Ntests){
+dfloat_t nothingTest(hipStream_t stream, int Ntests){
 
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
 
-  cudaDeviceSynchronize();
+  hipDeviceSynchronize();
   
   float nothingElapsed = 0;
   {
@@ -1520,41 +1516,41 @@ dfloat_t nothingTest(cudaStream_t stream, int Ntests){
     // time kernel that does nothing
     
 #if USE_GRAPH==1
-    // cuda stream capture sequence for nothingKernel
-    cudaGraph_t nothingGraph;
+    // hip stream capture sequence for nothingKernel
+    hipGraph_t nothingGraph;
     
-    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    hipStreamBeginCapture(stream, hipStreamCaptureModeGlobal);
     
     for(int test=0;test<Ntests;++test){
-      nothingKernel <<< 1, 1, 0, stream >>> ();
+      hipLaunchKernelGGL(nothingKernel, 1, 1, 0, stream);
     }
     
-    cudaStreamEndCapture(stream, &nothingGraph);
+    hipStreamEndCapture(stream, &nothingGraph);
     
     // time graph sequence for nothing
-    cudaGraphExec_t nothingInstance;
-    cudaGraphInstantiate(&nothingInstance, nothingGraph, NULL, NULL, 0);
+    hipGraphExec_t nothingInstance;
+    hipGraphInstantiate(&nothingInstance, nothingGraph, NULL, NULL, 0);
     
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
-    cudaGraphLaunch(nothingInstance, stream);
+    hipGraphLaunch(nothingInstance, stream);
     
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
 #else
     
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
     for(int test=0;test<Ntests;++test)
-      nothingKernel <<< 1, 1, 0, stream >>> ();
+      hipLaunchKernelGGL(nothingKernel, 1, 1, 0, stream);
     
     
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
     
 #endif
     
-    cudaDeviceSynchronize();
+    hipDeviceSynchronize();
     
-    cudaEventElapsedTime(&nothingElapsed, start, end);
+    hipEventElapsedTime(&nothingElapsed, start, end);
     nothingElapsed /= 1000.;
     nothingElapsed /= (double) Ntests;
     
@@ -1564,11 +1560,11 @@ dfloat_t nothingTest(cudaStream_t stream, int Ntests){
 }
 
 
-double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
+double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
 
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
   
   dfloat_t *h_bwTest1, *c_bwTest1;
   dfloat_t *h_bwTest2, *c_bwTest2;
@@ -1576,33 +1572,33 @@ double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
   randAlloc(bwNtotal/2, &h_bwTest1, &c_bwTest1);
   randAlloc(bwNtotal/2, &h_bwTest2, &c_bwTest2);
   
-  cudaDeviceSynchronize();
-  cudaEventRecord(start, stream);
+  hipDeviceSynchronize();
+  hipEventRecord(start, stream);
   
   for(int test=0;test<Ntests/2;++test){
-    cudaMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), cudaMemcpyDeviceToDevice);
-    cudaMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), cudaMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
   }
   
-  cudaEventRecord(end, stream);
-  cudaEventSynchronize(end);
-  cudaDeviceSynchronize();
+  hipEventRecord(end, stream);
+  hipEventSynchronize(end);
+  hipDeviceSynchronize();
 
   float elapsed;
-  cudaEventElapsedTime(&elapsed, start, end);
+  hipEventElapsedTime(&elapsed, start, end);
   elapsed /= 1000.; // convert to s
   elapsed /= (double) Ntests;
   
   double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat_t)/elapsed)/1.e9;
   
-  cudaFree(c_bwTest1);
-  cudaFree(c_bwTest2);
+  hipFree(c_bwTest1);
+  hipFree(c_bwTest2);
   
   free(h_bwTest1);
   free(h_bwTest2);
   
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);	
+  hipEventDestroy(start);
+  hipEventDestroy(end);	
   
   return estimatedActualDeviceBandwidth;
 }
@@ -1610,10 +1606,10 @@ double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
 
 int main(int argc, char **argv){
 
-  cudaSetDevice(0);
+  hipSetDevice(0);
   
-  cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  hipStream_t stream;
+  hipStreamCreate(&stream);
   
   if(argc!=5){
     printf("Usage: ./BK1VT Nq cubNq numElements mode \n");
@@ -1632,9 +1628,9 @@ int main(int argc, char **argv){
   
   printf("Running: NUM_DOFS_1D=%d, NUM_QUAD_1D=%d, numElements=%d, mode=%d\n", Nq, cubNq, numElements, mode);
 
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
 
   int Ntests = 50;
   
@@ -1672,7 +1668,7 @@ int main(int argc, char **argv){
     }
   }
   
-  cudaMemcpy(c_op, h_op, p_Nvgeo*numElements*cubNp*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(c_op, h_op, p_Nvgeo*numElements*cubNp*sizeof(dfloat_t), hipMemcpyHostToDevice);
   
   randAlloc(Ntotal, &h_solIn, &c_solIn);
   randAlloc(Ntotal, &h_solOut, &c_solOut);
@@ -1688,7 +1684,7 @@ int main(int argc, char **argv){
     }
   }
 
-  cudaMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat_t), hipMemcpyHostToDevice);
   
   matrixPrint(cubNq, Nq, h_DofToQuad, "DofToQuad");
 
@@ -1703,10 +1699,10 @@ int main(int argc, char **argv){
   // warm up call
   runBK1Kernel (stream, Nq, cubNq, numElements, c_op, c_DofToQuad, c_oddDofToQuad, c_evenDofToQuad, c_solIn, c_solOut, mode);
 
-  cudaDeviceSynchronize();
+  hipDeviceSynchronize();
 
   {
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
     for(int test=0;test<Ntests;++test){
 
@@ -1714,11 +1710,11 @@ int main(int argc, char **argv){
       
     }
 
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
 
-    cudaDeviceSynchronize();
+    hipDeviceSynchronize();
     
-    cudaEventElapsedTime(&elapsed, start, end);
+    hipEventElapsedTime(&elapsed, start, end);
     elapsed /= 1000.;
     elapsed /= (double) Ntests;
 
@@ -1746,7 +1742,7 @@ int main(int argc, char **argv){
 
   // copy device version to host old q
   dfloat_t *fromDevice = (dfloat_t*) calloc(numElements*Np, sizeof(dfloat_t));
-  cudaMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), cudaMemcpyDeviceToHost);
+  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), hipMemcpyDeviceToHost);
 
   dfloat_t maxDiff = 0;
   
@@ -1760,8 +1756,8 @@ int main(int argc, char **argv){
 
   printf("NUM_DOFS_1D=%02d, NUM_QUAD_1D=%02d || Mq_{host} - Mq_{device} ||_linf = %lg\n", Nq, cubNq, maxDiff);
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);	
+  hipEventDestroy(start);
+  hipEventDestroy(end);	
   
   return 0;
 
