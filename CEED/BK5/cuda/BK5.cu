@@ -670,6 +670,7 @@ int main(int argc, char **argv){
   // KERNEL GRID
   // do nothing kernel test
   dfloat_t nothingElapsed = nothingTest(stream, Ntests);
+  nothingElapsed = nothingTest(stream, Ntests);
   
   // warm up call
   runBK5Kernel (stream, Nq, numElements, lambda,
