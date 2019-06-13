@@ -6,8 +6,7 @@ See LICENSE file.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
 #define dfloat_t double
 
@@ -45,7 +44,7 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 }
 
 // switch:
-// 1 to use CUDA 10.0 stream recording
+// 1 to use HIP 10.0 stream recording
 // 0 to use traditional enqueing of kernels
 #define USE_GRAPH 0
 
@@ -80,9 +79,9 @@ void randAlloc(int N, dfloat_t **h_a, dfloat_t **c_a){
   for(int n=0;n<N;++n)
     h_a[0][n] = drand48();
 
-  cudaMalloc(c_a, N*sizeof(dfloat_t));
+  hipMalloc(c_a, N*sizeof(dfloat_t));
 
-  cudaMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), hipMemcpyHostToDevice);
 
 }
 
@@ -309,11 +308,11 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
 }
 
 
-double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
+double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
 
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
   
   dfloat_t *h_bwTest1, *c_bwTest1;
   dfloat_t *h_bwTest2, *c_bwTest2;
@@ -321,33 +320,33 @@ double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
   randAlloc(bwNtotal/2, &h_bwTest1, &c_bwTest1);
   randAlloc(bwNtotal/2, &h_bwTest2, &c_bwTest2);
   
-  cudaDeviceSynchronize();
-  cudaEventRecord(start, stream);
+  hipDeviceSynchronize();
+  hipEventRecord(start, stream);
   
   for(int test=0;test<Ntests/2;++test){
-    cudaMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), cudaMemcpyDeviceToDevice);
-    cudaMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), cudaMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
   }
   
-  cudaEventRecord(end, stream);
-  cudaEventSynchronize(end);
-  cudaDeviceSynchronize();
+  hipEventRecord(end, stream);
+  hipEventSynchronize(end);
+  hipDeviceSynchronize();
 
   float elapsed;
-  cudaEventElapsedTime(&elapsed, start, end);
+  hipEventElapsedTime(&elapsed, start, end);
   elapsed /= 1000.; // convert to s
   elapsed /= (double) Ntests;
   
   double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat_t)/elapsed)/1.e9;
   
-  cudaFree(c_bwTest1);
-  cudaFree(c_bwTest2);
+  hipFree(c_bwTest1);
+  hipFree(c_bwTest2);
   
   free(h_bwTest1);
   free(h_bwTest2);
   
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);	
+  hipEventDestroy(start);
+  hipEventDestroy(end);	
   
   return estimatedActualDeviceBandwidth;
 }
@@ -450,13 +449,13 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
   int NoddOP  = HALF_ROWS_OP*HALF_COLS_OP;
   int NevenOP = HALF_ROWS_OP*HALF_COLS_OP;
   
-  cudaMalloc(c_oddOP, NoddOP*sizeof(dfloat_t));
-  cudaMalloc(c_evenOP, NevenOP*sizeof(dfloat_t));
+  hipMalloc(c_oddOP, NoddOP*sizeof(dfloat_t));
+  hipMalloc(c_evenOP, NevenOP*sizeof(dfloat_t));
   
-  cudaMemcpy(*c_oddOP,  oddOP,  NoddOP*sizeof(dfloat_t),  cudaMemcpyHostToDevice);
-  cudaMemcpy(*c_evenOP, evenOP, NoddOP*sizeof(dfloat_t), cudaMemcpyHostToDevice);
+  hipMemcpy(*c_oddOP,  oddOP,  NoddOP*sizeof(dfloat_t),  hipMemcpyHostToDevice);
+  hipMemcpy(*c_evenOP, evenOP, NoddOP*sizeof(dfloat_t), hipMemcpyHostToDevice);
 
-  cudaMemcpy(*c_OP, h_OP,  NUM_COLS_OP*NUM_ROWS_OP*sizeof(dfloat_t),  cudaMemcpyHostToDevice);
+  hipMemcpy(*c_OP, h_OP,  NUM_COLS_OP*NUM_ROWS_OP*sizeof(dfloat_t),  hipMemcpyHostToDevice);
 
   matrixPrint(NUM_COLS_OP, NUM_COLS_OP, X, "X");
   matrixPrint(NUM_ROWS_OP, NUM_ROWS_OP, cubX, "cubX");
@@ -470,7 +469,7 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
 }
 
 
-void runBK5Kernel(cudaStream_t stream, int Nq, int numElements, dfloat_t lambda,
+void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
 		  dfloat_t *c_op,
 		  dfloat_t *c_DofToDofD, dfloat_t *c_oddDofToDofD, dfloat_t *c_evenDofToDofD,
 		  dfloat_t *c_solIn, dfloat_t *c_solOut){
@@ -479,8 +478,8 @@ void runBK5Kernel(cudaStream_t stream, int Nq, int numElements, dfloat_t lambda,
   {									\
     dim3 G((numElements+Nblock-1)/Nblock, 1, 1);			\
     dim3 B(Nq*Nq, Nblock, 1);						\
-    BK5ConstantKernel<Nq,Nblock> <<< G, B, 0, stream >>>		\
-      (numElements, lambda, c_op, c_DofToDofD, c_oddDofToDofD,c_evenDofToDofD, c_solIn, c_solOut); \
+    hipLaunchKernelGGL(BK5ConstantKernel<Nq,Nblock>, G, B, 0, stream,	\
+		       numElements, lambda, c_op, c_DofToDofD, c_oddDofToDofD,c_evenDofToDofD, c_solIn, c_solOut); \
   }
   
 #define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
@@ -549,13 +548,13 @@ void runBK5Kernel(cudaStream_t stream, int Nq, int numElements, dfloat_t lambda,
 }
 
 
-dfloat_t nothingTest(cudaStream_t stream, int Ntests){
+dfloat_t nothingTest(hipStream_t stream, int Ntests){
 
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
 
-  cudaDeviceSynchronize();
+  hipDeviceSynchronize();
   
   float nothingElapsed = 0;
   {
@@ -563,40 +562,40 @@ dfloat_t nothingTest(cudaStream_t stream, int Ntests){
     // time kernel that does nothing
     
 #if USE_GRAPH==1
-    // cuda stream capture sequence for nothingKernel
-    cudaGraph_t nothingGraph;
+    // hip stream capture sequence for nothingKernel
+    hipGraph_t nothingGraph;
     
-    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    hipStreamBeginCapture(stream, hipStreamCaptureModeGlobal);
     
     for(int test=0;test<Ntests;++test){
-      nothingKernel <<< 1, 1, 0, stream >>> ();
+      hipLaunchKernelGGL(nothingKernel,  1, 1, 0, stream);
     }
     
-    cudaStreamEndCapture(stream, &nothingGraph);
+    hipStreamEndCapture(stream, &nothingGraph);
     
     // time graph sequence for nothing
-    cudaGraphExec_t nothingInstance;
-    cudaGraphInstantiate(&nothingInstance, nothingGraph, NULL, NULL, 0);
+    hipGraphExec_t nothingInstance;
+    hipGraphInstantiate(&nothingInstance, nothingGraph, NULL, NULL, 0);
     
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
-    cudaGraphLaunch(nothingInstance, stream);
+    hipGraphLaunch(nothingInstance, stream);
     
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
 #else
     
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
     for(int test=0;test<Ntests;++test)
-      nothingKernel <<< 1, 1, 0, stream >>> ();
+      hipLaunchKernelGGL(nothingKernel, 1, 1, 0, stream);
     
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
     
 #endif
     
-    cudaDeviceSynchronize();
+    hipDeviceSynchronize();
     
-    cudaEventElapsedTime(&nothingElapsed, start, end);
+    hipEventElapsedTime(&nothingElapsed, start, end);
     nothingElapsed /= 1000.;
     nothingElapsed /= (double) Ntests;
     
@@ -608,8 +607,8 @@ dfloat_t nothingTest(cudaStream_t stream, int Ntests){
 
 int main(int argc, char **argv){
 
-  cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  hipStream_t stream;
+  hipStreamCreate(&stream);
   
   if(argc!=3){
     printf("Usage: ./massMatrixMultiplyVT Nq numElements\n");
@@ -659,13 +658,13 @@ int main(int argc, char **argv){
   // create Odd-even packed storage for I and transpose(I) and push to constant memory
   buildOddEvenMatrices (Nq,Nq, h_DofToDofD, &c_DofToDofD, &c_oddDofToDofD, &c_evenDofToDofD);
 
-  cudaMemcpyToSymbol(const_DofToDofD,     c_DofToDofD,     Nq*Nq*sizeof(dfloat_t), 0, cudaMemcpyDeviceToDevice);
-  cudaMemcpyToSymbol(const_oddDofToDofD,  c_oddDofToDofD,  halfNq*halfNq*sizeof(dfloat_t), 0, cudaMemcpyDeviceToDevice);
-  cudaMemcpyToSymbol(const_evenDofToDofD, c_evenDofToDofD, halfNq*halfNq*sizeof(dfloat_t), 0, cudaMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToDofD),     c_DofToDofD,     Nq*Nq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToDofD),  c_oddDofToDofD,  halfNq*halfNq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToDofD), c_evenDofToDofD, halfNq*halfNq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
   
-  cudaEvent_t start, end;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);	
+  hipEvent_t start, end;
+  hipEventCreate(&start);
+  hipEventCreate(&end);	
 
   // KERNEL GRID
   // do nothing kernel test
@@ -678,10 +677,10 @@ int main(int argc, char **argv){
 		c_solIn, c_solOut);
   
 #if USE_GRAPH==1
-  // cuda stream capture
-  cudaGraph_t graph;
+  // hip stream capture
+  hipGraph_t graph;
   
-  cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+  hipStreamBeginCapture(stream, hipStreamCaptureModeGlobal);
 
   for(int test=0;test<Ntests;++test){
 
@@ -691,16 +690,16 @@ int main(int argc, char **argv){
 		      c_solIn, c_solOut);
   }
   
-  cudaStreamEndCapture(stream, &graph);
+  hipStreamEndCapture(stream, &graph);
   
-  cudaGraphExec_t instance;
-  cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+  hipGraphExec_t instance;
+  hipGraphInstantiate(&instance, graph, NULL, NULL, 0);
 #endif
   
-  cudaDeviceSynchronize();
+  hipDeviceSynchronize();
 
   {
-    cudaEventRecord(start, stream);
+    hipEventRecord(start, stream);
     
 #if USE_GRAPH==0
     for(int test=0;test<Ntests;++test){
@@ -712,15 +711,15 @@ int main(int argc, char **argv){
       
     }
 #else
-    cudaGraphLaunch(instance, stream);
+    hipGraphLaunch(instance, stream);
 #endif
 
-    cudaEventRecord(end, stream);
+    hipEventRecord(end, stream);
     
-    cudaEventSynchronize(end);
+    hipEventSynchronize(end);
     
     float elapsed;
-    cudaEventElapsedTime(&elapsed, start, end);
+    hipEventElapsedTime(&elapsed, start, end);
     elapsed /= 1000.;
     elapsed /= (double) Ntests;
 
@@ -738,7 +737,7 @@ int main(int argc, char **argv){
 
   // copy device version to host old q
   dfloat_t *fromDevice = (dfloat_t*) calloc(numElements*Np, sizeof(dfloat_t));
-  cudaMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), cudaMemcpyDeviceToHost);
+  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), hipMemcpyDeviceToHost);
 
   dfloat_t maxDiff = 0;
   
@@ -751,8 +750,8 @@ int main(int argc, char **argv){
   }
   printf("|| Mq_{host} - Mq_{device} ||_linf = %lg\n", maxDiff);
   
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);	
+  hipEventDestroy(start);
+  hipEventDestroy(end);	
   
   return 0;
 
