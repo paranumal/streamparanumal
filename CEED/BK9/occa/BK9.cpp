@@ -209,11 +209,12 @@ int main(int argc, char **argv){
   double elapsed = device.timeBetween(start, end)/Ntests;
 
   long long int Ndofs = (NpV*Ndim+NpP)*Nelements;
-
+  
+  dfloat GnodesPerSecond = (NpV*Nelements/elapsed)/1.e9;
   dfloat GdofsPerSecond = (Ndofs/elapsed)/1.e9;
   
-  printf("%02d %02d %06d %08lld %e %e [NV, NP, Nelements, Ndofs, Gdofs/s, elapsed]\n",
-	 NV,  NP, Nelements, Ndofs, GdofsPerSecond, elapsed);
+  printf("%02d %02d %06d %08d %08lld %e %e %e [NV, NP, Nelements, NVnodes, Ndofs, GVnodes/s, Gdofs/s, elapsed]\n",
+	 NV,  NP, Nelements, NpV*Nelements, Ndofs, GnodesPerSecond, GdofsPerSecond, elapsed);
   
   return 0;
   
