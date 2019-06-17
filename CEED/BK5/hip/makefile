@@ -1,4 +1,4 @@
-hipFlags = --amdgpu-target=gfx906 -O3
+hipFlags = --amdgpu-target=gfx906 
 #-ffast-math 
 
 BK5: BK5.cpp makefile
