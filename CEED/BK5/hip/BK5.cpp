@@ -836,11 +836,14 @@ int main(int argc, char **argv){
 
     int bytesMoved = (2*Np+7*Np)*sizeof(dfloat_t); // x, Mx, opa   
     double bw = (bytesMoved*numElements/elapsed)/1.e9;
+
+    double flopCount = Np*(6*2*Nq + 17);
+    double gflops = (flopCount*numElements/elapsed)/1.e9;
     
-    printf("%2d %8d %8d %e %e %e %e %e %%%% [BK5: N, numElements, Ndofs,"
-	   " elapsed, dofsPerSecond, nothingElapsed, BW in GB/s, estimatedActualDeviceBandwidth]\n",
+    printf("%2d %8d %8d %e %e %e %e %e %e %%%% [BK5: N, numElements, Ndofs,"
+	   " elapsed, dofsPerSecond, nothingElapsed, BW in GB/s, estimatedActualDeviceBandwidth, GFLOPS/s]\n",
 	   Nq-1, numElements, Np*numElements, elapsed, numElements*(Np/elapsed),
-	   nothingElapsed, bw, estimatedActualDeviceBandwidth);
+	   nothingElapsed, bw, estimatedActualDeviceBandwidth, gflops);
   }
 
   // check output is correct
