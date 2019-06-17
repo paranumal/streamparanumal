@@ -9,9 +9,9 @@ endif
 include ${OCCA_DIR}/scripts/Makefile
 
 compiler = mpic++
-compilerFlags += -Ddfloat=double
+compilerFlags += -Ddfloat=float
 compilerFlags += -Ddlong=int
-compilerFlags += -DdfloatString='"double"'
+compilerFlags += -DdfloatString='"float"'
 compilerFlags += -DdlongString='"int"'
 
 ${PROJ_DIR}/BK6: ${PROJ_DIR}/BK6.cpp
@@ -23,6 +23,5 @@ $(oPath)/%.o:$(sPath)/%.cpp $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.hpp
 	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o $@ $(flags) -c $(paths) $<
 
 clean:
-	rm -f $(oPath)/*;
 	rm -f ${PROJ_DIR}/BK1
 

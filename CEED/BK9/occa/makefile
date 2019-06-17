@@ -23,6 +23,5 @@ $(oPath)/%.o:$(sPath)/%.cpp $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.hpp
 	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o $@ $(flags) -c $(paths) $<
 
 clean:
-	rm -f $(oPath)/*;
 	rm -f ${PROJ_DIR}/BK1
 
