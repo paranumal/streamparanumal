@@ -9,12 +9,12 @@ endif
 include ${OCCA_DIR}/scripts/Makefile
 
 compiler = mpic++
-compilerFlags += -Ddfloat=float
 compilerFlags += -Ddlong=int
-compilerFlags += -DdfloatString='"float"'
 compilerFlags += -DdlongString='"int"'
+compilerFlags += -Ddfloat=double
+compilerFlags += -DdfloatString='"double"'
 
-${PROJ_DIR}/BK6: ${PROJ_DIR}/BK6.cpp
+${PROJ_DIR}/BK6: ${PROJ_DIR}/BK6.cpp makefile
 	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o BK6 $(linkerFlags) ${PROJ_DIR}/BK6.cpp ${PROJ_DIR}/meshBasis.cpp $(paths) -L${OCCA_DIR}/lib $(flags) -locca -llapack -lblas
 #$(linkerFlags)
 
