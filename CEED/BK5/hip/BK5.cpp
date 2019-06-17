@@ -97,10 +97,9 @@ template <int NUM_DOFS_1D, int p_Nblock >
 		 const dfloat_t * __restrict__ DofToDofD,
 		 const dfloat_t * __restrict__ oddDofToDofD,
 		 const dfloat_t * __restrict__ evenDofToDofD,
-		 dfloat_t * __restrict__ r_p,
+		 dfloat_t s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D],
 		 dfloat_t * __restrict__ r_Ap){
   
-  __shared__ dfloat_t s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
   __shared__ dfloat_t s_Gpr[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
   __shared__ dfloat_t s_Gps[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
   
@@ -116,16 +115,9 @@ template <int NUM_DOFS_1D, int p_Nblock >
   }
   
   // Layer by layer
-#pragma unroll
+#pragma unroll 
   for(int k = 0; k < NUM_DOFS_1D; k++) {
 
-    // share r_p[k]
-    __syncthreads();
-
-    s_p[blk][j][i] = r_p[k];
-
-    __syncthreads();
-    
     dfloat_t G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
     
     // prefetch geometric factors
@@ -150,17 +142,19 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int im = ijN(m,i,NUM_DOFS_1D);
       int jm = ijN(m,j,NUM_DOFS_1D);
       int km = ijN(m,k,NUM_DOFS_1D);
-      pr += DofToDofD[im]*s_p[blk][j][m];
-      ps += DofToDofD[jm]*s_p[blk][m][i];
-      pt += DofToDofD[km]*r_p[m];
+      pr += DofToDofD[im]*s_p[blk][k][j][m];
+      ps += DofToDofD[jm]*s_p[blk][k][m][i];
+      pt += const_DofToDofD[km]*s_p[blk][m][j][i];
     }
+
+    __syncthreads();
     
     s_Gpr[blk][j][i] = (G00*pr + G01*ps + G02*pt);
     s_Gps[blk][j][i] = (G01*pr + G11*ps + G12*pt);
     
     dfloat_t Gpt = (G02*pr + G12*ps + G22*pt);
     
-    dfloat_t Apk = GWJ*lambda*r_p[k];
+    dfloat_t Apk = GWJ*lambda*s_p[blk][k][j][i];
     
     __syncthreads();
     
@@ -171,7 +165,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int km = ijN(m,k,NUM_DOFS_1D);
       Apk     += DofToDofD[mi]*s_Gpr[blk][j][m];
       Apk     += DofToDofD[mj]*s_Gps[blk][m][i];
-      r_Ap[m] += DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
+      r_Ap[m] += const_DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
     }
     
     r_Ap[k] += Apk;
@@ -190,9 +184,9 @@ __global__ void BK5ConstantKernel(const int numElements,
 				  dfloat_t * __restrict__ solOut){
   
   __shared__ dfloat_t s_DofToDofD[NUM_DOFS_2D];
-
-  dfloat_t r_q[NUM_DOFS_1D];
-  dfloat_t r_Aq[NUM_DOFS_1D];
+  __shared__ dfloat_t s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  dfloat_t r_Ap[NUM_DOFS_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -202,27 +196,28 @@ __global__ void BK5ConstantKernel(const int numElements,
   const unsigned int a = t%NUM_DOFS_1D;
   const unsigned int b = t/NUM_DOFS_1D;
 
-  s_DofToDofD[t] = DofToDofD[t];
+  if(blk==0)
+    s_DofToDofD[t] = DofToDofD[t];
   
   if(element < numElements){
     for(int c=0;c<NUM_DOFS_1D;++c){
       
       int id = ijklN(a,b,c,element,NUM_DOFS_1D);
       
-      r_q[c] = solIn[id];
+      s_p[blk][c][b][a] = solIn[id];
     }
   }
   
   __syncthreads();
   
   BK5Device  <NUM_DOFS_1D, p_Nblock>
-    (numElements, element, lambda, op, s_DofToDofD, const_oddDofToDofD, const_evenDofToDofD, r_q, r_Aq);
+    (numElements, element, lambda, op, s_DofToDofD, const_oddDofToDofD, const_evenDofToDofD, s_p, r_Ap);
   
   if(element<numElements){
 #pragma unroll
     for(int c=0;c<NUM_DOFS_1D;++c){
       int id = ijklN(a,b,c,element,NUM_DOFS_1D);
-      solOut[id] = r_Aq[c];
+      solOut[id] = r_Ap[c];
     }
   }
 }
@@ -669,6 +664,7 @@ int main(int argc, char **argv){
   // KERNEL GRID
   // do nothing kernel test
   dfloat_t nothingElapsed = nothingTest(stream, Ntests);
+  nothingElapsed = nothingTest(stream, Ntests);
   
   // warm up call
   runBK5Kernel (stream, Nq, numElements, lambda,
