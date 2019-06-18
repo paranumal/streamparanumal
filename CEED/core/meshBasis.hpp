@@ -115,3 +115,21 @@ int meshCubatureSurfaceMatricesTri2D(int N, int Np, dfloat *r, dfloat *s, dfloat
 
 void meshReferenceBK1(int Nq, int cubNq, const int numElements, const dfloat *ggeo, const dfloat *INToC, const dfloat *q,  dfloat * __restrict__ Aq);
 
+void meshReferenceBK3(int Nq,
+		      int cubNq,
+		      const int numElements,
+		      dfloat lambda,
+		      const dfloat *  ggeo,
+		      const dfloat *  INToC,
+		      const dfloat *  cubD,
+		      const dfloat *  solIn,
+		      dfloat *  solOut);
+
+#define p_GWJID 0
+#define p_G00ID 1
+#define p_G01ID 2
+#define p_G02ID 3
+#define p_G11ID 4
+#define p_G12ID 5
+#define p_G22ID 6
+#define p_Nggeo 7

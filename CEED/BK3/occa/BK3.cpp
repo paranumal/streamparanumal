@@ -151,13 +151,13 @@ int main(int argc, char **argv){
   props["defines/p_cubNp"] = cubNp;
 
   props["defines/p_Nggeo"] = Nggeo;
-  props["defines/p_G00ID"] = 0;
-  props["defines/p_G01ID"] = 1;
-  props["defines/p_G02ID"] = 2;
-  props["defines/p_G11ID"] = 3;
-  props["defines/p_G12ID"] = 4;
-  props["defines/p_G22ID"] = 5;
-  props["defines/p_GWJID"] = 6;
+  props["defines/p_G00ID"] = p_G00ID;
+  props["defines/p_G01ID"] = p_G01ID;
+  props["defines/p_G02ID"] = p_G02ID;
+  props["defines/p_G11ID"] = p_G11ID;
+  props["defines/p_G12ID"] = p_G12ID;
+  props["defines/p_G22ID"] = p_G22ID;
+  props["defines/p_GWJID"] = p_GWJID;
   
   props["defines/dfloat"] = dfloatString;
   props["defines/dlong"]  = dlongString;
@@ -182,11 +182,31 @@ int main(int argc, char **argv){
 
   occa::streamTag start, end;
 
+#if 0
   // warm up
   BK3Kernel(Nelements, o_ggeo, o_cubDr, o_INToC, lambda, o_q, o_Aq);
 
   device.finish();
+#else
+  // --------------------------------------------------------------------------------
+  // Test code against reference cpu (also acts as warm up)
+  BK3Kernel(Nelements, o_ggeo, o_cubDr, o_INToC, lambda, o_q, o_Aq);
+
+  // compute reference solution
+  meshReferenceBK3(Nq, cubNq, Nelements, lambda, ggeo, INToC, cubDr, q, Aq);
+
+  // compare occa and cpu solutions
+  o_Aq.copyTo(q);
+  dfloat maxDiff = 0;
+  for(int n=0;n<Np*Nelements;++n){
+    dfloat diff = fabs(q[n]-Aq[n]);
+    maxDiff = (maxDiff<diff) ? diff:maxDiff;
+  }
+  printf(" |cpu(Aq)-gpu(Aq)|_linf = % e\n", maxDiff);
   
+  device.finish();
+  
+#endif
   // run Ntests times
   int Ntests = 10;
   

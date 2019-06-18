@@ -1525,6 +1525,228 @@ void meshReferenceBK1(int Nq, int cubNq, const int Nelements, const dfloat *ggeo
   
 }
 
+#define cubNq3 (cubNq*cubNq*cubNq)
+
+void meshReferenceInnerBK3(int cubNq,
+			   int element,
+			   dfloat lambda,
+			   const dfloat *  ggeo,
+			   const dfloat *  cubD,
+			   const dfloat * qIII,
+			   dfloat *lapqIII){
+
+  dfloat Gqr[cubNq][cubNq][cubNq];
+  dfloat Gqs[cubNq][cubNq][cubNq];
+  dfloat Gqt[cubNq][cubNq][cubNq];
+
+  for(int k=0;k<cubNq;++k){
+    for(int j=0;j<cubNq;++j){
+      for(int i=0;i<cubNq;++i){
+	
+	dfloat qr = 0;
+	dfloat qs = 0;
+	dfloat qt = 0;
+	
+	for(int n=0;n<cubNq;++n){
+	  int in = meshIJN(n,i,cubNq);
+	  int jn = meshIJN(n,j,cubNq);
+	  int kn = meshIJN(n,k,cubNq);
+	  
+	  int kjn = meshIJKN(n,j,k,cubNq);
+	  int kni = meshIJKN(i,n,k,cubNq);
+	  int nji = meshIJKN(i,j,n,cubNq);
+	  
+	  qr += cubD[in]*qIII[kjn];
+	  qs += cubD[jn]*qIII[kni];
+	  qt += cubD[kn]*qIII[nji];	  
+	}
+
+	const int gbase = element*p_Nggeo*cubNq3 + meshIJKN(i,j,k,cubNq);
+	
+	dfloat G00 = ggeo[gbase+p_G00ID*cubNq3];
+	dfloat G01 = ggeo[gbase+p_G01ID*cubNq3];
+	dfloat G02 = ggeo[gbase+p_G02ID*cubNq3];
+	dfloat G11 = ggeo[gbase+p_G11ID*cubNq3];
+	dfloat G12 = ggeo[gbase+p_G12ID*cubNq3];
+	dfloat G22 = ggeo[gbase+p_G22ID*cubNq3];
+	
+	Gqr[k][j][i] = (G00*qr + G01*qs + G02*qt);
+	Gqs[k][j][i] = (G01*qr + G11*qs + G12*qt);
+	Gqt[k][j][i] = (G02*qr + G12*qs + G22*qt);
+      }
+    }
+  }
+
+
+  for(int k=0;k<cubNq;++k){
+    for(int j=0;j<cubNq;++j){
+      for(int i=0;i<cubNq;++i){
+  
+	int kji = meshIJKN(i,j,k,cubNq);
+	
+	const int gbase = element*p_Nggeo*cubNq3 + meshIJKN(i,j,k,cubNq);
+
+	dfloat GWJ = ggeo[gbase+p_GWJID*cubNq3];
+	dfloat lapq = lambda*GWJ*qIII[kji];
+	
+	for(int n=0;n<cubNq;++n){
+	  int ni = meshIJN(i,n,cubNq);
+	  int nj = meshIJN(j,n,cubNq);
+	  int nk = meshIJN(k,n,cubNq);
+
+	  lapq += cubD[ni]*Gqr[k][j][n];
+	  lapq += cubD[nj]*Gqs[k][n][i];
+	  lapq += cubD[nk]*Gqt[n][j][i];	  
+	}
+	
+	lapqIII[kji] = lapq;
+      }
+    }
+  }
+}
+
+void meshReferenceBK3(int Nq,
+		      int cubNq,
+		      const int numElements,
+		      dfloat lambda,
+		      const dfloat *  ggeo,
+		      const dfloat *  INToC,
+		      const dfloat *  cubD,
+		      const dfloat *  solIn,
+		      dfloat *  solOut){
+
+  dfloat qXXX[Nq][Nq][Nq];
+  dfloat qIXX[cubNq][Nq][Nq];
+  dfloat qIIX[cubNq][cubNq][Nq];
+  dfloat qIII[cubNq][cubNq][cubNq];
+  dfloat lapqIII[cubNq][cubNq][cubNq];
+
+  for(int e=0;e<numElements;++e){
+
+    for(int c=0;c<Nq;++c){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+	  int id = meshIJKLN(a,b,c,e,Nq);
+	  qXXX[c][b][a] = solIn[id];
+	}
+      }
+    }
+    
+    for(int k=0;k<cubNq;++k){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+	  
+	  dfloat res = 0;
+	  
+	  for(int c=0;c<Nq;++c){
+	    int kc = meshIJN(c,k,Nq);
+	    dfloat Ikc = INToC[kc];
+	    res += Ikc*qXXX[c][b][a];
+	  }
+	  
+	  qIXX[k][b][a] = res;
+	}
+      }
+    }
+    
+    // interpolate in b
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int a=0;a<Nq;++a){
+	  
+	  dfloat res = 0;
+	  
+	  for(int b=0;b<Nq;++b){
+	    int jb = meshIJN(b,j,Nq);
+	    dfloat Ijb = INToC[jb];
+	    res += Ijb*qIXX[k][b][a];
+	  }
+	  
+	  qIIX[k][j][a] = res;
+	}
+      }
+    }
+
+    // interpolate in a
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int i=0;i<cubNq;++i){
+
+	  dfloat res = 0;
+	  
+	  for(int a=0;a<Nq;++a){
+	    int ia = meshIJN(a,i,Nq);
+	    dfloat Iia = INToC[ia];
+	    res += Iia*qIIX[k][j][a];
+	  }
+	  
+	  qIII[k][j][i] = res;
+	}
+      }
+    }
+  
+    meshReferenceInnerBK3(cubNq, e, lambda, ggeo, cubD, qIII[0][0], lapqIII[0][0]);
+
+    // project in a
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+	  
+	  for(int i=0;i<cubNq;++i){
+	    int ia = meshIJN(a,i,Nq);
+	    dfloat Iia = INToC[ia];
+	    res += Iia*lapqIII[k][j][i];
+	  }
+
+	  qIIX[k][j][a] = res;
+	}
+      }
+    }
+
+
+    // project in b
+    for(int k=0;k<cubNq;++k){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+
+	  for(int j=0;j<cubNq;++j){
+	    int jb = meshIJN(b,j,Nq);
+	    dfloat Ijb = INToC[jb];
+	    res += Ijb*qIIX[k][j][a];
+	  }
+	  
+	  qIXX[k][b][a] = res;
+
+	}
+      }
+    }
+
+
+    // project in c
+    for(int c=0;c<Nq;++c){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+
+	  for(int k=0;k<cubNq;++k){
+	    int kc = meshIJN(c,k,Nq);
+	    dfloat Ikc = INToC[kc];
+	    res += Ikc*qIXX[k][b][a];
+	  }
+
+	  int id = meshIJKLN(a,b,c,e,Nq);
+	  solOut[id] = res;
+	}
+      }
+    }
+  }
+  
+}
 
 
 
