@@ -169,10 +169,26 @@ int main(int argc, char **argv){
 
   occa::streamTag start, end;
 
-  // warm up
+  // --------------------------------------------------------------------------------
+  // Test code against reference cpu (also acts as warm up)
   BK1Kernel(Nelements, o_ggeo, o_INToC, o_q, o_Aq);
 
+  // compute reference solution
+  meshReferenceBK1(Nq, cubNq, Nelements, ggeo, INToC, q, Aq);
+
+  // compare occa and cpu solutions
+  o_Aq.copyTo(q);
+  dfloat maxDiff = 0;
+  for(int n=0;n<Np*Nelements;++n){
+    dfloat diff = fabs(q[n]-Aq[n]);
+    maxDiff = (maxDiff<diff) ? diff:maxDiff;
+  }
+  printf(" |cpu(Aq)-gpu(Aq)|_linf = % e\n", maxDiff);
+  
   device.finish();
+
+  // --------------------------------------------------------------------------------
+  // Run multiple tests
   
   // run Ntests times
   int Ntests = 10;

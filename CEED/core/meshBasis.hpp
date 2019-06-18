@@ -26,7 +26,6 @@ SOFTWARE.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "mpi.h"
 #include <math.h>
 
 extern "C"
@@ -114,5 +113,5 @@ int meshCubatureSurfaceMatricesTri2D(int N, int Np, dfloat *r, dfloat *s, dfloat
 				     int intNfp,  dfloat **intInterp, dfloat **intLIFT);
 
 
-
+void meshReferenceBK1(int Nq, int cubNq, const int numElements, const dfloat *ggeo, const dfloat *INToC, const dfloat *q,  dfloat * __restrict__ Aq);
 

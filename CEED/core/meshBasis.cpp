@@ -26,7 +26,6 @@ SOFTWARE.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "mpi.h"
 #include <math.h>
 #include "meshBasis.hpp"
 
@@ -1150,6 +1149,8 @@ int meshCubatureSurfaceMatricesTri2D(int N, int Np, dfloat *r, dfloat *s, dfloat
 
 
 #if TEST_MESH_BASIS==1
+#include "mpi.h"
+
 // mpic++ -I../libs/gatherScatter/ -I../../occa/include  -I../include -o meshBasis meshBasis.c matrixInverse.c readArray.c -Ddfloat=double -llapack -lblas -lm -DDHOLMES='"../"' -DdfloatFormat='"%lf"' -DTEST_MESH_BASIS=1 
 
 // to run with degree 2:
@@ -1365,6 +1366,165 @@ int main(int argc, char **argv){
 
 
 #endif
+
+
+int meshIJN(const int i, const int j, const int N){
+
+  return i + j*N;
+
+}
+
+int meshIJKN(const int i, const int j, const int k, const int N){
+
+  return i + j*N + k*N*N;
+
+}
+
+int meshIJKLN(const int i, const int j, const int k, const int l, const int N){
+
+  return i + j*N + k*N*N + l*N*N*N;
+
+}
+
+
+// assumes ggeo only contains WJ
+void meshReferenceBK1(int Nq, int cubNq, const int Nelements, const dfloat *ggeo, const dfloat *INToC, const dfloat *q,  dfloat * __restrict__ Aq){ 
+
+  dfloat qXXX[Nq][Nq][Nq];
+  dfloat qIXX[cubNq][Nq][Nq];
+  dfloat qIIX[cubNq][cubNq][Nq];
+  dfloat qIII[cubNq][cubNq][cubNq];
+    
+  for(int e=0;e<Nelements;++e){
+
+    for(int c=0;c<Nq;++c){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+	  int id = meshIJKLN(a,b,c,e,Nq);
+	  qXXX[c][b][a] = q[id];
+	}
+      }
+    }
+    
+    for(int k=0;k<cubNq;++k){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+	  
+	  dfloat res = 0;
+	  
+	  for(int c=0;c<Nq;++c){
+	    int kc = meshIJN(c,k,Nq);
+	    dfloat Ikc = INToC[kc];
+	    res += Ikc*qXXX[c][b][a];
+	  }
+	  
+	  qIXX[k][b][a] = res;
+	}
+      }
+    }
+    
+    // interpolate in b
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int a=0;a<Nq;++a){
+	  
+	  dfloat res = 0;
+	  
+	  for(int b=0;b<Nq;++b){
+	    int jb = meshIJN(b,j,Nq);
+	    dfloat Ijb = INToC[jb];
+	    res += Ijb*qIXX[k][b][a];
+	  }
+	  
+	  qIIX[k][j][a] = res;
+	}
+      }
+    }
+
+    // interpolate in a
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int i=0;i<cubNq;++i){
+
+	  dfloat res = 0;
+	  
+	  for(int a=0;a<Nq;++a){
+	    int ia = meshIJN(a,i,Nq);
+	    dfloat Iia = INToC[ia];
+	    res += Iia*qIIX[k][j][a];
+	  }
+	  
+	  int gid = meshIJKLN(i,j,k,e,cubNq);
+	  
+	  dfloat JW = ggeo[gid];
+
+	  qIII[k][j][i] = res*JW;
+	}
+      }
+    }
+
+
+    // project in a
+    for(int k=0;k<cubNq;++k){
+      for(int j=0;j<cubNq;++j){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+	  
+	  for(int i=0;i<cubNq;++i){
+	    int ia = meshIJN(a,i,Nq);
+	    dfloat Iia = INToC[ia];
+	    res += Iia*qIII[k][j][i];
+	  }
+
+	  qIIX[k][j][a] = res;
+	}
+      }
+    }
+
+
+    // project in b
+    for(int k=0;k<cubNq;++k){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+
+	  for(int j=0;j<cubNq;++j){
+	    int jb = meshIJN(b,j,Nq);
+	    dfloat Ijb = INToC[j*Nq+b];
+	    res += Ijb*qIIX[k][j][a];
+	  }
+	  
+	  qIXX[k][b][a] = res;
+
+	}
+      }
+    }
+
+
+    // project in c
+    for(int c=0;c<Nq;++c){
+      for(int b=0;b<Nq;++b){
+	for(int a=0;a<Nq;++a){
+
+	  dfloat res = 0;
+
+	  for(int k=0;k<cubNq;++k){
+	    int kc = meshIJN(c,k,Nq);
+	    dfloat Ikc = INToC[kc];
+	    res += Ikc*qIXX[k][b][a];
+	  }
+
+	  int id = meshIJKLN(a,b,c,e,Nq);
+	  Aq[id] = res;
+	}
+      }
+    }
+  }
+  
+}
+
 
 
 
