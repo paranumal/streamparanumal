@@ -66,6 +66,11 @@ int main(int argc, char **argv){
 
   // ./BK9 NqV NqP Nelements ThreadModel PlatformNumber DeviceNumber
 
+  if(argc<5){
+    printf("Usage: ./BK9 NqV NqP Nelements ThreadModel PlatformNumber DeviceNumber\n");
+    exit(-1);
+  }
+    
   int NqV = atoi(argv[1]);
   int NqP = atoi(argv[2]);
   dlong Nelements = atoi(argv[3]);
