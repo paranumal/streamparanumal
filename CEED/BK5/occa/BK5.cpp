@@ -66,6 +66,11 @@ int main(int argc, char **argv){
 
   // ./BK5 Nq Nelements ThreadModel PlatformNumber DeviceNumber
 
+  if(argc<3){
+    printf("Usage: ./BK5 Nq Nelements threadModel deviceId platformId\n");
+    exit(-1);
+  }
+  
   int Nq = atoi(argv[1]);
   dlong Nelements = atoi(argv[2]);
   char *threadModel = strdup(argv[3]);
