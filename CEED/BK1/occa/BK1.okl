@@ -224,7 +224,7 @@
           // prefetch geometric factors
           const dlong gbase = e*p_Nggeo*p_cubNp + k*p_cubNq*p_cubNq + j*p_cubNq + i;
           const dfloat GWJ = ggeo[gbase+p_GWJID*p_cubNp];
-          r_U[k] += GWJ;
+          r_U[k] *= GWJ;
         }
       }    
     }

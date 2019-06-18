@@ -93,8 +93,6 @@ int main(int argc, char **argv){
 
   int Nggeo = 1;
   
-  dfloat lambda = 0;
-  
   // ------------------------------------------------------------------------------
   // build element nodes and operators
   
