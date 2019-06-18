@@ -376,55 +376,53 @@ __global__ void BK5SharedKernel(const int numElements,
 
     __syncthreads();
 
-    dfloat qt = 0;
-
-    for(int m = 0; m < NUM_DOFS_1D; m++) {
-#if 1
-      qt += s_D[k][m]*s_q[m][j][i];
-#else
-      qt += const_DofToDofD[k*NUM_DOFS_1D+m]*s_q[m][j][i];
-#endif
-    }
-
-    dfloat  qr = 0.f;
-    for(int m = 0; m < NUM_DOFS_1D; m++)      
-      qr += s_D[i][m]*s_q[k][j][m];
-
-    dfloat  qs = 0.f;
-    for(int m = 0; m < NUM_DOFS_1D; m++) 
-      qs += s_D[j][m]*s_q[k][m][i];
-
     // prefetch geometric factors
     const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
 
     dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
-    
-    dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
-    r_Gqr += r_G00*qr;
-    
-    dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
-    r_Gqr += r_G01*qs;
-    r_Gqs += r_G01*qr;
-    
-    dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
-    r_Gqr += r_G02*qt;
-    r_Gqt += r_G02*qr;
-    
-    dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
-    r_Gqs += r_G11*qs;
-    
-    dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
-    r_Gqs += r_G12*qt;
-    r_Gqt += r_G12*qs;
 
-    dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
-    r_Gqt += r_G22*qt;
+    {
+      dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+      dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+      dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
 
-    s_Gqr[j][i] = r_Gqr;
-    s_Gqs[j][i] = r_Gqs;
+      dfloat  qr = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++){
+	qr += s_D[i][m]*s_q[k][j][m];
+      }
+
+      r_Gqr += r_G00*qr;
+      r_Gqs += r_G01*qr;
+      r_Gqt += r_G02*qr;
+      
+      dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+      dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+
+      dfloat  qs = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qs += s_D[j][m]*s_q[k][m][i];
+      }
+      
+      r_Gqr += r_G01*qs;
+      r_Gqs += r_G11*qs;
+      r_Gqt += r_G12*qs;
+      
+      dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+
+      dfloat qt = 0;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qt += s_D[k][m]*s_q[m][j][i];
+      }
+      
+      r_Gqr += r_G02*qt;
+      r_Gqs += r_G12*qt;
+      r_Gqt += r_G22*qt;
+      
+      s_Gqr[j][i] = r_Gqr;
+      s_Gqs[j][i] = r_Gqs;
+    }
     
     // put this here for a bump
-#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++)
       s_Aq[m][j][i] += s_D[k][m]*r_Gqt;
 
@@ -432,14 +430,12 @@ __global__ void BK5SharedKernel(const int numElements,
     //s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; 
     
     __syncthreads();
-
+    
     dfloat r_Auks = 0;
-#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++)
       r_Auks   += s_D[m][j]*s_Gqs[m][i];
-
+    
     dfloat r_Aukr = 0;
-#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++)
       r_Aukr   += s_D[m][i]*s_Gqr[j][m];
     
