@@ -1101,7 +1101,7 @@ int main(int argc, char **argv){
   cudaStreamCreate(&stream);
   
   if(argc!=4){
-    printf("Usage: ./massMatrixMultiplyVT Nq cubNq numElements\n");
+    printf("Usage: ./BK3 Nq cubNq numElements\n");
     exit(-1);
   }
 
