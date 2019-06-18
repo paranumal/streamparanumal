@@ -16,7 +16,6 @@ compilerFlags += -DdlongString='"int"'
 compilerFlags += -Ddfloat=double
 compilerFlags += -DdfloatString='"double"'
 
-
 ${PROJ_DIR}/BK5: ${PROJ_DIR}/BK5.cpp makefile ${CORE_DIR}/meshBasis.cpp
 	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o BK5 $(linkerFlags) ${PROJ_DIR}/BK5.cpp -I${CORE_DIR}/ ${CORE_DIR}/meshBasis.cpp $(paths) -L${OCCA_DIR}/lib $(flags) -locca -llapack -lblas
 #$(linkerFlags)

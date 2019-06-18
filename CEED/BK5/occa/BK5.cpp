@@ -161,22 +161,16 @@ int main(int argc, char **argv){
   dfloat *ggeo = drandAlloc(Np*Nelements*Nggeo);
   dfloat *q    = drandAlloc((Ndim*Np)*Nelements);
   dfloat *Aq   = drandAlloc((Ndim*Np)*Nelements);
-
-  dlong *elementList = (dlong*) calloc(Nelements, sizeof(dlong));
-  for(dlong e=0;e<Nelements;++e)
-    elementList[e] = e;
   
   occa::memory o_ggeo  = device.malloc(Np*Nelements*Nggeo*sizeof(dfloat), ggeo);
   occa::memory o_q     = device.malloc((Ndim*Np)*Nelements*sizeof(dfloat), q);
   occa::memory o_Aq    = device.malloc((Ndim*Np)*Nelements*sizeof(dfloat), Aq);
   occa::memory o_DrV   = device.malloc(Nq*Nq*sizeof(dfloat), DrV);
 
-  occa::memory o_elementList  = device.malloc(Nelements*sizeof(dlong), elementList);
-
   occa::streamTag start, end;
 
   // warm up
-  BK5Kernel(Nelements, o_elementList, o_ggeo, o_DrV, lambda, o_q, o_Aq);
+  BK5Kernel(Nelements, o_ggeo, o_DrV, lambda, o_q, o_Aq);
 
   device.finish();
   
@@ -186,7 +180,7 @@ int main(int argc, char **argv){
   start = device.tagStream();
 
   for(int test=0;test<Ntests;++test)
-    BK5Kernel(Nelements, o_elementList, o_ggeo, o_DrV, lambda, o_q, o_Aq);
+    BK5Kernel(Nelements, o_ggeo, o_DrV, lambda, o_q, o_Aq);
   
   end = device.tagStream();
 
