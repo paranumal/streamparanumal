@@ -167,7 +167,7 @@ int main(int argc, char **argv){
   occa::memory o_q     = device.malloc((Ndim*Np)*Nelements*sizeof(dfloat), q);
   occa::memory o_Aq    = device.malloc((Ndim*Np)*Nelements*sizeof(dfloat), Aq);
   occa::memory o_DrV   = device.malloc(Nq*Nq*sizeof(dfloat), DrV);
-  occa::memory o_elementList  = device.malloc(Nelements*sizeof(dfloat), elementList);
+  occa::memory o_elementList  = device.malloc(Nelements*sizeof(dlong), elementList);
 
   occa::streamTag start, end;
 
