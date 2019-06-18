@@ -7,8 +7,7 @@ See LICENSE file.
 #include <stdio.h>
 #include <stdlib.h>
 #include <hip/hip_runtime.h>
-
-#define dfloat_t double
+#include "meshBasis.hpp"
 
 #define READ_TO_REGISTER 1
 
@@ -56,7 +55,7 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 #define p_Nvgeo 1
 #define p_JWID 0
 
-void matrixPrint(int Nrows, int Ncols, dfloat_t *A, const char *mess){
+void matrixPrint(int Nrows, int Ncols, dfloat *A, const char *mess){
 #if 0
   printf("%s = [\n", mess);
   for(int i=0;i<Nrows;++i){
@@ -69,37 +68,37 @@ void matrixPrint(int Nrows, int Ncols, dfloat_t *A, const char *mess){
 #endif
 }
 
-__constant__ dfloat_t const_DofToQuad[MAX_QUAD_1D*MAX_DOFS_1D];
-__constant__ dfloat_t const_oddDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
-__constant__ dfloat_t const_evenDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
+__constant__ dfloat const_DofToQuad[MAX_QUAD_1D*MAX_DOFS_1D];
+__constant__ dfloat const_oddDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
+__constant__ dfloat const_evenDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
 
-void randAlloc(int N, dfloat_t **h_a, dfloat_t **c_a){
+void randAlloc(int N, dfloat **h_a, dfloat **c_a){
 
-  *h_a = (dfloat_t*) calloc(N, sizeof(dfloat_t));
+  *h_a = (dfloat*) calloc(N, sizeof(dfloat));
 
   for(int n=0;n<N;++n)
     h_a[0][n] = drand48();
 
-  hipMalloc(c_a, N*sizeof(dfloat_t));
+  hipMalloc(c_a, N*sizeof(dfloat));
 
-  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat), hipMemcpyHostToDevice);
 
 }
 
 __global__ void nothingKernel(){  }
 
-__global__ void nothingVerboseKernel(int n, dfloat_t *creOut, dfloat_t *cimOut){
+__global__ void nothingVerboseKernel(int n, dfloat *creOut, dfloat *cimOut){
 
 
   if(n==-1 || n==-7098 || n==1023 || n==3521){ // this will never be true
 
-    dfloat_t cre = threadIdx.x + blockIdx.x*blockDim.x;
-    dfloat_t cim = threadIdx.y + blockIdx.x*blockDim.y;
+    dfloat cre = threadIdx.x + blockIdx.x*blockDim.x;
+    dfloat cim = threadIdx.y + blockIdx.x*blockDim.y;
 
 #pragma unroll 1
     for(int i=0;i<1;++i){
-      dfloat_t tmpre = cre*cre-cim*cim;
-      dfloat_t tmpim = 2.*cre*cim;
+      dfloat tmpre = cre*cre-cim*cim;
+      dfloat tmpim = 2.*cre*cim;
 
       cre = tmpre;
       cim = tmpim;
@@ -115,12 +114,12 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 
   void BK1MonolithicDevice(const int numElements,
 			   const int element,
-			   const dfloat_t * __restrict__ op,
-			   const dfloat_t * __restrict__ DofToQuad,
-			   dfloat_t s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
-			   dfloat_t * __restrict__ r_Ap){
+			   const dfloat * __restrict__ op,
+			   const dfloat * __restrict__ DofToQuad,
+			   dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
+			   dfloat * __restrict__ r_Ap){
   
-  dfloat_t r_tmp[NUM_QUAD_1D];
+  dfloat r_tmp[NUM_QUAD_1D];
   
   const int t   = threadIdx.x;
   const int blk = threadIdx.y;
@@ -135,7 +134,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int k=0;k<NUM_QUAD_1D;++k){
-      dfloat_t res = 0;
+      dfloat res = 0;
       
 #pragma unroll
       for(int c=0;c<NUM_DOFS_1D;++c){
@@ -161,7 +160,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int j=0;j<NUM_QUAD_1D;++j){
-      dfloat_t res = 0;
+      dfloat res = 0;
       
 #pragma unroll
       for(int b=0;b<NUM_DOFS_1D;++b){
@@ -186,7 +185,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int i=0;i<NUM_QUAD_1D;++i){
-      dfloat_t res = 0;
+      dfloat res = 0;
       
 #pragma unroll
       for(int a=0;a<NUM_DOFS_1D;++a){
@@ -196,14 +195,14 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 	
       int gid = ijklN(i,j,k,element, NUM_QUAD_1D);
       
-      dfloat_t WJ = (element<numElements) ? op[gid]: 0;
+      dfloat WJ = (element<numElements) ? op[gid]: 0;
       
       r_Ap[i] = WJ*res;
     }
     
 #pragma unroll
     for(int a=0;a<NUM_DOFS_1D;++a){
-      dfloat_t res = 0;
+      dfloat res = 0;
       
 #pragma unroll
       for(int i=0;i<NUM_QUAD_1D;++i){
@@ -229,7 +228,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int b=0;b<NUM_DOFS_1D;++b){
-      dfloat_t res = 0;
+      dfloat res = 0;
       
 #pragma unroll
       for(int j=0;j<NUM_QUAD_1D;++j){
@@ -254,7 +253,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 #pragma unroll
     for(int c=0;c<NUM_DOFS_1D;++c){
-      dfloat_t res = 0; 
+      dfloat res = 0; 
       
 #pragma unroll
       for(int k=0;k<NUM_QUAD_1D;++k){
@@ -293,14 +292,14 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 
   void BK1OddEvenDevice(const int numElements,
 			const int element,
-			const dfloat_t * __restrict__ op,
-			const dfloat_t * __restrict__ oddDofToQuad,
-			const dfloat_t * __restrict__ evenDofToQuad,
-			dfloat_t s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
-			dfloat_t * __restrict__ r_Ap){
+			const dfloat * __restrict__ op,
+			const dfloat * __restrict__ oddDofToQuad,
+			const dfloat * __restrict__ evenDofToQuad,
+			dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
+			dfloat * __restrict__ r_Ap){
 
-  dfloat_t r_tmpOdd[HALF_QUAD_1D];
-  dfloat_t r_tmpEven[HALF_QUAD_1D];
+  dfloat r_tmpOdd[HALF_QUAD_1D];
+  dfloat r_tmpEven[HALF_QUAD_1D];
 
   const int t   = threadIdx.x;
   const int blk = threadIdx.y;
@@ -323,7 +322,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int k=0;k<HALF_QUAD_1D;++k){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int c=0;c<HALF_DOFS_1D;++c){
@@ -347,8 +346,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int b=0;b<HALF_DOFS_1D;++b){
-      dfloat_t ApOdd  = s_Ap[blk][k][b][a];
-      dfloat_t ApEven = s_Ap[blk][k][NUM_DOFS_1D-1-b][a];
+      dfloat ApOdd  = s_Ap[blk][k][b][a];
+      dfloat ApEven = s_Ap[blk][k][NUM_DOFS_1D-1-b][a];
       r_tmpOdd[b]  = ApOdd + ApEven;
       r_tmpEven[b] = ApOdd - ApEven;
     }
@@ -358,7 +357,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int j=0;j<HALF_QUAD_1D;++j){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int b=0;b<HALF_DOFS_1D;++b){
@@ -381,8 +380,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int a=0;a<HALF_DOFS_1D;++a){
-      dfloat_t ApOdd  = s_Ap[blk][k][j][a];
-      dfloat_t ApEven = s_Ap[blk][k][j][NUM_DOFS_1D-1-a];
+      dfloat ApOdd  = s_Ap[blk][k][j][a];
+      dfloat ApEven = s_Ap[blk][k][j][NUM_DOFS_1D-1-a];
       r_tmpOdd[a]  = ApOdd + ApEven;
       r_tmpEven[a] = ApOdd - ApEven;
     }
@@ -392,7 +391,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int i=0;i<HALF_QUAD_1D;++i){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int a=0;a<HALF_DOFS_1D;++a){
@@ -404,8 +403,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
       int gid1 = ijklN(NUM_QUAD_1D-1-i,j,k,element, NUM_QUAD_1D);
       int gid2 = ijklN(i,j,k,element, NUM_QUAD_1D);
 
-      dfloat_t WJ1 = (element<numElements) ? op[gid1]:0;
-      dfloat_t WJ2 = (element<numElements) ? op[gid2]:0;
+      dfloat WJ1 = (element<numElements) ? op[gid1]:0;
+      dfloat WJ2 = (element<numElements) ? op[gid2]:0;
 
 #if 0
       s_Ap[blk][k][j][NUM_QUAD_1D-1-i] = WJ1*(resOdd-resEven);
@@ -426,11 +425,11 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 #pragma unroll
     for(int i=0;i<HALF_QUAD_1D;++i){
 #if 0
-      dfloat_t ApOdd  = s_Ap[blk][k][j][i];
-      dfloat_t ApEven = s_Ap[blk][k][j][NUM_QUAD_1D-1-i];
+      dfloat ApOdd  = s_Ap[blk][k][j][i];
+      dfloat ApEven = s_Ap[blk][k][j][NUM_QUAD_1D-1-i];
 #else
-      dfloat_t ApOdd  = r_Ap[i];
-      dfloat_t ApEven = r_Ap[NUM_QUAD_1D-1-i];
+      dfloat ApOdd  = r_Ap[i];
+      dfloat ApEven = r_Ap[NUM_QUAD_1D-1-i];
 #endif
       
       r_tmpOdd[i]  = ApOdd + ApEven;
@@ -442,7 +441,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int a=0;a<HALF_DOFS_1D;++a){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int i=0;i<HALF_QUAD_1D;++i){
@@ -464,8 +463,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     const int k = t/NUM_DOFS_1D;
     
     for(int j=0;j<HALF_QUAD_1D;++j){
-      dfloat_t ApOdd  = s_Ap[blk][k][j][a];
-      dfloat_t ApEven = s_Ap[blk][k][NUM_QUAD_1D-1-j][a];
+      dfloat ApOdd  = s_Ap[blk][k][j][a];
+      dfloat ApEven = s_Ap[blk][k][NUM_QUAD_1D-1-j][a];
       r_tmpOdd[j]  = ApOdd + ApEven;
       r_tmpEven[j] = ApOdd - ApEven;
     }
@@ -475,7 +474,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int b=0;b<HALF_DOFS_1D;++b){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int j=0;j<HALF_QUAD_1D;++j){
@@ -497,8 +496,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     const int b = t/NUM_DOFS_1D;
     
     for(int k=0;k<HALF_QUAD_1D;++k){
-      dfloat_t ApOdd  = s_Ap[blk][k][b][a];
-      dfloat_t ApEven = s_Ap[blk][NUM_QUAD_1D-1-k][b][a];
+      dfloat ApOdd  = s_Ap[blk][k][b][a];
+      dfloat ApEven = s_Ap[blk][NUM_QUAD_1D-1-k][b][a];
       r_tmpOdd[k]  = ApOdd + ApEven;
       r_tmpEven[k] = ApOdd - ApEven;
     }
@@ -508,7 +507,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
 #pragma unroll
     for(int c=0;c<HALF_DOFS_1D;++c){
-      dfloat_t resOdd = 0, resEven = 0;
+      dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int k=0;k<HALF_QUAD_1D;++k){
@@ -546,18 +545,18 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1RegisterKernel(const int numElements,
-				    const dfloat_t * __restrict__ op,
-				    const dfloat_t * __restrict__ oddDofToQuad,
-				    const dfloat_t * __restrict__ evenDofToQuad,
-				    const dfloat_t * __restrict__ solIn,
-				    dfloat_t * __restrict__ solOut){
+				    const dfloat * __restrict__ op,
+				    const dfloat * __restrict__ oddDofToQuad,
+				    const dfloat * __restrict__ evenDofToQuad,
+				    const dfloat * __restrict__ solIn,
+				    dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
 
-  dfloat_t r_oddDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
-  dfloat_t r_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+  dfloat r_oddDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+  dfloat r_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
 
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -590,8 +589,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   
 #endif
   {
-    __shared__ dfloat_t s_oddDofToQuad[HALF_DOFS_1D*HALF_QUAD_1D];
-    __shared__ dfloat_t s_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+    __shared__ dfloat s_oddDofToQuad[HALF_DOFS_1D*HALF_QUAD_1D];
+    __shared__ dfloat s_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
     
     if(blk==0)
       for(int n=t;n<HALF_DOFS_1D*HALF_QUAD_1D;n+=NUM_QUAD_2D){
@@ -645,17 +644,17 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1SharedKernel(const int numElements,
-				  const dfloat_t * __restrict__ op,
-				  const dfloat_t * __restrict__ oddDofToQuad,
-				  const dfloat_t * __restrict__ evenDofToQuad,
-				  const dfloat_t * __restrict__ solIn,
-				  dfloat_t * __restrict__ solOut){
+				  const dfloat * __restrict__ op,
+				  const dfloat * __restrict__ oddDofToQuad,
+				  const dfloat * __restrict__ evenDofToQuad,
+				  const dfloat * __restrict__ solIn,
+				  dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
-  __shared__ dfloat_t s_oddDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
-  __shared__ dfloat_t s_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_oddDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+  __shared__ dfloat s_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
 
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -731,15 +730,15 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1ConstantKernel(const int numElements,
-				    const dfloat_t * __restrict__ op,
-				    const dfloat_t * __restrict__ oddDofToQuad,
-				    const dfloat_t * __restrict__ evenDofToQuad,
-				    const dfloat_t * __restrict__ solIn,
-				    dfloat_t * __restrict__ solOut){
+				    const dfloat * __restrict__ op,
+				    const dfloat * __restrict__ oddDofToQuad,
+				    const dfloat * __restrict__ evenDofToQuad,
+				    const dfloat * __restrict__ solIn,
+				    dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
 
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -812,15 +811,15 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1GlobalKernel(const int numElements,
-				  const dfloat_t * __restrict__ op,
-				  const dfloat_t * __restrict__ oddDofToQuad,
-				  const dfloat_t * __restrict__ evenDofToQuad,
-				  const dfloat_t * __restrict__ solIn,
-				  dfloat_t * __restrict__ solOut){
+				  const dfloat * __restrict__ op,
+				  const dfloat * __restrict__ oddDofToQuad,
+				  const dfloat * __restrict__ evenDofToQuad,
+				  const dfloat * __restrict__ solIn,
+				  dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
 
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -895,15 +894,15 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1MonolithicGlobalKernel(const int numElements,
-					    const dfloat_t * __restrict__ op,
-					    const dfloat_t * __restrict__ DofToQuad,
-					    const dfloat_t * __restrict__ evenDofToQuad,
-					    const dfloat_t * __restrict__ solIn,
-					    dfloat_t * __restrict__ solOut){
+					    const dfloat * __restrict__ op,
+					    const dfloat * __restrict__ DofToQuad,
+					    const dfloat * __restrict__ evenDofToQuad,
+					    const dfloat * __restrict__ solIn,
+					    dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
 
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -978,15 +977,15 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __global__ void BK1MonolithicConstantKernel(const int numElements,
-					      const dfloat_t * __restrict__ op,
-					      const dfloat_t * __restrict__ DofToQuad,
-					      const dfloat_t * __restrict__ evenDofToQuad,
-					      const dfloat_t * __restrict__ solIn,
-					      dfloat_t * __restrict__ solOut){
+					      const dfloat * __restrict__ op,
+					      const dfloat * __restrict__ DofToQuad,
+					      const dfloat * __restrict__ evenDofToQuad,
+					      const dfloat * __restrict__ solIn,
+					      dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
   
-  dfloat_t r_Aq[NUM_QUAD_1D];
+  dfloat r_Aq[NUM_QUAD_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -1058,160 +1057,15 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   
 }
 
-
-#if 0
-void BK1Host(int NUM_DOFS_1D, int NUM_QUAD_1D, const int numElements,
-	     const dfloat_t * __restrict__ op,
-	     const dfloat_t * __restrict__ cubDofToQuad,
-	     const dfloat_t * __restrict__ solIn,
-	     dfloat_t * __restrict__ solOut){
-
-
-  dfloat_t qXXX[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat_t qIXX[NUM_QUAD_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat_t qIIX[NUM_QUAD_1D][NUM_QUAD_1D][NUM_DOFS_1D];
-  dfloat_t qIII[NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D];
-    
-  for(int e=0;e<numElements;++e){
-
-    for(int c=0;c<NUM_DOFS_1D;++c){
-      for(int b=0;b<NUM_DOFS_1D;++b){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-	  int id = ijklN(a,b,c,e,NUM_DOFS_1D);
-	  qXXX[c][b][a] = solIn[id];
-	}
-      }
-    }
-    
-    for(int k=0;k<NUM_QUAD_1D;++k){
-      for(int b=0;b<NUM_DOFS_1D;++b){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-	  
-	  dfloat_t res = 0;
-	  
-	  for(int c=0;c<NUM_DOFS_1D;++c){
-	    int kc = ijN(c,k,NUM_DOFS_1D);
-	    dfloat_t Ikc = cubDofToQuad[kc];
-	    res += Ikc*qXXX[c][b][a];
-	  }
-	  
-	  qIXX[k][b][a] = res;
-	}
-      }
-    }
-    
-    // interpolate in b
-    for(int k=0;k<NUM_QUAD_1D;++k){
-      for(int j=0;j<NUM_QUAD_1D;++j){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-	  
-	  dfloat_t res = 0;
-	  
-	  for(int b=0;b<NUM_DOFS_1D;++b){
-	    int jb = ijN(b,j,NUM_DOFS_1D);
-	    dfloat_t Ijb = cubDofToQuad[jb];
-	    res += Ijb*qIXX[k][b][a];
-	  }
-	  
-	  qIIX[k][j][a] = res;
-	}
-      }
-    }
-
-    // interpolate in a
-    for(int k=0;k<NUM_QUAD_1D;++k){
-      for(int j=0;j<NUM_QUAD_1D;++j){
-	for(int i=0;i<NUM_QUAD_1D;++i){
-
-	  dfloat_t res = 0;
-	  
-	  for(int a=0;a<NUM_DOFS_1D;++a){
-	    int ia = ijN(a,i,NUM_DOFS_1D);
-	    dfloat_t Iia = cubDofToQuad[ia];
-	    res += Iia*qIIX[k][j][a];
-	  }
-	  
-	  int gid = ijklN(i,j,k,e,NUM_QUAD_1D);
-	  
-	  dfloat_t JW = op[gid];
-
-	  qIII[k][j][i] = res*JW;
-	}
-      }
-    }
-
-
-    // project in a
-    for(int k=0;k<NUM_QUAD_1D;++k){
-      for(int j=0;j<NUM_QUAD_1D;++j){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-
-	  dfloat_t res = 0;
-	  
-	  for(int i=0;i<NUM_QUAD_1D;++i){
-	    int ia = ijN(a,i,NUM_DOFS_1D);
-	    dfloat_t Iia = cubDofToQuad[ia];
-	    res += Iia*qIII[k][j][i];
-	  }
-
-	  qIIX[k][j][a] = res;
-	}
-      }
-    }
-
-
-    // project in b
-    for(int k=0;k<NUM_QUAD_1D;++k){
-      for(int b=0;b<NUM_DOFS_1D;++b){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-
-	  dfloat_t res = 0;
-
-	  for(int j=0;j<NUM_QUAD_1D;++j){
-	    int jb = ijN(b,j,NUM_DOFS_1D);
-	    dfloat_t Ijb = cubDofToQuad[j*NUM_DOFS_1D+b];
-	    res += Ijb*qIIX[k][j][a];
-	  }
-	  
-	  qIXX[k][b][a] = res;
-
-	}
-      }
-    }
-
-
-    // project in c
-    for(int c=0;c<NUM_DOFS_1D;++c){
-      for(int b=0;b<NUM_DOFS_1D;++b){
-	for(int a=0;a<NUM_DOFS_1D;++a){
-
-	  dfloat_t res = 0;
-
-	  for(int k=0;k<NUM_QUAD_1D;++k){
-	    int kc = ijN(c,k,NUM_DOFS_1D);
-	    dfloat_t Ikc = cubDofToQuad[kc];
-	    res += Ikc*qIXX[k][b][a];
-	  }
-
-	  int id = ijklN(a,b,c,e,NUM_DOFS_1D);
-	  solOut[id] = res;
-	}
-      }
-    }
-  }
-  
-}
-#endif
-
 void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
-			 dfloat_t *h_DofToQuad,     dfloat_t *h_oddDofToQuad, dfloat_t *h_evenDofToQuad,
-			 dfloat_t **c_oddDofToQuad, dfloat_t **c_evenDofToQuad){
+			 dfloat *h_DofToQuad,     dfloat *h_oddDofToQuad, dfloat *h_evenDofToQuad,
+			 dfloat **c_oddDofToQuad, dfloat **c_evenDofToQuad){
 
-  dfloat_t *X = (dfloat_t*) calloc(NUM_DOFS_1D*NUM_DOFS_1D, sizeof(dfloat_t));
-  dfloat_t *invX = (dfloat_t*) calloc(NUM_DOFS_1D*NUM_DOFS_1D, sizeof(dfloat_t));
+  dfloat *X = (dfloat*) calloc(NUM_DOFS_1D*NUM_DOFS_1D, sizeof(dfloat));
+  dfloat *invX = (dfloat*) calloc(NUM_DOFS_1D*NUM_DOFS_1D, sizeof(dfloat));
 
-  dfloat_t *cubX = (dfloat_t*) calloc(NUM_QUAD_1D*NUM_QUAD_1D, sizeof(dfloat_t));
-  dfloat_t *cubInvX = (dfloat_t*) calloc(NUM_QUAD_1D*NUM_QUAD_1D, sizeof(dfloat_t));
+  dfloat *cubX = (dfloat*) calloc(NUM_QUAD_1D*NUM_QUAD_1D, sizeof(dfloat));
+  dfloat *cubInvX = (dfloat*) calloc(NUM_QUAD_1D*NUM_QUAD_1D, sizeof(dfloat));
 
   for(int n=0;n<NUM_QUAD_1D;++n){
     cubX[n*NUM_QUAD_1D + n] = 1;
@@ -1257,13 +1111,13 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   matrixPrint(NUM_QUAD_1D, NUM_QUAD_1D, cubInvX, "cubInvX");
 
   
-  dfloat_t *IinvX = (dfloat_t*) calloc(NUM_DOFS_1D*NUM_QUAD_1D, sizeof(dfloat_t));
-  dfloat_t *cubInvXIinvX = (dfloat_t*) calloc(NUM_DOFS_1D*NUM_QUAD_1D, sizeof(dfloat_t));
+  dfloat *IinvX = (dfloat*) calloc(NUM_DOFS_1D*NUM_QUAD_1D, sizeof(dfloat));
+  dfloat *cubInvXIinvX = (dfloat*) calloc(NUM_DOFS_1D*NUM_QUAD_1D, sizeof(dfloat));
 
   // post multiply by invX
   for(int i=0;i<NUM_QUAD_1D;++i){
     for(int a=0;a<NUM_DOFS_1D;++a){
-      dfloat_t res = 0;
+      dfloat res = 0;
       for(int n=0;n<NUM_DOFS_1D;++n){
 	res += h_DofToQuad[i*NUM_DOFS_1D+n]*invX[n*NUM_DOFS_1D+a];
       }
@@ -1276,7 +1130,7 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   // pre multiply by invX
   for(int i=0;i<NUM_QUAD_1D;++i){
     for(int a=0;a<NUM_DOFS_1D;++a){
-      dfloat_t res = 0;
+      dfloat res = 0;
       for(int n=0;n<NUM_QUAD_1D;++n){
 	res += cubInvX[i*NUM_QUAD_1D+n]*IinvX[n*NUM_DOFS_1D + a];
       }
@@ -1306,22 +1160,22 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   int NoddDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
   int NevenDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
   
-  hipMalloc(c_oddDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
-  hipMalloc(c_evenDofToQuad, NevenDofToQuad*sizeof(dfloat_t));
+  hipMalloc(c_oddDofToQuad, NoddDofToQuad*sizeof(dfloat));
+  hipMalloc(c_evenDofToQuad, NevenDofToQuad*sizeof(dfloat));
   
-  hipMemcpy(*c_oddDofToQuad,  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t),  hipMemcpyHostToDevice);
-  hipMemcpy(*c_evenDofToQuad, h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(*c_oddDofToQuad,  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat),  hipMemcpyHostToDevice);
+  hipMemcpy(*c_evenDofToQuad, h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat), hipMemcpyHostToDevice);
   
-  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToQuad),  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat_t));
-  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToQuad), h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat_t));
-  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToQuad),     h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat_t));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToQuad),  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToQuad), h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat));
+  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToQuad),     h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat));
 }
 
 
 void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
-				 dfloat_t *c_op,
-				 dfloat_t *c_DofToQuad, dfloat_t *c_oddDofToQuad, dfloat_t *c_evenDofToQuad,
-				 dfloat_t *c_solIn, dfloat_t *c_solOut, int mode){
+				 dfloat *c_op,
+				 dfloat *c_DofToQuad, dfloat *c_oddDofToQuad, dfloat *c_evenDofToQuad,
+				 dfloat *c_solIn, dfloat *c_solOut, int mode){
   
 #define BK1Kernel(Nq,cubNq,Nblock)					\
   {									\
@@ -1483,7 +1337,7 @@ void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
 }
 
 
-dfloat_t nothingTest(hipStream_t stream, int Ntests){
+dfloat nothingTest(hipStream_t stream, int Ntests){
 
   hipEvent_t start, end;
   hipEventCreate(&start);
@@ -1547,8 +1401,8 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   hipEventCreate(&start);
   hipEventCreate(&end);	
   
-  dfloat_t *h_bwTest1, *c_bwTest1;
-  dfloat_t *h_bwTest2, *c_bwTest2;
+  dfloat *h_bwTest1, *c_bwTest1;
+  dfloat *h_bwTest2, *c_bwTest2;
   
   randAlloc(bwNtotal/2, &h_bwTest1, &c_bwTest1);
   randAlloc(bwNtotal/2, &h_bwTest2, &c_bwTest2);
@@ -1557,8 +1411,8 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   hipEventRecord(start, stream);
   
   for(int test=0;test<Ntests/2;++test){
-    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
-    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat), hipMemcpyDeviceToDevice);
   }
   
   hipEventRecord(end, stream);
@@ -1570,7 +1424,7 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   elapsed /= 1000.; // convert to s
   elapsed /= (double) Ntests;
   
-  double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat_t)/elapsed)/1.e9;
+  double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat)/elapsed)/1.e9;
   
   hipFree(c_bwTest1);
   hipFree(c_bwTest2);
@@ -1616,7 +1470,7 @@ int main(int argc, char **argv){
   int Ntests = 50;
   
   // do nothing kernel test
-  dfloat_t nothingElapsed = nothingTest(stream, Ntests);
+  dfloat nothingElapsed = nothingTest(stream, Ntests);
   nothingElapsed = nothingTest(stream, Ntests);
 
   int   Np = Nq*Nq*Nq;
@@ -1631,14 +1485,14 @@ int main(int argc, char **argv){
   // bandwidth test
   // total number of bytes
 
-  double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+cubNtotal)*sizeof(dfloat_t));
+  double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+cubNtotal)*sizeof(dfloat));
   
-  dfloat_t *h_op,      *c_op;
-  dfloat_t *h_solOut,       *c_solOut;
-  dfloat_t *h_solIn,        *c_solIn;
-  dfloat_t *h_DofToQuad,    *c_DofToQuad;
-  dfloat_t *h_oddDofToQuad, *c_oddDofToQuad;
-  dfloat_t *h_evenDofToQuad, *c_evenDofToQuad;
+  dfloat *h_op,      *c_op;
+  dfloat *h_solOut,       *c_solOut;
+  dfloat *h_solIn,        *c_solIn;
+  dfloat *h_DofToQuad,    *c_DofToQuad;
+  dfloat *h_oddDofToQuad, *c_oddDofToQuad;
+  dfloat *h_evenDofToQuad, *c_evenDofToQuad;
 
   // float fields
   randAlloc(cubNtotal*p_Nvgeo, &h_op, &c_op);
@@ -1649,7 +1503,7 @@ int main(int argc, char **argv){
     }
   }
   
-  hipMemcpy(c_op, h_op, p_Nvgeo*numElements*cubNp*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(c_op, h_op, p_Nvgeo*numElements*cubNp*sizeof(dfloat), hipMemcpyHostToDevice);
   
   randAlloc(Ntotal, &h_solIn, &c_solIn);
   randAlloc(Ntotal, &h_solOut, &c_solOut);
@@ -1663,7 +1517,7 @@ int main(int argc, char **argv){
   meshJacobiGL(0,0,Nq-1, &r, &w);
   meshJacobiGQ(0,0,cubNq-1, &cubr, &cubw);
   meshInterpolationMatrix1D(Nq-1, Nq, r, cubNq, cubr, &h_DofToQuad);
-  hipMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat), hipMemcpyHostToDevice);
   
   matrixPrint(cubNq, Nq, h_DofToQuad, "DofToQuad");
 
@@ -1698,7 +1552,7 @@ int main(int argc, char **argv){
     elapsed /= (double) Ntests;
 
     // estimate bandwidth (assuming all data moved to/from device memory)
-    int bytesMoved = (2*Np+cubNp)*sizeof(dfloat_t); // x, Mx, opa   
+    int bytesMoved = (2*Np+cubNp)*sizeof(dfloat); // x, Mx, opa   
     double bw = (bytesMoved*numElements/elapsed)/1.e9;
 
     double estFlops =
@@ -1721,15 +1575,15 @@ int main(int argc, char **argv){
   meshReferenceBK1(Nq, cubNq, numElements, h_op, h_DofToQuad, h_solIn, h_solOut);
 
   // copy device version to host old q
-  dfloat_t *fromDevice = (dfloat_t*) calloc(numElements*Np, sizeof(dfloat_t));
-  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), hipMemcpyDeviceToHost);
+  dfloat *fromDevice = (dfloat*) calloc(numElements*Np, sizeof(dfloat));
+  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat), hipMemcpyDeviceToHost);
 
-  dfloat_t maxDiff = 0;
+  dfloat maxDiff = 0;
   
   for(int e=0;e<numElements;++e){
     for(int n=0;n<Np;++n){
       int id = e*Np + n;
-      dfloat_t diff = fabs(h_solOut[id]-fromDevice[id]);
+      dfloat diff = fabs(h_solOut[id]-fromDevice[id]);
       maxDiff = (diff>maxDiff) ? diff:maxDiff;
     }
   }
