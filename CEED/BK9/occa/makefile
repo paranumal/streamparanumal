@@ -1,5 +1,6 @@
 
 PROJ_DIR=./
+CORE_DIR=../../core
 
 ifndef OCCA_DIR
 ERROR:
@@ -14,8 +15,8 @@ compilerFlags += -Ddlong=int
 compilerFlags += -DdfloatString='"double"'
 compilerFlags += -DdlongString='"int"'
 
-${PROJ_DIR}/BK9: ${PROJ_DIR}/BK9.cpp
-	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o BK9 $(linkerFlags) ${PROJ_DIR}/BK9.cpp ${PROJ_DIR}/meshBasis.cpp $(paths) -L${OCCA_DIR}/lib $(flags) -locca -llapack -lblas
+${PROJ_DIR}/BK9: ${PROJ_DIR}/BK9.cpp  ${CORE_DIR}/meshBasis.cpp
+	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o BK9 $(linkerFlags) ${PROJ_DIR}/BK9.cpp -I${CORE_DIR}/ ${CORE_DIR}/meshBasis.cpp $(paths) -L${OCCA_DIR}/lib $(flags) -locca -llapack -lblas
 #$(linkerFlags)
 
 
@@ -23,5 +24,5 @@ $(oPath)/%.o:$(sPath)/%.cpp $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.hpp
 	$(compiler) -DOCCA_VERSION_1_0 $(compilerFlags) -o $@ $(flags) -c $(paths) $<
 
 clean:
-	rm -f ${PROJ_DIR}/BK1
+	rm -f ${PROJ_DIR}/BK9
 
