@@ -43,8 +43,6 @@
       }							\
     }							\
     							\
-    @barrier("local");					\
-    							\
     /* raise in b */					\
     for(int k=0;k<p_cubNq;++k;@inner(1)){		\
       for(int a=0;a<p_cubNq;++a;@inner(0)){		\
@@ -65,8 +63,6 @@
       }							\
     }							\
     							\
-    @barrier("local");					\
-    							\
     /* raise in a */					\
     for(int k=0;k<p_cubNq;++k;@inner(1)){		\
       for(int j=0;j<p_cubNq;++j;@inner(0)){		\
@@ -84,8 +80,6 @@
       }							\
     }							\
     							\
-    @barrier("local");					\
-    							\
     /* copy back to registers */			\
     for(int j=0;j<p_cubNq;++j;@inner(1)){		\
       for(int i=0;i<p_cubNq;++i;@inner(0)){		\
@@ -94,9 +88,6 @@
 	}						\
       }							\
     }							\
-    							\
-    @barrier("local");					\
-    							\
   }							\
     
 #define testHex3D(s_I, r_p)				\
@@ -114,8 +105,6 @@
 	}						\
       }							\
     }							\
-    							\
-    @barrier("local");					\
     							\
     /* lower in 'j' */					\
     for(int c=0;c<p_cubNq;++c;@inner(1)){		\
@@ -138,8 +127,6 @@
       }							\
     }							\
     							\
-    @barrier("local");					\
-    							\
     /* lower in 'i' */					\
     for(int c=0;c<p_cubNq;++c;@inner(1)){		\
       for(int b=0;b<p_cubNq;++b;@inner(0)){		\
@@ -160,9 +147,7 @@
 	}						\
       }							\
     }							\
-    							\
-    @barrier("local");					\
-    							\
+							\
     /* copy back to registers */			\
     for(int b=0;b<p_cubNq;++b;@inner(1)){		\
       for(int a=0;a<p_cubNq;++a;@inner(0)){		\
@@ -173,9 +158,6 @@
 	}						\
       }							\
     }							\
-    							\
-    @barrier("local");					\
-    							\
   }						
 
 
@@ -221,8 +203,6 @@
     interpolateHex3D(s_I, r_U);
     interpolateHex3D(s_I, r_V);
     interpolateHex3D(s_I, r_W);
-    
-    @barrier("local");
       
     for(int j=0;j<p_cubNq;++j;@inner(1)){
       for(int i=0;i<p_cubNq;++i;@inner(0)){
@@ -237,8 +217,6 @@
         }
       }    
     }
-    
-    @barrier("local");
     
     // lower pressure degree
     testHex3D(s_I, r_U);
@@ -307,9 +285,7 @@
     interpolateHex3D(s_I, r_U);
     interpolateHex3D(s_I, r_V);
     interpolateHex3D(s_I, r_W);
-    
-    @barrier("local");
-    
+
     for(int j=0;j<p_cubNq;++j;@inner(1)){
       for(int i=0;i<p_cubNq;++i;@inner(0)){
 	
@@ -326,8 +302,6 @@
 	}
       }
     }
-    
-    @barrier("local");
     
     testHex3D(s_I, r_U);
     testHex3D(s_I, r_V);
