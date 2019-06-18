@@ -344,7 +344,6 @@ __global__ void BK5SharedKernel(const int numElements,
   __shared__ dfloat  s_Gqr[NUM_DOFS_1D][NUM_DOFS_1D];
   __shared__ dfloat  s_Gqs[NUM_DOFS_1D][NUM_DOFS_1D];
   
-  dfloat  r_qt, r_Gqt, r_Auk;
   //  dfloat  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
   
   int e = blockIdx.x;
@@ -360,80 +359,91 @@ __global__ void BK5SharedKernel(const int numElements,
   // load pencil of u into register
   const int base = i + j*NUM_DOFS_1D + e*NUM_DOFS_3D;
   for(int k = 0; k < NUM_DOFS_1D; k++) {
-    s_q[k][j][i] = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
-    s_Aq[k][j][i] = 0;
+    dfloat qkji = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
+
+    // prefetch geometric factors
+    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    
+    dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+    
+    s_q[k][j][i] = qkji;
+    s_Aq[k][j][i] = r_GwJ*lambda*qkji;
   }
 
   // NUM_DOFS_1D
   //#pragma nounroll 
   for(int k = 0;k < NUM_DOFS_1D; k++){
-	
-    // prefetch geometric factors
-    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
-    
-    dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
-    dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
-    dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
-    
-    dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
-    dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
-    dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
-    
-    dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
 
-    r_Auk = r_GwJ*lambda*s_q[k][j][i];
+    __syncthreads();
 
-    
-    r_qt = 0;
+    dfloat qt = 0;
 
-    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++) {
 #if 1
-      r_qt += s_D[k][m]*s_q[m][j][i];
+      qt += s_D[k][m]*s_q[m][j][i];
 #else
-      r_qt += const_DofToDofD[k*NUM_DOFS_1D+m]*s_q[m][j][i];
+      qt += const_DofToDofD[k*NUM_DOFS_1D+m]*s_q[m][j][i];
 #endif
     }
 
     dfloat  qr = 0.f;
-    dfloat  qs = 0.f;
-    
-    //#pragma unroll NUM_DOFS_1D
-    for(int m = 0; m < NUM_DOFS_1D; m++) {
-#if 1
+    for(int m = 0; m < NUM_DOFS_1D; m++)      
       qr += s_D[i][m]*s_q[k][j][m];
+
+    dfloat  qs = 0.f;
+    for(int m = 0; m < NUM_DOFS_1D; m++) 
       qs += s_D[j][m]*s_q[k][m][i];
-#else
-      qr += const_DofToDofD[i*NUM_DOFS_1D+m]*s_q[k][j][m];
-      qs += s_D[j][m]*s_q[k][m][i];
-#endif
-    }
 
+    // prefetch geometric factors
+    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+
+    dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
+    
+    dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+    r_Gqr += r_G00*qr;
+    
+    dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+    r_Gqr += r_G01*qs;
+    r_Gqs += r_G01*qr;
+    
+    dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+    r_Gqr += r_G02*qt;
+    r_Gqt += r_G02*qr;
+    
+    dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+    r_Gqs += r_G11*qs;
+    
+    dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+    r_Gqs += r_G12*qt;
+    r_Gqt += r_G12*qs;
+
+    dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+    r_Gqt += r_G22*qt;
+
+    s_Gqr[j][i] = r_Gqr;
+    s_Gqs[j][i] = r_Gqs;
+    
+    // put this here for a bump
+#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++)
+      s_Aq[m][j][i] += s_D[k][m]*r_Gqt;
+
+    // constant memory is slow for some reason
+    //s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; 
+    
     __syncthreads();
+
+    dfloat r_Auks = 0;
+#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++)
+      r_Auks   += s_D[m][j]*s_Gqs[m][i];
+
+    dfloat r_Aukr = 0;
+#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++)
+      r_Aukr   += s_D[m][i]*s_Gqr[j][m];
     
-    s_Gqr[j][i] = (r_G00*qr + r_G01*qs + r_G02*r_qt);
-    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
-    
-    // put this here for a performance bump
-    r_Gqt = (r_G02*qr + r_G12*qs + r_G22*r_qt);
-
-    __syncthreads();
-
-    //#pragma unroll NUM_DOFS_1D
-    for(int m = 0; m < NUM_DOFS_1D; m++){
-      r_Auk   += s_D[m][j]*s_Gqs[m][i];
-      r_Auk   += s_D[m][i]*s_Gqr[j][m];
-
-#if 1
-      s_Aq[m][j][i] += s_D[k][m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
-#else
-      s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
-#endif
-
-    }
-    
-    //    r_Aq[k] += r_Auk;
-    s_Aq[k][j][i] += r_Auk;
+    s_Aq[k][j][i] += r_Aukr+r_Auks;
   }
   
   // write out
