@@ -125,6 +125,14 @@ void meshReferenceBK3(int Nq,
 		      const dfloat *  solIn,
 		      dfloat *  solOut);
 
+void meshReferenceBK5(int Nq,
+		      int Nelements,
+		      dfloat lambda,
+		      const dfloat *  ggeo,
+		      const dfloat *  cubD,
+		      const dfloat * qIII,
+		      dfloat *lapqIII);
+
 #define p_GWJID 0
 #define p_G00ID 1
 #define p_G01ID 2

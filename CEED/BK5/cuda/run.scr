@@ -1,0 +1,29 @@
+#!/bin/bash
+
+rm BK5
+make
+
+# to run a sweep
+for Nq in `seq 2 1 11`
+do
+    
+    #  let cubNq=$(($Nq + 2))
+    let Np=$Nq*$Nq*$Nq
+    
+    let maxE=1000000/$Np
+    
+    let tmpE=$maxE/80
+    let tmpE2=(19+$tmpE)/20
+    let skipE=$tmpE2*20
+    
+    echo $maxE
+    echo $skipE
+    
+    ./BK5 $Nq 1  
+    
+    for E in `seq 80 $skipE $maxE`
+    do
+	./BK5 $Nq $E 
+    done
+done
+      

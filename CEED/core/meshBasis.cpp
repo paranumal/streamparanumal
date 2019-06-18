@@ -29,6 +29,9 @@ SOFTWARE.
 #include <math.h>
 #include "meshBasis.hpp"
 
+#define cubNq3 (cubNq*cubNq*cubNq)
+#define Nq3 (Nq*Nq*Nq)
+
 dfloat mygamma(dfloat x){
 
   dfloat lgam = lgamma(x);
@@ -1525,16 +1528,14 @@ void meshReferenceBK1(int Nq, int cubNq, const int Nelements, const dfloat *ggeo
   
 }
 
-#define cubNq3 (cubNq*cubNq*cubNq)
-
-void meshReferenceInnerBK3(int cubNq,
-			   int element,
-			   dfloat lambda,
-			   const dfloat *  ggeo,
-			   const dfloat *  cubD,
-			   const dfloat * qIII,
-			   dfloat *lapqIII){
-
+void meshReferenceElementBK5(int cubNq,
+			     int element,
+			     dfloat lambda,
+			     const dfloat *  ggeo,
+			     const dfloat *  cubD,
+			     const dfloat * qIII,
+			     dfloat *lapqIII){
+  
   dfloat Gqr[cubNq][cubNq][cubNq];
   dfloat Gqs[cubNq][cubNq][cubNq];
   dfloat Gqt[cubNq][cubNq][cubNq];
@@ -1685,7 +1686,7 @@ void meshReferenceBK3(int Nq,
       }
     }
   
-    meshReferenceInnerBK3(cubNq, e, lambda, ggeo, cubD, qIII[0][0], lapqIII[0][0]);
+    meshReferenceElementBK5(cubNq, e, lambda, ggeo, cubD, qIII[0][0], lapqIII[0][0]);
 
     // project in a
     for(int k=0;k<cubNq;++k){
@@ -1744,6 +1745,24 @@ void meshReferenceBK3(int Nq,
 	}
       }
     }
+  }
+  
+}
+
+
+
+void meshReferenceBK5(int Nq,
+		      const int numElements,
+		      dfloat lambda,
+		      const dfloat *  ggeo,
+		      const dfloat *  D,
+		      const dfloat *  solIn,
+		      dfloat *  solOut){
+
+  for(int e=0;e<numElements;++e){
+  
+    meshReferenceElementBK5(Nq, e, lambda, ggeo, D, solIn+e*Nq3, solOut+e*Nq3);
+
   }
   
 }
