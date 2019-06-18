@@ -1,4 +1,4 @@
-cudaFlags =  -arch=sm_70   --use_fast_math -Xptxas -v,-dlcm=ca,-O3 -Xcompiler -g
+cudaFlags =  -arch=sm_70   --use_fast_math -Xptxas -v,-dlcm=ca,-O3 -Xcompiler -O3
 
 BK5: BK5.cu
 	nvcc -o BK5 $(cudaFlags) BK5.cu
