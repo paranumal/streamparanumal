@@ -8,6 +8,6 @@ BK1: BK1.cu makefile
 	mpic++ $(flags) -c  -I../../core/ ../../core/meshBasis.cpp
 	nvcc $(flags) -o BK1 $(cudaFlags) BK1.cu meshBasis.o -llapack -lblas
 
-clean:
-	rm -f BK1 BK1.o
+clean: 
+	rm -f BK1 BK1.o meshBasis.o
 

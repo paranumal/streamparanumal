@@ -1059,7 +1059,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 }
 
 
-
+#if 0
 void BK1Host(int NUM_DOFS_1D, int NUM_QUAD_1D, const int numElements,
 	     const dfloat_t * __restrict__ op,
 	     const dfloat_t * __restrict__ cubDofToQuad,
@@ -1201,6 +1201,7 @@ void BK1Host(int NUM_DOFS_1D, int NUM_QUAD_1D, const int numElements,
   }
   
 }
+#endif
 
 void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
 			 dfloat_t *h_DofToQuad,     dfloat_t *h_oddDofToQuad, dfloat_t *h_evenDofToQuad,
@@ -1656,14 +1657,12 @@ int main(int argc, char **argv){
   randAlloc(Nq*cubNq, &h_DofToQuad, &c_DofToQuad);
   randAlloc(halfNq*halfCubNq, &h_oddDofToQuad, &c_oddDofToQuad);
   randAlloc(halfNq*halfCubNq, &h_evenDofToQuad, &c_evenDofToQuad);
-  
-  // give I the correct symmetry
-  for(int i=0;i<halfCubNq;++i){
-    for(int a=0;a<Nq;++a){
-      h_DofToQuad[(cubNq-1-i)*Nq + Nq-1-a] = h_DofToQuad[i*Nq+a];
-    }
-  }
 
+  // build interpolation matrix
+  dfloat *r, *w, *cubr, *cubw;
+  meshJacobiGL(0,0,Nq-1, &r, &w);
+  meshJacobiGQ(0,0,cubNq-1, &cubr, &cubw);
+  meshInterpolationMatrix1D(Nq-1, Nq, r, cubNq, cubr, &h_DofToQuad);
   hipMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat_t), hipMemcpyHostToDevice);
   
   matrixPrint(cubNq, Nq, h_DofToQuad, "DofToQuad");
@@ -1718,7 +1717,8 @@ int main(int argc, char **argv){
   }
 
   // check output is correct
-  BK1Host (Nq,cubNq,numElements, h_op, h_DofToQuad, h_solIn, h_solOut);
+  //  BK1Host (Nq,cubNq,numElements, h_op, h_DofToQuad, h_solIn, h_solOut);
+  meshReferenceBK1(Nq, cubNq, numElements, h_op, h_DofToQuad, h_solIn, h_solOut);
 
   // copy device version to host old q
   dfloat_t *fromDevice = (dfloat_t*) calloc(numElements*Np, sizeof(dfloat_t));
