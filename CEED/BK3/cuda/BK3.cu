@@ -8,8 +8,7 @@ See LICENSE file.
 #include <stdlib.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-
-#define dfloat_t double
+#include "meshBasis.hpp"
 
 void matrixPrint(int Nrows, int Ncols, dfloat_t *A, const char *mess){
 #if 0
@@ -492,6 +491,7 @@ __global__ void massMatrixMultiplyConstantKernel(const int numElements,
   }
 }
 
+#if 0
 void stiffnessElementalMatrixMultiplyHost(int NUM_QUAD_1D, int element, dfloat_t lambda,
 					  const dfloat_t * __restrict__ op,
 					  const dfloat_t * __restrict__ QuadToQuadD,
@@ -708,6 +708,7 @@ void massMatrixMultiplyHost(int NUM_DOFS_1D, int NUM_QUAD_1D, const int numEleme
   }
   
 }
+#endif
 
 double bandwidthTest(cudaStream_t stream, int Ntests, size_t bwNtotal){
 
@@ -1162,7 +1163,8 @@ int main(int argc, char **argv){
   
   randAlloc(Nq*cubNq, &h_DofToQuad, &c_DofToQuad);
   randAlloc(cubNq*cubNq, &h_QuadToQuadD, &c_QuadToQuadD);
-  
+
+#if 0
   // give I the correct symmetry
   for(int i=0;i<halfCubNq;++i){
     for(int a=0;a<Nq;++a){
@@ -1176,6 +1178,22 @@ int main(int argc, char **argv){
       h_QuadToQuadD[(cubNq-1-i)*Nq + Nq-1-a] = -h_QuadToQuadD[i*Nq+a];
     }
   }
+#else
+
+  // ------------------------------------------------------------------------------
+  // build element nodes and operators
+  
+  dfloat *r, *w;
+  dfloat *cubr, *cubw;
+  
+  meshJacobiGL(0,0,N, &r, &w);
+  meshJacobiGQ(0,0,cubN, &cubr, &cubw);
+  
+  meshDmatrix1D(N, Nq, r, &h_DofToDofD);
+  meshDmatrix1D(cubN, cubNq, cubr, &h_QuadToQuadD);
+
+  meshInterpolationMatrix1D(N, Nq, r, cubNq, cubr, &h_DofToQuad);
+#endif
 
   // create Odd-even packed storage for I and transpose(I) and push to constant memory
   buildOddEvenMatrices (   Nq,cubNq, h_DofToQuad,   &c_DofToQuad,   &c_oddDofToQuad,   &c_evenDofToQuad  );
