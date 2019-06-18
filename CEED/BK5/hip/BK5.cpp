@@ -115,7 +115,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
   }
   
   // Layer by layer
-#pragma unroll 
+#pragma unroll NUM_DOFS_1D
   for(int k = 0; k < NUM_DOFS_1D; k++) {
 
     dfloat_t G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
@@ -144,7 +144,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int km = ijN(m,k,NUM_DOFS_1D);
       pr += DofToDofD[im]*s_p[blk][k][j][m];
       ps += DofToDofD[jm]*s_p[blk][k][m][i];
-      pt += const_DofToDofD[km]*s_p[blk][m][j][i];
+      pt += DofToDofD[km]*s_p[blk][m][j][i];
     }
 
     __syncthreads();
@@ -165,7 +165,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int km = ijN(m,k,NUM_DOFS_1D);
       Apk     += DofToDofD[mi]*s_Gpr[blk][j][m];
       Apk     += DofToDofD[mj]*s_Gps[blk][m][i];
-      r_Ap[m] += const_DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
+      r_Ap[m] += DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
     }
     
     r_Ap[k] += Apk;
@@ -211,7 +211,7 @@ __global__ void BK5ConstantKernel(const int numElements,
   __syncthreads();
   
   BK5Device  <NUM_DOFS_1D, p_Nblock>
-    (numElements, element, lambda, op, s_DofToDofD, const_oddDofToDofD, const_evenDofToDofD, s_p, r_Ap);
+    (numElements, element, lambda, op, DofToDofD, const_oddDofToDofD, const_evenDofToDofD, s_p, r_Ap);
   
   if(element<numElements){
 #pragma unroll
@@ -260,7 +260,7 @@ __global__ void BK5ImportKernel(const int numElements,
     r_Aq[k] = 0.f; // zero the accumulator
   }
 
-#pragma unroll NUM_DOFS_1D
+  //#pragma nounroll NUM_DOFS_1D
   for(int k = 0;k < NUM_DOFS_1D; k++){
 	
     // prefetch geometric factors
@@ -282,8 +282,8 @@ __global__ void BK5ImportKernel(const int numElements,
     s_q[j][i] = r_q[k];
     
     r_qt = 0;
-    
-#pragma unroll NUM_DOFS_1D
+
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++) {
       r_qt += s_D[k][m]*r_q[m];
     }
@@ -293,14 +293,14 @@ __global__ void BK5ImportKernel(const int numElements,
     dfloat_t  qr = 0.f;
     dfloat_t  qs = 0.f;
     
-#pragma unroll NUM_DOFS_1D
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++) {
       qr += s_D[i][m]*s_q[j][m];
       qs += s_D[j][m]*s_q[m][i];
     }
-    
-    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
+
     s_Gqr[j][i] = (r_G00*qr + r_G01*qs + r_G02*r_qt);
+    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
     
     // put this here for a performance bump
     r_Gqt = (r_G02*qr + r_G12*qs + r_G22*r_qt);
@@ -308,7 +308,7 @@ __global__ void BK5ImportKernel(const int numElements,
 
     __syncthreads();
 
-#pragma unroll NUM_DOFS_1D
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++){
       r_Auk   += s_D[m][j]*s_Gqs[m][i];
       r_Aq[m] += s_D[k][m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
@@ -319,10 +319,128 @@ __global__ void BK5ImportKernel(const int numElements,
   }
   
   // write out
-#pragma unroll NUM_DOFS_1D
+  //#pragma unroll NUM_DOFS_1D
   for(int k = 0; k < NUM_DOFS_1D; k++){
     const int id = e*NUM_DOFS_3D +k*NUM_DOFS_1D*NUM_DOFS_1D+ j*NUM_DOFS_1D + i;
     Aq[id] = r_Aq[k];
+  }
+}
+
+
+
+template <int NUM_DOFS_1D>
+__global__ void BK5SharedKernel(const int numElements,
+				const dfloat_t  lambda,			     
+				const  dfloat_t  * __restrict__ op,
+				const  dfloat_t  * __restrict__ D,
+				const  dfloat_t  * __restrict__ q,
+				dfloat_t  *  __restrict__ Aq){
+  
+  
+  __shared__ dfloat_t  s_D[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat_t  s_q[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat_t  s_Aq[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  __shared__ dfloat_t  s_Gqr[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat_t  s_Gqs[NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  dfloat_t  r_qt, r_Gqt, r_Auk;
+  //  dfloat_t  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
+  
+  dfloat_t  r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
+
+  int e = blockIdx.x;
+  const unsigned int t = threadIdx.x;
+  
+  int i=t%NUM_DOFS_1D;
+  int j=t/NUM_DOFS_1D;
+
+  //load D into local memory
+  // s_D[i][j] = d \phi_i at node j
+  s_D[j][i] = D[NUM_DOFS_1D*j+i]; // D is column major
+  
+  // load pencil of u into register
+  const int base = i + j*NUM_DOFS_1D + e*NUM_DOFS_3D;
+  for(int k = 0; k < NUM_DOFS_1D; k++) {
+    s_q[k][j][i] = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
+    //    r_Aq[k] = 0.f; // zero the accumulator
+    s_Aq[k][j][i] = 0;
+  }
+
+#pragma unroll NUM_DOFS_1D
+  for(int k = 0;k < NUM_DOFS_1D; k++){
+	
+    // prefetch geometric factors
+    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    
+    r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+    r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+    r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+    
+    r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+    r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+    r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+    
+    r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+
+    r_qt = 0;
+
+    //#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++) {
+#if 1
+      r_qt += s_D[k][m]*s_q[m][j][i];
+#else
+      r_qt += const_DofToDofD[k*NUM_DOFS_1D+m]*s_q[m][j][i];
+#endif
+    }
+
+    dfloat_t  qr = 0.f;
+    dfloat_t  qs = 0.f;
+    
+    //#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++) {
+#if 1
+      qr += s_D[i][m]*s_q[k][j][m];
+      qs += s_D[j][m]*s_q[k][m][i];
+#else
+      qr += const_DofToDofD[i*NUM_DOFS_1D+m]*s_q[k][j][m];
+      qs += s_D[j][m]*s_q[k][m][i];
+#endif
+    }
+
+    __syncthreads();
+    
+    s_Gqr[j][i] = (r_G00*qr + r_G01*qs + r_G02*r_qt);
+    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
+    
+    // put this here for a performance bump
+    r_Gqt = (r_G02*qr + r_G12*qs + r_G22*r_qt);
+    r_Auk = r_GwJ*lambda*s_q[k][j][i];
+
+    __syncthreads();
+
+    //#pragma unroll NUM_DOFS_1D
+    for(int m = 0; m < NUM_DOFS_1D; m++){
+      r_Auk   += s_D[m][j]*s_Gqs[m][i];
+      r_Auk   += s_D[m][i]*s_Gqr[j][m];
+
+#if 1
+      s_Aq[m][j][i] += s_D[k][m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
+#else
+      s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
+#endif
+
+    }
+    
+    //    r_Aq[k] += r_Auk;
+    s_Aq[k][j][i] += r_Auk;
+  }
+  
+  // write out
+  //#pragma unroll NUM_DOFS_1D
+  for(int k = 0; k < NUM_DOFS_1D; k++){
+    const int id = e*NUM_DOFS_3D +k*NUM_DOFS_1D*NUM_DOFS_1D+ j*NUM_DOFS_1D + i;
+    Aq[id] = s_Aq[k][j][i]; // r_Aq[k];
   }
 }
 
@@ -585,10 +703,14 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
     }else{								\
       dim3 G(numElements, 1, 1);					\
       dim3 B(Nq*Nq, 1, 1);						\
-      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,		\
+      hipLaunchKernelGGL(BK5SharedKernel<Nq>, G, B, 0, stream,		\
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
     }									\
   }
+
+  //      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,	\
+  //			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
+
   
 #define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
 
@@ -608,7 +730,8 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
   }
 
   if(Nq==5){
-    BK5Kernel(5,5);
+    //    BK5Kernel(5,5);
+    BK5Kernel(5,1);
     return;
   }
 
