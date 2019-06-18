@@ -288,10 +288,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 #endif
   __syncthreads();
-
   
 }
-
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 

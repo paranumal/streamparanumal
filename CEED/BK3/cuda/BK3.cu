@@ -1141,9 +1141,9 @@ int main(int argc, char **argv){
   int cubNtotal = numElements*cubNp;
 
   int Ntests = 10;
-
   
-  double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+7*cubNtotal)*sizeof(dfloat_t));
+  double estimatedActualDeviceBandwidth =
+  	 bandwidthTest(stream, Ntests, (Ntotal*2+7*cubNtotal)*sizeof(dfloat_t));
   
   dfloat_t *h_op,      *c_op;
   dfloat_t *h_solOut,       *c_solOut;

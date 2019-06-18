@@ -15,7 +15,7 @@ do
     
     let maxE=1000000/$Np
     
-    let tmpE=$maxE/400
+    let tmpE=$maxE/80
     let tmpE2=(19+$tmpE)/20
     let skipE=$tmpE2*20
     
