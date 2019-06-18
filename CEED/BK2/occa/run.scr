@@ -1,0 +1,32 @@
+#!/bin/bash
+
+rm BK2
+make
+
+# to run a sweep
+for Nq in `seq 2 1 11`
+do
+    
+    #  let cubNq=$(($Nq + 2))
+    let cubNq=$((1+$Nq))
+    echo $cubNq
+    
+    let Np=$Nq*$Nq*$Nq
+    
+    let maxE=1000000/$Np
+    
+    let tmpE=$maxE/80
+    let tmpE2=(19+$tmpE)/20
+    let skipE=$tmpE2*20
+    
+    echo $maxE
+    echo $skipE
+    
+    ./BK2 $Nq $cubNq 1  1 CUDA 0 0
+
+    for E in `seq 80 $skipE $maxE`
+    do
+	./BK2 $Nq $cubNq $E CUDA 0 0
+    done
+done
+      
