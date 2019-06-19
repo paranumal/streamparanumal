@@ -6,7 +6,7 @@ make
 let Ndof=8000000
 
 # to run a sweep
-for Nq in `seq 2 1 11`
+for Nq in `seq 2 1 10`
 do
     
     #  let cubNq=$(($Nq + 2))
@@ -15,6 +15,6 @@ do
     let E=($Ndof+$Np)/$Np
     
     echo $E    
-    ./BK5 $Nq $E 2
+    ./BK5 $Nq $E 3
 done
       

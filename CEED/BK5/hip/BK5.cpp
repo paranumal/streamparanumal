@@ -353,7 +353,7 @@ template <int NUM_DOFS_1D>
   dfloat G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
   
   // prefetch geometric factors
-  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
   
   if(element<numElements){
     G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
@@ -458,6 +458,7 @@ __global__ void BK5CubeKernel(const int numElements,
 
 }
 
+template <int NUM_DOFS_1D>
 __global__ void BK5SharedKernel(const int numElements,
 				const dfloat  lambda,			     
 				const  dfloat  * __restrict__ op,
@@ -480,7 +481,6 @@ __global__ void BK5SharedKernel(const int numElements,
   
   int i=t%NUM_DOFS_1D;
   int j=t/NUM_DOFS_1D;
->>>>>>> c2d2fcc039cc0f732e002e214a3ef4719db4230a
 
   //load D into local memory
   // s_D[i][j] = d \phi_i at node j
@@ -993,14 +993,12 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat lambda,
       dim3 B(Nq*Nq, Nblock, 1);						\
       hipLaunchKernelGGL(BK5BlockedSharedKernel<Nq,Nblock>, G, B, 0, stream, \
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
-    }else if(mode==2){							\
+    }else if(mode==3){							\
       dim3 G(numElements, 1, 1);					\
       dim3 B(Nq,Nq, Nq);						\
       hipLaunchKernelGGL(BK5CubeKernel<Nq>, G, B, 0, stream,		\
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
     }									\
-
-    }
   }
   
   //      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,	\
