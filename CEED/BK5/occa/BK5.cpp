@@ -171,7 +171,8 @@ int main(int argc, char **argv){
 
   // --------------------------------------------------------------------------------
   // warm up
-  BK5Kernel(Nelements, o_ggeo, o_DrV, lambda, o_q, o_Aq);
+  for(int warm=0;warm<10;++warm)
+    BK5Kernel(Nelements, o_ggeo, o_DrV, lambda, o_q, o_Aq);
   
   // compute reference solution
   meshReferenceBK5(Nq, Nelements, lambda, ggeo, DrV, q, Aq);
@@ -188,7 +189,7 @@ int main(int argc, char **argv){
   device.finish();
   
   // run Ntests times
-  int Ntests = 10;
+  int Ntests = 40;
   
   start = device.tagStream();
 
