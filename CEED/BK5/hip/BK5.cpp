@@ -717,89 +717,6 @@ __global__ void BK5BlockedSharedKernel(const int numElements,
   }
 }
 
-
-
-void BK5Host(int NUM_DOFS_1D, int numElements, dfloat lambda,
-	     const dfloat * __restrict__ op,
-	     const dfloat * __restrict__ DofToDofD,
-	     const dfloat * q,
-	     dfloat *lapqout){
-
-  
-  dfloat Gqr[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat Gqs[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat Gqt[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  
-  for(int element=0;element<numElements;++element){
-    
-    for(int k=0;k<NUM_DOFS_1D;++k){
-      for(int j=0;j<NUM_DOFS_1D;++j){
-	for(int i=0;i<NUM_DOFS_1D;++i){
-	  
-	  dfloat qr = 0;
-	  dfloat qs = 0;
-	  dfloat qt = 0;
-	  
-	  for(int n=0;n<NUM_DOFS_1D;++n){
-	    int in = ijN(n,i,NUM_DOFS_1D);
-	    int jn = ijN(n,j,NUM_DOFS_1D);
-	    int kn = ijN(n,k,NUM_DOFS_1D);
-	    
-	    int kjn = ijklN(n,j,k,element,NUM_DOFS_1D);
-	    int kni = ijklN(i,n,k,element,NUM_DOFS_1D);
-	    int nji = ijklN(i,j,n,element,NUM_DOFS_1D);
-	    
-	    qr += DofToDofD[in]*q[kjn];
-	    qs += DofToDofD[jn]*q[kni];
-	    qt += DofToDofD[kn]*q[nji];	  
-	  }
-	  
-	  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
-	  
-	  dfloat G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
-	  dfloat G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
-	  dfloat G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
-	  dfloat G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
-	  dfloat G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
-	  dfloat G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
-	  
-	  Gqr[k][j][i] = (G00*qr + G01*qs + G02*qt);
-	  Gqs[k][j][i] = (G01*qr + G11*qs + G12*qt);
-	  Gqt[k][j][i] = (G02*qr + G12*qs + G22*qt);
-	}
-      }
-    }
-    
-    
-    for(int k=0;k<NUM_DOFS_1D;++k){
-      for(int j=0;j<NUM_DOFS_1D;++j){
-	for(int i=0;i<NUM_DOFS_1D;++i){
-	  
-	  int kji = ijklN(i,j,k,element,NUM_DOFS_1D);
-	  
-	  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
-	  
-	  dfloat GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
-	  dfloat lapq = lambda*GWJ*q[kji];
-	  
-	  for(int n=0;n<NUM_DOFS_1D;++n){
-	    int ni = ijN(i,n,NUM_DOFS_1D);
-	    int nj = ijN(j,n,NUM_DOFS_1D);
-	    int nk = ijN(k,n,NUM_DOFS_1D);
-	    
-	    lapq += DofToDofD[ni]*Gqr[k][j][n];
-	    lapq += DofToDofD[nj]*Gqs[k][n][i];
-	    lapq += DofToDofD[nk]*Gqt[n][j][i];	  
-	  }
-	  
-	  lapqout[kji] = lapq;
-	}
-      }
-    }
-  }
-}
-
-
 double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
 
   hipEvent_t start, end;
@@ -951,13 +868,9 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
 
   matrixPrint(NUM_COLS_OP, NUM_COLS_OP, X, "X");
   matrixPrint(NUM_ROWS_OP, NUM_ROWS_OP, cubX, "cubX");
-
   
   matrixPrint(NUM_COLS_OP, NUM_COLS_OP, invX, "invX");
   matrixPrint(NUM_ROWS_OP, NUM_ROWS_OP, cubInvX, "cubInvX");
-
-
-  
 }
 
 
@@ -989,12 +902,14 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat lambda,
       dim3 B(Nq,Nq, Nq);						\
       hipLaunchKernelGGL(BK5CubeKernel<Nq>, G, B, 0, stream,		\
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
+    } else if(mode==4){							\
+      dim3 G(numElements, 1, 1);					\
+      dim3 B(Nq*Nq, 1, 1);						\
+      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,		\
+			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
     }									\
   }
   
-  //      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,	\
-  //			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
-
   
 #define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
 
@@ -1264,7 +1179,6 @@ int main(int argc, char **argv){
   }
 
   // check output is correct
-  //  BK5Host (Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
   meshReferenceBK5(Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
 
   // copy device version to host old q
