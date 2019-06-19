@@ -55,20 +55,8 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 #define p_Nvgeo 1
 #define p_JWID 0
 
-void matrixPrint(int Nrows, int Ncols, dfloat *A, const char *mess){
-#if 0
-  printf("%s = [\n", mess);
-  for(int i=0;i<Nrows;++i){
-    for(int a=0;a<Ncols;++a){
-      printf(" % e", A[i*Ncols+a]);
-    }
-    printf("\n");
-  }
-  printf("]\n");
-#endif
-}
-
 __constant__ dfloat const_DofToQuad[MAX_QUAD_1D*MAX_DOFS_1D];
+__constant__ dfloat const_DofToQuadT[MAX_QUAD_1D*MAX_DOFS_1D];
 __constant__ dfloat const_oddDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
 __constant__ dfloat const_evenDofToQuad[MAX_HALF_QUAD_1D*MAX_HALF_DOFS_1D];
 
@@ -290,6 +278,163 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 
+  void BK1BlockSharedMonolithicDevice(const int numElements,
+				      const int element,
+				      const dfloat * __restrict__ op,
+				      const dfloat * __restrict__ DofToQuad,
+				      const dfloat * __restrict__ DofToQuadT,
+				      dfloat s_p[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D],
+				      dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D]){
+  
+  const int t   = threadIdx.x;
+  const int blk = threadIdx.y;
+
+#if 0
+  __shared__ dfloat ss_DofToQuad[NUM_QUAD_1D][NUM_DOFS_1D];
+  if(blk==0 && t<NUM_DOFS_1D*NUM_QUAD_1D)
+    ss_DofToQuad[0][t] = DofToQuad[t];
+
+
+  __syncthreads();
+
+  dfloat s_DofToQuad[NUM_QUAD_1D][NUM_DOFS_1D];
+  for(int i=0;i<NUM_QUAD_1D;++i){
+    for(int a=0;a<NUM_DOFS_1D;++a){
+      s_DofToQuad[i][a] = ss_DofToQuad[i][a];
+    }
+  }
+#endif
+  
+  __syncthreads();
+  
+  // assumes barrier before s_Ap was used last
+  // transform in 'a'
+  if(t<NUM_DOFS_2D){
+    const int b = t%NUM_DOFS_1D;
+    const int c = t/NUM_DOFS_1D;
+
+    const dfloat *I = DofToQuad;
+    
+    for(int i=0;i<NUM_QUAD_1D;++i){
+      dfloat res = 0;
+
+      for(int a=0;a<NUM_DOFS_1D;++a){
+	res  += *(I++)*s_p[blk][c][b][a];
+      }
+      
+      s_Ap[blk][c][b][i]  = res;
+    }
+  }
+  
+  __syncthreads();
+
+  // transform in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    const int i = t%NUM_QUAD_1D;
+    const int c = t/NUM_QUAD_1D;
+
+    const dfloat *I = DofToQuad;
+    
+    for(int j=0;j<NUM_QUAD_1D;++j){
+      dfloat res = 0;
+
+      for(int b=0;b<NUM_DOFS_1D;++b){
+	res  += *(I++)*s_Ap[blk][c][b][i];
+      }
+      s_p[blk][c][j][i] = res;
+    }
+  }
+  
+  __syncthreads();
+
+  {
+
+    // 1. transform in 'c'
+    
+    const int i = t%NUM_QUAD_1D;
+    const int j = t/NUM_QUAD_1D;
+
+    const dfloat *I = DofToQuad;
+    
+    for(int k=0;k<NUM_QUAD_1D;++k){
+
+      int gid = ijklN(i,j,k,element, NUM_QUAD_1D);
+      
+      dfloat WJ = (element<numElements) ? op[gid]: 0;
+
+      dfloat res = 0;
+
+      for(int c=0;c<NUM_DOFS_1D;++c){
+	res  += *(I++)*s_p[blk][c][j][i];
+      }
+      
+      s_Ap[blk][k][j][i] = WJ*res;
+    }
+
+    __syncthreads();
+    
+    // 2. test in 'c'
+
+    const dfloat *IT = DofToQuadT;
+    
+    for(int c=0;c<NUM_DOFS_1D;++c){
+      dfloat res = 0;
+      
+      for(int k=0;k<NUM_QUAD_1D;++k){
+	res  += *(IT++)*s_Ap[blk][k][j][i];
+      }
+    
+      s_p[blk][c][j][i] = res;
+    }
+  }
+  
+  __syncthreads();
+  
+  // test in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    const int i = t%NUM_QUAD_1D;
+    const int c = t/NUM_QUAD_1D;
+
+    const dfloat *IT = DofToQuadT;
+    
+    for(int b=0;b<NUM_DOFS_1D;++b){
+      dfloat res = 0;
+      
+      for(int j=0;j<NUM_QUAD_1D;++j){
+	res += *(IT++)*s_p[blk][c][j][i];
+      }
+      
+      s_Ap[blk][c][b][i] = res;
+    }
+  }
+  
+  __syncthreads();
+  
+  // test in 'a'
+  if(t<NUM_DOFS_2D){
+    const int b = t%NUM_DOFS_1D;
+    const int c = t/NUM_DOFS_1D;
+
+    const dfloat *IT = DofToQuadT;
+    
+    for(int a=0;a<NUM_DOFS_1D;++a){
+      dfloat res = 0; 
+      
+      for(int i=0;i<NUM_QUAD_1D;++i){
+	res += *(IT++)*s_Ap[blk][c][b][i];
+      }
+      
+      s_p[blk][c][b][a] = res;
+    }
+  }
+  
+  __syncthreads();
+  
+}
+
+
+template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
+  __forceinline__ __device__ 
   void BK1OddEvenDevice(const int numElements,
 			const int element,
 			const dfloat * __restrict__ op,
@@ -319,16 +464,18 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
     if(NUM_DOFS_1D%2)
       r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
-    
+
+    int cnt = 0;
+
 #pragma unroll
     for(int k=0;k<HALF_QUAD_1D;++k){
       dfloat resOdd = 0, resEven = 0;
-      
+
 #pragma unroll
       for(int c=0;c<HALF_DOFS_1D;++c){
-	int kc = ijN(c,k,HALF_DOFS_1D);		
-	resOdd  += oddDofToQuad[kc]*r_tmpOdd[c];
-	resEven += evenDofToQuad[kc]*r_tmpEven[c];
+	resOdd  += oddDofToQuad[cnt]*r_tmpOdd[c];
+	resEven += evenDofToQuad[cnt]*r_tmpEven[c];
+	++cnt;
       }
       
       s_Ap[blk][NUM_QUAD_1D-1-k][b][a] = resOdd - resEven;
@@ -354,6 +501,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
     if(NUM_DOFS_1D%2)
       r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
+
+    int cnt = 0;
     
 #pragma unroll
     for(int j=0;j<HALF_QUAD_1D;++j){
@@ -361,9 +510,9 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
       
 #pragma unroll
       for(int b=0;b<HALF_DOFS_1D;++b){
-	int jb = ijN(b,j,HALF_DOFS_1D);
-	resOdd  += oddDofToQuad[jb]*r_tmpOdd[b];
-	resEven += evenDofToQuad[jb]*r_tmpEven[b];
+	resOdd  += oddDofToQuad[cnt]*r_tmpOdd[b];
+	resEven += evenDofToQuad[cnt]*r_tmpEven[b];
+	++cnt;
       }
       
       s_Ap[blk][k][NUM_QUAD_1D-1-j][a] = resOdd-resEven;
@@ -388,23 +537,31 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
     
     if(NUM_DOFS_1D%2)
       r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
-    
+
+    int cnt = 0;
+
+
 #pragma unroll
     for(int i=0;i<HALF_QUAD_1D;++i){
       dfloat resOdd = 0, resEven = 0;
       
 #pragma unroll
       for(int a=0;a<HALF_DOFS_1D;++a){
-	int ia = ijN(a,i,HALF_DOFS_1D);
-	resOdd  += oddDofToQuad[ia]*r_tmpOdd[a];
-	resEven += evenDofToQuad[ia]*r_tmpEven[a];
+	resOdd  += oddDofToQuad[cnt]*r_tmpOdd[a];
+	resEven += evenDofToQuad[cnt]*r_tmpEven[a];
+	++cnt;
       }
       
       int gid1 = ijklN(NUM_QUAD_1D-1-i,j,k,element, NUM_QUAD_1D);
       int gid2 = ijklN(i,j,k,element, NUM_QUAD_1D);
 
+#if 1
       dfloat WJ1 = (element<numElements) ? op[gid1]:0;
       dfloat WJ2 = (element<numElements) ? op[gid2]:0;
+#else
+      dfloat WJ1 = op[gid1];
+      dfloat WJ2 = op[gid2];
+#endif
 
 #if 0
       s_Ap[blk][k][j][NUM_QUAD_1D-1-i] = WJ1*(resOdd-resEven);
@@ -461,7 +618,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   if(t<NUM_DOFS_1D*NUM_QUAD_1D){
     const int a = t%NUM_DOFS_1D;
     const int k = t/NUM_DOFS_1D;
-    
+
+#pragma unroll
     for(int j=0;j<HALF_QUAD_1D;++j){
       dfloat ApOdd  = s_Ap[blk][k][j][a];
       dfloat ApEven = s_Ap[blk][k][NUM_QUAD_1D-1-j][a];
@@ -494,7 +652,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   if(t<NUM_DOFS_2D){
     const int a = t%NUM_DOFS_1D;
     const int b = t/NUM_DOFS_1D;
-    
+
+#pragma unroll
     for(int k=0;k<HALF_QUAD_1D;++k){
       dfloat ApOdd  = s_Ap[blk][k][b][a];
       dfloat ApEven = s_Ap[blk][NUM_QUAD_1D-1-k][b][a];
@@ -541,6 +700,235 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __syncthreads();
 
 }
+
+
+template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
+__forceinline__ __device__ 
+void BK1OddEvenV2Device(const int numElements,
+			const int element,
+			const dfloat * __restrict__ op,
+			const dfloat * __restrict__ oddDofToQuad,
+			const dfloat * __restrict__ evenDofToQuad,
+			dfloat s_p[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq]){
+
+  dfloat r_tmpOdd[HALF_QUAD_1D];
+  dfloat r_tmpEven[HALF_QUAD_1D];
+
+  const int t   = threadIdx.x;
+  const int blk = threadIdx.y;
+
+  // assumes barrier before s_Ap was used last
+  
+  // transform in 'c'
+  if(t<NUM_DOFS_2D){
+    const int a = t%NUM_DOFS_1D;
+    const int b = t/NUM_DOFS_1D;
+    
+#pragma unroll
+    for(int c=0;c<HALF_DOFS_1D;++c){
+      r_tmpOdd[c]  = s_p[blk][c][b][a] + s_p[blk][NUM_DOFS_1D-1-c][b][a];
+      r_tmpEven[c] = s_p[blk][c][b][a] - s_p[blk][NUM_DOFS_1D-1-c][b][a];
+    }
+    
+    if(NUM_DOFS_1D%2)
+      r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
+    
+#pragma unroll
+    for(int k=0;k<HALF_QUAD_1D;++k){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int c=0;c<HALF_DOFS_1D;++c){
+	int kc = ijN(c,k,HALF_DOFS_1D);		
+	resOdd  += oddDofToQuad[kc]*r_tmpOdd[c];
+	resEven += evenDofToQuad[kc]*r_tmpEven[c];
+      }
+      
+      s_p[blk][NUM_QUAD_1D-1-k][b][a] = resOdd - resEven;
+      s_p[blk][k][b][a]               = resOdd + resEven;
+    }
+  }
+  
+  __syncthreads();
+
+  // transform in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    
+    const int a = t%NUM_DOFS_1D;
+    const int k = t/NUM_DOFS_1D;
+    
+#pragma unroll
+    for(int b=0;b<HALF_DOFS_1D;++b){
+      dfloat ApOdd  = s_p[blk][k][b][a];
+      dfloat ApEven = s_p[blk][k][NUM_DOFS_1D-1-b][a];
+      r_tmpOdd[b]  = ApOdd + ApEven;
+      r_tmpEven[b] = ApOdd - ApEven;
+    }
+    
+    if(NUM_DOFS_1D%2)
+      r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
+    
+    //#pragma unroll
+    for(int j=0;j<HALF_QUAD_1D;++j){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int b=0;b<HALF_DOFS_1D;++b){
+	int jb = ijN(b,j,HALF_DOFS_1D);
+	resOdd  += oddDofToQuad[jb]*r_tmpOdd[b];
+	resEven += evenDofToQuad[jb]*r_tmpEven[b];
+      }
+      
+      s_p[blk][k][NUM_QUAD_1D-1-j][a] = resOdd-resEven;
+      s_p[blk][k][j][a]               = resOdd+resEven;
+    }
+  }
+  
+  __syncthreads();
+
+  // transform in 'a'
+  {
+    const int j = t%NUM_QUAD_1D;
+    const int k = t/NUM_QUAD_1D;
+    
+#pragma unroll
+    for(int a=0;a<HALF_DOFS_1D;++a){
+      dfloat ApOdd  = s_p[blk][k][j][a];
+      dfloat ApEven = s_p[blk][k][j][NUM_DOFS_1D-1-a];
+      r_tmpOdd[a]  = ApOdd + ApEven;
+      r_tmpEven[a] = ApOdd - ApEven;
+    }
+    
+    if(NUM_DOFS_1D%2)
+      r_tmpOdd[HALF_DOFS_1D-1] *= 0.5f;
+    
+    //#pragma unroll
+    for(int i=0;i<HALF_QUAD_1D;++i){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int a=0;a<HALF_DOFS_1D;++a){
+	int ia = ijN(a,i,HALF_DOFS_1D);
+	resOdd  += oddDofToQuad[ia]*r_tmpOdd[a];
+	resEven += evenDofToQuad[ia]*r_tmpEven[a];
+      }
+      
+      int gid1 = ijklN(NUM_QUAD_1D-1-i,j,k,element, NUM_QUAD_1D);
+      int gid2 = ijklN(i,j,k,element, NUM_QUAD_1D);
+
+      dfloat WJ1 = (element<numElements) ? op[gid1]:0;
+      dfloat WJ2 = (element<numElements) ? op[gid2]:0;
+
+      s_p[blk][k][j][NUM_QUAD_1D-1-i] = WJ1*(resOdd-resEven);
+      s_p[blk][k][j][i]               = WJ2*(resOdd+resEven);
+    }
+  }
+  
+  __syncthreads();
+  
+  {
+    const int j = t%NUM_QUAD_1D;
+    const int k = t/NUM_QUAD_1D;
+    
+#pragma unroll
+    for(int i=0;i<HALF_QUAD_1D;++i){
+      dfloat ApOdd  = s_p[blk][k][j][i];
+      dfloat ApEven = s_p[blk][k][j][NUM_QUAD_1D-1-i];
+      
+      r_tmpOdd[i]  = ApOdd + ApEven;
+      r_tmpEven[i] = ApOdd - ApEven;
+    }
+    
+    if(NUM_QUAD_1D%2)
+      r_tmpOdd[HALF_QUAD_1D-1] *= 0.5f;
+    
+    //#pragma unroll
+    for(int a=0;a<HALF_DOFS_1D;++a){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int i=0;i<HALF_QUAD_1D;++i){
+	int ia = ijN(a,i,HALF_DOFS_1D);
+	resOdd  += oddDofToQuad[ia]*r_tmpOdd[i];
+	resEven += evenDofToQuad[ia]*r_tmpEven[i];
+      }
+      
+      s_p[blk][k][j][NUM_DOFS_1D-1-a] = resOdd-resEven;
+      s_p[blk][k][j][a]               = resOdd+resEven;
+    }
+  }
+
+  __syncthreads();
+  
+  // test in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    const int a = t%NUM_DOFS_1D;
+    const int k = t/NUM_DOFS_1D;
+    
+    for(int j=0;j<HALF_QUAD_1D;++j){
+      dfloat ApOdd  = s_p[blk][k][j][a];
+      dfloat ApEven = s_p[blk][k][NUM_QUAD_1D-1-j][a];
+      r_tmpOdd[j]  = ApOdd + ApEven;
+      r_tmpEven[j] = ApOdd - ApEven;
+    }
+    
+    if(NUM_QUAD_1D%2)
+      r_tmpOdd[HALF_QUAD_1D-1] *= 0.5f;
+    
+    //#pragma unroll
+    for(int b=0;b<HALF_DOFS_1D;++b){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int j=0;j<HALF_QUAD_1D;++j){
+	int jb = ijN(b,j,HALF_DOFS_1D);
+	resOdd  += oddDofToQuad[jb]*r_tmpOdd[j];
+	resEven += evenDofToQuad[jb]*r_tmpEven[j];
+      }
+      
+      s_p[blk][k][NUM_DOFS_1D-1-b][a] = resOdd - resEven;
+      s_p[blk][k][b][a]               = resOdd + resEven;
+    }
+  }
+  
+  __syncthreads();
+
+  // test in 'c'
+  if(t<NUM_DOFS_2D){
+    const int a = t%NUM_DOFS_1D;
+    const int b = t/NUM_DOFS_1D;
+    
+    for(int k=0;k<HALF_QUAD_1D;++k){
+      dfloat ApOdd  = s_p[blk][k][b][a];
+      dfloat ApEven = s_p[blk][NUM_QUAD_1D-1-k][b][a];
+      r_tmpOdd[k]  = ApOdd + ApEven;
+      r_tmpEven[k] = ApOdd - ApEven;
+    }
+    
+    if(NUM_QUAD_1D%2)
+      r_tmpOdd[HALF_QUAD_1D-1] *= 0.5f;
+    
+    //#pragma unroll
+    for(int c=0;c<HALF_DOFS_1D;++c){
+      dfloat resOdd = 0, resEven = 0;
+      
+#pragma unroll
+      for(int k=0;k<HALF_QUAD_1D;++k){
+	int kc = ijN(c,k,HALF_DOFS_1D);
+	resOdd  += oddDofToQuad[kc]*r_tmpOdd[k];
+	resEven += evenDofToQuad[kc]*r_tmpEven[k];
+      }
+      
+      s_p[blk][NUM_DOFS_1D-1-c][b][a] = resOdd - resEven;
+      s_p[blk][c][b][a]               = resOdd + resEven;
+    }
+  }
+
+  __syncthreads();
+
+}
+
+
 
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
@@ -640,6 +1028,69 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   }
 #endif  
 }
+
+
+template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
+  __global__ void BK1RegisterV2Kernel(const int numElements,
+				      const dfloat * __restrict__ op,
+				      const dfloat * __restrict__ oddDofToQuad,
+				      const dfloat * __restrict__ evenDofToQuad,
+				      const dfloat * __restrict__ solIn,
+				      dfloat * __restrict__ solOut){
+  
+  __shared__ dfloat s_q[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+
+  dfloat r_oddDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+  dfloat r_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+
+  const unsigned int t = threadIdx.x;
+  const int blk = threadIdx.y;
+  
+  const int element = blockIdx.x*p_Nblock + blk;
+  
+  const unsigned int a = t%NUM_DOFS_1D;
+  const unsigned int b = t/NUM_DOFS_1D;
+
+  
+  if(element < numElements && t<NUM_DOFS_2D){
+    for(int c=0;c<NUM_DOFS_1D;++c){
+      int id = ijklN(a,b,c,element, NUM_DOFS_1D); 
+      
+      s_q[blk][c][b][a] = solIn[id];
+    }
+  }
+
+  {
+    __shared__ dfloat s_oddDofToQuad[HALF_DOFS_1D*HALF_QUAD_1D];
+    __shared__ dfloat s_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D];
+    
+    if(blk==0)
+      for(int n=t;n<HALF_DOFS_1D*HALF_QUAD_1D;n+=NUM_QUAD_2D){
+	s_oddDofToQuad[n] = oddDofToQuad[n];
+	s_evenDofToQuad[n] = evenDofToQuad[n];
+      }
+    
+    __syncthreads();
+    
+    // now copy shared data to thread local register arrays
+    for(int n=0;n<HALF_DOFS_1D*HALF_QUAD_1D;++n){
+      r_oddDofToQuad[n] = s_oddDofToQuad[n];
+      r_evenDofToQuad[n] = s_evenDofToQuad[n];
+    }
+  }
+  
+  BK1OddEvenV2Device<NUM_DOFS_1D, NUM_QUAD_1D, p_Nblock>
+    (numElements, element, op, r_oddDofToQuad, r_evenDofToQuad, s_q);
+  
+  if(element<numElements && t<NUM_DOFS_2D){
+    for(int c=0;c<NUM_DOFS_1D;++c){
+      int id = ijklN(a,b,c,element,NUM_DOFS_1D);
+      solOut[id] = s_q[blk][c][b][a];
+    }
+  }
+
+}
+
 
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
@@ -1057,6 +1508,191 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   
 }
 
+
+template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
+  __global__ void BK1BlockSharedMonolithicGlobalKernel(const int numElements,
+						       const dfloat * __restrict__ op,
+						       const dfloat * __restrict__ DofToQuad,
+						       const dfloat * __restrict__ solIn,
+						       dfloat * __restrict__ solOut){
+  
+  __shared__ dfloat s_q[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D];
+  __shared__ dfloat s_Aq[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D];
+
+  const unsigned int t = threadIdx.x;
+  const int blk = threadIdx.y;
+  
+  const int element = blockIdx.x*p_Nblock + blk;
+  
+  const unsigned int a = t%NUM_DOFS_1D;
+  const unsigned int b = t/NUM_DOFS_1D;
+
+  __shared__ dfloat s_DofToQuad[NUM_QUAD_1D*NUM_DOFS_1D];
+  __shared__ dfloat s_DofToQuadT[NUM_QUAD_1D*NUM_DOFS_1D];
+
+  if(blk==0 && t<NUM_QUAD_1D*NUM_DOFS_1D){
+    int aa = t%NUM_DOFS_1D;
+    int ii = t/NUM_DOFS_1D;
+    dfloat It =  DofToQuad[t];
+    s_DofToQuad[t] = It;
+    s_DofToQuadT[aa*NUM_QUAD_1D+ii] = It;
+  }
+  
+  if(element < numElements){
+    for(int c=0;c<NUM_DOFS_1D;++c){
+      
+      int id = ijklN(a,b,c,element,NUM_DOFS_1D);
+      
+      s_q[blk][c][b][a] = solIn[id];
+    }
+  }
+  
+  __syncthreads();
+
+  // assumes barrier before s_Aq was used last
+  // transform in 'a'
+  if(t<NUM_DOFS_2D){
+    const int b = t%NUM_DOFS_1D;
+    const int c = t/NUM_DOFS_1D;
+
+    const dfloat *I = s_DofToQuad;
+
+#pragma unroll NUM_QUAD_1D
+    for(int i=0;i<NUM_QUAD_1D;++i){
+      dfloat res = 0;
+
+#pragma unroll NUM_DOFS_1D
+      for(int a=0;a<NUM_DOFS_1D;++a){
+	res  += *(I++)*s_q[blk][c][b][a];
+      }
+      
+      s_Aq[blk][c][b][i]  = res;
+    }
+  }
+  
+  __syncthreads();
+
+  // transform in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    const int i = t%NUM_QUAD_1D;
+    const int c = t/NUM_QUAD_1D;
+
+    const dfloat *I = s_DofToQuad;
+
+#pragma unroll NUM_QUAD_1D
+    for(int j=0;j<NUM_QUAD_1D;++j){
+      dfloat res = 0;
+      
+#pragma unroll NUM_DOFS_1D
+      for(int b=0;b<NUM_DOFS_1D;++b){
+	res  += *(I++)*s_Aq[blk][c][b][i];
+      }
+      s_q[blk][c][j][i] = res;
+    }
+  }
+  
+  __syncthreads();
+
+
+  {
+
+    // 1. transform in 'c'
+    
+    const int i = t%NUM_QUAD_1D;
+    const int j = t/NUM_QUAD_1D;
+    
+    if(element<numElements){
+      
+      const dfloat *I = s_DofToQuad;
+      
+#pragma unroll NUM_QUAD_1D
+      for(int k=0;k<NUM_QUAD_1D;++k){
+	
+	int gid = ijklN(i,j,k,element, NUM_QUAD_1D);
+	
+	dfloat WJ = op[gid];
+	
+	dfloat res = 0;
+
+#pragma unroll NUM_DOFS_1D
+	for(int c=0;c<NUM_DOFS_1D;++c){
+	  res  += *(I++)*s_q[blk][c][j][i];
+	}
+	
+	s_Aq[blk][k][j][i] = WJ*res;
+      }
+    }
+    
+    __syncthreads();
+    
+    // 2. test in 'c'
+    
+    if(element<numElements){
+      const dfloat *IT = s_DofToQuadT;
+      
+#pragma unroll NUM_DOFS_1D
+      for(int c=0;c<NUM_DOFS_1D;++c){
+	dfloat res = 0;
+	
+#pragma unroll NUM_QUAD_1D
+	for(int k=0;k<NUM_QUAD_1D;++k){
+	  res  += *(IT++)*s_Aq[blk][k][j][i];
+	}
+	
+	s_q[blk][c][j][i] = res;
+      }
+    }
+  }
+  
+  __syncthreads();
+  
+  // test in 'b'
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    const int i = t%NUM_QUAD_1D;
+    const int c = t/NUM_QUAD_1D;
+
+    const dfloat *IT = s_DofToQuadT;
+
+#pragma unroll NUM_DOFS_1D
+    for(int b=0;b<NUM_DOFS_1D;++b){
+      dfloat res = 0;
+
+#pragma unroll NUM_QUAD_1D
+      for(int j=0;j<NUM_QUAD_1D;++j){
+	res += *(IT++)*s_q[blk][c][j][i];
+      }
+      
+      s_Aq[blk][c][b][i] = res;
+    }
+  }
+  
+  __syncthreads();
+  
+  // test in 'a'
+  if(t<NUM_DOFS_2D && element<numElements){
+    const int b = t%NUM_DOFS_1D;
+    const int c = t/NUM_DOFS_1D;
+
+    const dfloat *IT = s_DofToQuadT;
+
+#pragma unroll NUM_DOFS_1D
+    for(int a=0;a<NUM_DOFS_1D;++a){
+      dfloat res = 0; 
+
+#pragma unroll NUM_QUAD_1D
+      for(int i=0;i<NUM_QUAD_1D;++i){
+	res += *(IT++)*s_Aq[blk][c][b][i];
+      }
+      
+      int id = ijklN(a,b,c,element,NUM_DOFS_1D);
+      solOut[id] = res;
+    }
+  }
+}
+
+
+
+
 void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
 			 dfloat *h_DofToQuad,     dfloat *h_oddDofToQuad, dfloat *h_evenDofToQuad,
 			 dfloat **c_oddDofToQuad, dfloat **c_evenDofToQuad){
@@ -1103,12 +1739,12 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   if(NUM_QUAD_1D%2) cubX[(NUM_QUAD_1D)*(NUM_QUAD_1D)/2] = 1;
   if(NUM_QUAD_1D%2) cubInvX[(NUM_QUAD_1D)*(NUM_QUAD_1D)/2] = 1;
 
-  matrixPrint(NUM_DOFS_1D, NUM_DOFS_1D, X, "X");
-  matrixPrint(NUM_QUAD_1D, NUM_QUAD_1D, cubX, "cubX");
+  matrixPrint(stdout, "X",    NUM_DOFS_1D, NUM_DOFS_1D, X);
+  matrixPrint(stdout, "cubX", NUM_QUAD_1D, NUM_QUAD_1D, cubX);
 
   
-  matrixPrint(NUM_DOFS_1D, NUM_DOFS_1D, invX, "invX");
-  matrixPrint(NUM_QUAD_1D, NUM_QUAD_1D, cubInvX, "cubInvX");
+  matrixPrint(stdout,    "invX", NUM_DOFS_1D, NUM_DOFS_1D, invX);
+  matrixPrint(stdout, "cubInvX", NUM_QUAD_1D, NUM_QUAD_1D, cubInvX);
 
   
   dfloat *IinvX = (dfloat*) calloc(NUM_DOFS_1D*NUM_QUAD_1D, sizeof(dfloat));
@@ -1125,7 +1761,7 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
     }
   }
 
-  matrixPrint(NUM_QUAD_1D, NUM_DOFS_1D, IinvX, "IinvX");
+  matrixPrint(stdout, "IinvX", NUM_QUAD_1D, NUM_DOFS_1D, IinvX);
 
   // pre multiply by invX
   for(int i=0;i<NUM_QUAD_1D;++i){
@@ -1138,7 +1774,7 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
     }
   }
 
-  matrixPrint(NUM_QUAD_1D, NUM_DOFS_1D, cubInvXIinvX, "cubInvXIinvX");
+  matrixPrint(stdout, "cubInvIinvX", NUM_QUAD_1D, NUM_DOFS_1D, cubInvXIinvX);
   
   
   for(int i=0;i<HALF_QUAD_1D;++i){
@@ -1154,8 +1790,8 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   if((NUM_QUAD_1D%2)) // zero duplicate
     h_evenDofToQuad[HALF_QUAD_1D*HALF_DOFS_1D-1] = 0;
 
-  matrixPrint(HALF_QUAD_1D, HALF_DOFS_1D, h_oddDofToQuad, "h_oddDofToQuad");
-  matrixPrint(HALF_QUAD_1D, HALF_DOFS_1D, h_evenDofToQuad, "h_evenDofToQuad");
+  matrixPrint(stdout,  "h_oddDofToQuad", HALF_QUAD_1D, HALF_DOFS_1D, h_oddDofToQuad );
+  matrixPrint(stdout, "h_evenDofToQuad", HALF_QUAD_1D, HALF_DOFS_1D, h_evenDofToQuad);
   
   int NoddDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
   int NevenDofToQuad = HALF_QUAD_1D*HALF_DOFS_1D;
@@ -1169,6 +1805,9 @@ void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
   hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToQuad),  h_oddDofToQuad,  NoddDofToQuad*sizeof(dfloat));
   hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToQuad), h_evenDofToQuad, NoddDofToQuad*sizeof(dfloat));
   hipMemcpyToSymbol(HIP_SYMBOL(const_DofToQuad),     h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat));
+
+  // fix actual transpose later
+  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToQuadT),    h_DofToQuad, NUM_QUAD_1D*NUM_DOFS_1D*sizeof(dfloat));
 }
 
 
@@ -1194,6 +1833,8 @@ void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
       hipLaunchKernelGGL(BK1MonolithicGlobalKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==6)							\
       hipLaunchKernelGGL(BK1MonolithicConstantKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+    else if(mode==7)							\
+      hipLaunchKernelGGL(BK1BlockSharedMonolithicGlobalKernel<Nq,cubNq,Nblock>, G, B, 0, stream, numElements, c_op, c_DofToQuad, c_solIn, c_solOut); \
   }
   
 #define ERR printf("BK1Register with Nq=%d, cubNq=%d not available", Nq, cubNq); exit(-1)
@@ -1213,7 +1854,7 @@ void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
   if(Nq==3){
     switch(cubNq){
     case 3: BK1Kernel(3,3,7); break;
-    case 4: BK1Kernel(3,4,16); break;
+    case 4: BK1Kernel(3,4,4); break;
     case 5: BK1Kernel(3,5,5); break;
     case 6: BK1Kernel(3,6,3); break;
     case 7: BK1Kernel(3,7,2); break;
@@ -1260,7 +1901,7 @@ void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
 
   if(Nq==7){
     switch(cubNq){
-    case 7:  BK1Kernel(7, 7,2); break;
+    case 7:  BK1Kernel(7, 7,1); break; // TW
     case 8:  BK1Kernel(7, 8,1); break;
     case 9:  BK1Kernel(7, 9,2); break;
     case 10: BK1Kernel(7,10,1); break;
@@ -1274,7 +1915,7 @@ void runBK1Kernel(hipStream_t stream, int Nq, int cubNq, int numElements,
   if(Nq==8){
     switch(cubNq){
     case 8:  BK1Kernel(8, 8,1); break;
-    case 9:  BK1Kernel(8, 9,2); break;
+    case 9:  BK1Kernel(8, 9,1); break;
     case 10: BK1Kernel(8,10,1); break;
     case 11: BK1Kernel(8,11,1); break;
     case 12: BK1Kernel(8,12,1); break;
@@ -1457,7 +2098,7 @@ int main(int argc, char **argv){
   int numElements = atoi(argv[3]);
   int        mode = atoi(argv[4]);
 
-  if(mode==0 || mode>6) {
+  if(mode==0 || mode>7) {
     printf("Exiting: mode %d not supported\n", mode);
   }
   
@@ -1519,7 +2160,7 @@ int main(int argc, char **argv){
   meshInterpolationMatrix1D(Nq-1, Nq, r, cubNq, cubr, &h_DofToQuad);
   hipMemcpy(c_DofToQuad, h_DofToQuad, cubNq*Nq*sizeof(dfloat), hipMemcpyHostToDevice);
   
-  matrixPrint(cubNq, Nq, h_DofToQuad, "DofToQuad");
+  matrixPrint(stdout, "DofToQuad", cubNq, Nq, h_DofToQuad);
 
   // create Odd-even packed storage for I and transpose(I) and push to constant memory
   buildInterpMatrices (Nq,cubNq, h_DofToQuad, h_oddDofToQuad, h_evenDofToQuad,
@@ -1566,7 +2207,7 @@ int main(int argc, char **argv){
       numElements*(2*( Nq*Nq*Nq*cubNq*2 + Nq*Nq*cubNq*cubNq*2 + Nq*cubNq*cubNq*cubNq*2)/elapsed)/1.e9;
     
     printf("%2d %2d %8d %8d %e %e %e %e %e %e %e %d %%%% [BK1: NUM_DOFS_1D, NUM_QUAD_1D, numElements, Ndofs,"
-	   " elapsed, dofsPerSecond, nothingElapsed, BW in GB/s, estimated peak Device BW, est. GFLOPS/s, oddeven GFLOPS/s, mode]\n",
+	   " elapsed, dofsPerSecond, nothingElapsed, BW in GB/s, estimated peak Device BW, odd even GFLOPS/s, monolithic GFLOPS/s, mode]\n",
 	   Nq, cubNq, numElements, Np*numElements, elapsed, numElements*(Np/elapsed), nothingElapsed, bw, estimatedActualDeviceBandwidth, estFlops, effectiveFlops, mode);
   }
 
