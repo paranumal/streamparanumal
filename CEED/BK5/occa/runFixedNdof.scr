@@ -1,0 +1,20 @@
+#!/bin/bash
+
+rm BK5
+make
+
+let Ndof=8000000
+
+# to run a sweep
+for Nq in `seq 2 1 10`
+do
+    
+    #  let cubNq=$(($Nq + 2))
+    let Np=$Nq*$Nq*$Nq
+    
+    let E=($Ndof+$Np)/$Np
+    
+    echo $E    
+    ./BK5 $Nq $E HIP 0 0 
+done
+      

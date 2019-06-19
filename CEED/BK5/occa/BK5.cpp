@@ -202,9 +202,12 @@ int main(int argc, char **argv){
   double elapsed = device.timeBetween(start, end)/Ntests;
   
   dfloat GnodesPerSecond = (Np*Nelements/elapsed)/1.e9;
+
+  int bytesMoved = (2*Np+7*Np)*sizeof(dfloat); // x, Mx, opa   
+  double bw = (bytesMoved*Nelements/elapsed)/1.e9;
   
-  printf("%02d %06d %08d %e %e [N, Nelements, Nnodes, Gnodes/s, elapsed]\n",
-	 N,  Nelements, Np*Nelements, GnodesPerSecond, elapsed);
+  printf("%02d %06d %08d %e %e %e [BK5: N, Nelements, Nnodes, elapsed, Gnodes/s, BW in GB/s]\n",
+	 N,  Nelements, Np*Nelements, elapsed, GnodesPerSecond, bw);
   
   return 0;
   
