@@ -8,9 +8,9 @@ See LICENSE file.
 #include <stdlib.h>
 #include <hip/hip_runtime.h>
 
-#define dfloat_t double
+#define dfloat double
 
-void matrixPrint(int Nrows, int Ncols, dfloat_t *A, const char *mess){
+void matrixPrint(int Nrows, int Ncols, dfloat *A, const char *mess){
 #if 0
   printf("%s = [\n", mess);
   for(int i=0;i<Nrows;++i){
@@ -68,20 +68,20 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 #define p_GWJID 6
 
 
-__constant__ dfloat_t const_DofToDofD[MAX_DOFS_1D*MAX_DOFS_1D];
-__constant__ dfloat_t const_oddDofToDofD[MAX_HALF_DOFS_1D*MAX_HALF_DOFS_1D];
-__constant__ dfloat_t const_evenDofToDofD[MAX_HALF_DOFS_1D*MAX_HALF_DOFS_1D];
+__constant__ dfloat const_DofToDofD[MAX_DOFS_1D*MAX_DOFS_1D];
+__constant__ dfloat const_oddDofToDofD[MAX_HALF_DOFS_1D*MAX_HALF_DOFS_1D];
+__constant__ dfloat const_evenDofToDofD[MAX_HALF_DOFS_1D*MAX_HALF_DOFS_1D];
 
-void randAlloc(int N, dfloat_t **h_a, dfloat_t **c_a){
+void randAlloc(int N, dfloat **h_a, dfloat **c_a){
 
-  *h_a = (dfloat_t*) calloc(N, sizeof(dfloat_t));
+  *h_a = (dfloat*) calloc(N, sizeof(dfloat));
 
   for(int n=0;n<N;++n)
     h_a[0][n] = drand48();
 
-  hipMalloc(c_a, N*sizeof(dfloat_t));
+  hipMalloc(c_a, N*sizeof(dfloat));
 
-  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(c_a[0], h_a[0], N*sizeof(dfloat), hipMemcpyHostToDevice);
 
 }
 
@@ -92,16 +92,16 @@ template <int NUM_DOFS_1D, int p_Nblock >
   __forceinline__ __device__ 
   void BK5Device(const int numElements,
 		 const int element,
-		 const dfloat_t lambda,
-		 const dfloat_t * __restrict__ op,
-		 const dfloat_t * __restrict__ DofToDofD,
-		 const dfloat_t * __restrict__ oddDofToDofD,
-		 const dfloat_t * __restrict__ evenDofToDofD,
-		 dfloat_t s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D],
-		 dfloat_t * __restrict__ r_Ap){
+		 const dfloat lambda,
+		 const dfloat * __restrict__ op,
+		 const dfloat * __restrict__ DofToDofD,
+		 const dfloat * __restrict__ oddDofToDofD,
+		 const dfloat * __restrict__ evenDofToDofD,
+		 dfloat s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D],
+		 dfloat * __restrict__ r_Ap){
   
-  __shared__ dfloat_t s_Gpr[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
-  __shared__ dfloat_t s_Gps[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat s_Gpr[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat s_Gps[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
   
   // assumes NUM_DOFS_2D threads
   int t = threadIdx.x;
@@ -115,10 +115,10 @@ template <int NUM_DOFS_1D, int p_Nblock >
   }
   
   // Layer by layer
-#pragma unroll 
+#pragma nounroll 
   for(int k = 0; k < NUM_DOFS_1D; k++) {
 
-    dfloat_t G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
+    dfloat G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
     
     // prefetch geometric factors
     const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
@@ -133,9 +133,9 @@ template <int NUM_DOFS_1D, int p_Nblock >
       GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
     }
     
-    dfloat_t pr = 0.f;
-    dfloat_t ps = 0.f;
-    dfloat_t pt = 0.f;
+    dfloat pr = 0.f;
+    dfloat ps = 0.f;
+    dfloat pt = 0.f;
 
 #pragma unroll
     for(int m = 0; m < NUM_DOFS_1D; m++) {
@@ -144,7 +144,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int km = ijN(m,k,NUM_DOFS_1D);
       pr += DofToDofD[im]*s_p[blk][k][j][m];
       ps += DofToDofD[jm]*s_p[blk][k][m][i];
-      pt += const_DofToDofD[km]*s_p[blk][m][j][i];
+      pt += DofToDofD[km]*s_p[blk][m][j][i];
     }
 
     __syncthreads();
@@ -152,9 +152,9 @@ template <int NUM_DOFS_1D, int p_Nblock >
     s_Gpr[blk][j][i] = (G00*pr + G01*ps + G02*pt);
     s_Gps[blk][j][i] = (G01*pr + G11*ps + G12*pt);
     
-    dfloat_t Gpt = (G02*pr + G12*ps + G22*pt);
+    dfloat Gpt = (G02*pr + G12*ps + G22*pt);
     
-    dfloat_t Apk = GWJ*lambda*s_p[blk][k][j][i];
+    dfloat Apk = GWJ*lambda*s_p[blk][k][j][i];
     
     __syncthreads();
     
@@ -165,7 +165,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
       int km = ijN(m,k,NUM_DOFS_1D);
       Apk     += DofToDofD[mi]*s_Gpr[blk][j][m];
       Apk     += DofToDofD[mj]*s_Gps[blk][m][i];
-      r_Ap[m] += const_DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
+      r_Ap[m] += DofToDofD[km]*Gpt; // DT(m,k)*ut(i,j,k,e)
     }
     
     r_Ap[k] += Apk;
@@ -175,18 +175,18 @@ template <int NUM_DOFS_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int p_Nblock >
 __global__ void BK5ConstantKernel(const int numElements,
-				  const dfloat_t lambda,
-				  const dfloat_t * __restrict__ op,
-				  const dfloat_t * __restrict__ DofToDofD,
-				  const dfloat_t * __restrict__ oddDofToDofD,
-				  const dfloat_t * __restrict__ evenDofToDofD,
-				  const dfloat_t * __restrict__ solIn,
-				  dfloat_t * __restrict__ solOut){
+				  const dfloat lambda,
+				  const dfloat * __restrict__ op,
+				  const dfloat * __restrict__ DofToDofD,
+				  const dfloat * __restrict__ oddDofToDofD,
+				  const dfloat * __restrict__ evenDofToDofD,
+				  const dfloat * __restrict__ solIn,
+				  dfloat * __restrict__ solOut){
   
-  __shared__ dfloat_t s_DofToDofD[NUM_DOFS_2D];
-  __shared__ dfloat_t s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat s_DofToDofD[NUM_DOFS_2D];
+  __shared__ dfloat s_p[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
   
-  dfloat_t r_Ap[NUM_DOFS_1D];
+  dfloat r_Ap[NUM_DOFS_1D];
 
   const unsigned int t = threadIdx.x;
   const int blk = threadIdx.y;
@@ -211,7 +211,7 @@ __global__ void BK5ConstantKernel(const int numElements,
   __syncthreads();
   
   BK5Device  <NUM_DOFS_1D, p_Nblock>
-    (numElements, element, lambda, op, s_DofToDofD, const_oddDofToDofD, const_evenDofToDofD, s_p, r_Ap);
+    (numElements, element, lambda, op, DofToDofD, const_oddDofToDofD, const_evenDofToDofD, s_p, r_Ap);
   
   if(element<numElements){
 #pragma unroll
@@ -224,24 +224,24 @@ __global__ void BK5ConstantKernel(const int numElements,
 
 template <int NUM_DOFS_1D>
 __global__ void BK5ImportKernel(const int numElements,
-				const dfloat_t  lambda,			     
-				const  dfloat_t  * __restrict__ op,
-				const  dfloat_t  * __restrict__ D,
-				const  dfloat_t  * __restrict__ q,
-				dfloat_t  *  __restrict__ Aq){
+				const dfloat  lambda,			     
+				const  dfloat  * __restrict__ op,
+				const  dfloat  * __restrict__ D,
+				const  dfloat  * __restrict__ q,
+				dfloat  *  __restrict__ Aq){
   
   
-  __shared__ dfloat_t  s_D[NUM_DOFS_1D][NUM_DOFS_1D];
-  __shared__ dfloat_t  s_q[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_D[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_q[NUM_DOFS_1D][NUM_DOFS_1D];
   
-  __shared__ dfloat_t  s_Gqr[NUM_DOFS_1D][NUM_DOFS_1D];
-  __shared__ dfloat_t  s_Gqs[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Gqr[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Gqs[NUM_DOFS_1D][NUM_DOFS_1D];
   
-  dfloat_t  r_qt, r_Gqt, r_Auk;
-  dfloat_t  r_q[NUM_DOFS_1D]; // register array to hold u(i,j,0:N) private to thread
-  dfloat_t  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
+  dfloat  r_qt, r_Gqt, r_Auk;
+  dfloat  r_q[NUM_DOFS_1D]; // register array to hold u(i,j,0:N) private to thread
+  dfloat  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
   
-  dfloat_t  r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
+  dfloat  r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
 
   int e = blockIdx.x;
   const unsigned int t = threadIdx.x;
@@ -260,7 +260,7 @@ __global__ void BK5ImportKernel(const int numElements,
     r_Aq[k] = 0.f; // zero the accumulator
   }
 
-#pragma unroll NUM_DOFS_1D
+  //#pragma nounroll NUM_DOFS_1D
   for(int k = 0;k < NUM_DOFS_1D; k++){
 	
     // prefetch geometric factors
@@ -282,25 +282,25 @@ __global__ void BK5ImportKernel(const int numElements,
     s_q[j][i] = r_q[k];
     
     r_qt = 0;
-    
-#pragma unroll NUM_DOFS_1D
+
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++) {
       r_qt += s_D[k][m]*r_q[m];
     }
 
     __syncthreads();
 
-    dfloat_t  qr = 0.f;
-    dfloat_t  qs = 0.f;
+    dfloat  qr = 0.f;
+    dfloat  qs = 0.f;
     
-#pragma unroll NUM_DOFS_1D
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++) {
       qr += s_D[i][m]*s_q[j][m];
       qs += s_D[j][m]*s_q[m][i];
     }
-    
-    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
+
     s_Gqr[j][i] = (r_G00*qr + r_G01*qs + r_G02*r_qt);
+    s_Gqs[j][i] = (r_G01*qr + r_G11*qs + r_G12*r_qt);
     
     // put this here for a performance bump
     r_Gqt = (r_G02*qr + r_G12*qs + r_G22*r_qt);
@@ -308,7 +308,7 @@ __global__ void BK5ImportKernel(const int numElements,
 
     __syncthreads();
 
-#pragma unroll NUM_DOFS_1D
+    //#pragma unroll NUM_DOFS_1D
     for(int m = 0; m < NUM_DOFS_1D; m++){
       r_Auk   += s_D[m][j]*s_Gqs[m][i];
       r_Aq[m] += s_D[k][m]*r_Gqt; // DT(m,k)*ut(i,j,k,e)
@@ -319,7 +319,7 @@ __global__ void BK5ImportKernel(const int numElements,
   }
   
   // write out
-#pragma unroll NUM_DOFS_1D
+  //#pragma unroll NUM_DOFS_1D
   for(int k = 0; k < NUM_DOFS_1D; k++){
     const int id = e*NUM_DOFS_3D +k*NUM_DOFS_1D*NUM_DOFS_1D+ j*NUM_DOFS_1D + i;
     Aq[id] = r_Aq[k];
@@ -458,20 +458,286 @@ __global__ void BK5CubeKernel(const int numElements,
 
 }
 
+__global__ void BK5SharedKernel(const int numElements,
+				const dfloat  lambda,			     
+				const  dfloat  * __restrict__ op,
+				const  dfloat  * __restrict__ D,
+				const  dfloat  * __restrict__ q,
+				dfloat  *  __restrict__ Aq){
+  
+  
+  __shared__ dfloat  s_D[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_q[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Aq[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  __shared__ dfloat  s_Gqr[NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Gqs[NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  //  dfloat  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
+  
+  int e = blockIdx.x;
+  const unsigned int t = threadIdx.x;
+  
+  int i=t%NUM_DOFS_1D;
+  int j=t/NUM_DOFS_1D;
+>>>>>>> c2d2fcc039cc0f732e002e214a3ef4719db4230a
+
+  //load D into local memory
+  // s_D[i][j] = d \phi_i at node j
+  s_D[j][i] = D[NUM_DOFS_1D*j+i]; // D is column major
+  
+  // load pencil of u into register
+  const int base = i + j*NUM_DOFS_1D + e*NUM_DOFS_3D;
+  for(int k = 0; k < NUM_DOFS_1D; k++) {
+    dfloat qkji = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
+
+    // prefetch geometric factors
+    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    
+    dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+    
+    s_q[k][j][i] = qkji;
+    s_Aq[k][j][i] = r_GwJ*lambda*qkji;
+  }
+
+  __syncthreads();
+
+#if 0
+  dfloat r_Di[NUM_DOFS_1D];
+  dfloat r_Dj[NUM_DOFS_1D];
+  for(int m=0;m<NUM_DOFS_1D;++m){
+    r_Di[m] = s_D[i][m];
+    r_Dj[m] = s_D[j][m];
+  }
+#endif
+
+  // NUM_DOFS_1D
+  //#pragma nounroll 
+  for(int k = 0;k < NUM_DOFS_1D; k++){
+
+    __syncthreads();
+
+    // prefetch geometric factors
+    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+
+    dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
+
+    {
+      dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+      dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+      dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+
+      dfloat  qr = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++){
+	qr += s_D[i][m]*s_q[k][j][m];
+	//	qr += r_Di[m]*s_q[k][j][m];
+      }
+
+      r_Gqr += r_G00*qr;
+      r_Gqs += r_G01*qr;
+      r_Gqt += r_G02*qr;
+      
+      dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+      dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+
+      dfloat  qs = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qs += s_D[j][m]*s_q[k][m][i];
+	//	qs += r_Dj[m]*s_q[k][m][i];
+      }
+      
+      r_Gqr += r_G01*qs;
+      r_Gqs += r_G11*qs;
+      r_Gqt += r_G12*qs;
+      
+      dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+
+      dfloat qt = 0;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qt += s_D[k][m]*s_q[m][j][i];
+      }
+      
+      r_Gqr += r_G02*qt;
+      r_Gqs += r_G12*qt;
+      r_Gqt += r_G22*qt;
+      
+      s_Gqr[j][i] = r_Gqr;
+      s_Gqs[j][i] = r_Gqs;
+    }
+    
+    // put this here for a bump
+    for(int m = 0; m < NUM_DOFS_1D; m++)
+      s_Aq[m][j][i] += s_D[k][m]*r_Gqt;
+
+    // constant memory is slow for some reason
+    //s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; 
+    
+    __syncthreads();
+    
+    dfloat r_Auks = 0;
+    for(int m = 0; m < NUM_DOFS_1D; m++){
+      r_Auks   += s_D[m][j]*s_Gqs[m][i];
+    }
+    
+    dfloat r_Aukr = 0;
+    for(int m = 0; m < NUM_DOFS_1D; m++){
+      r_Aukr   += s_D[m][i]*s_Gqr[j][m];
+    }
+    
+    s_Aq[k][j][i] += r_Aukr+r_Auks;
+  }
+  
+  // write out
+  //#pragma unroll NUM_DOFS_1D
+  for(int k = 0; k < NUM_DOFS_1D; k++){
+    const int id = e*NUM_DOFS_3D +k*NUM_DOFS_1D*NUM_DOFS_1D+ j*NUM_DOFS_1D + i;
+    Aq[id] = s_Aq[k][j][i]; // r_Aq[k];
+  }
+}
+
+template <int NUM_DOFS_1D, int p_Nblock>
+__global__ void BK5BlockedSharedKernel(const int numElements,
+				       const dfloat  lambda,			     
+				       const  dfloat  * __restrict__ op,
+				       const  dfloat  * __restrict__ D,
+				       const  dfloat  * __restrict__ q,
+				       dfloat  *  __restrict__ Aq){
+  
+  
+  __shared__ dfloat  s_D[NUM_DOFS_1D][NUM_DOFS_1D];
+
+  __shared__ dfloat  s_q[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Aq[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+
+  __shared__ dfloat  s_Gqr[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
+  __shared__ dfloat  s_Gqs[p_Nblock][NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  //  dfloat  r_Aq[NUM_DOFS_1D];// array for results Au(i,j,0:N)
+  const unsigned int t = threadIdx.x;
+  int blk = threadIdx.y;
+
+  int element = blk + blockIdx.x*p_Nblock;
+  
+  int i=t%NUM_DOFS_1D;
+  int j=t/NUM_DOFS_1D;
+
+  //load D into local memory
+  // s_D[i][j] = d \phi_i at node j
+  if(blk==0)
+    s_D[j][i] = D[NUM_DOFS_1D*j+i]; // D is column major
+  
+  // load pencil of u into register
+  const int base = i + j*NUM_DOFS_1D + element*NUM_DOFS_3D;
+  if(element<numElements)
+    for(int k = 0; k < NUM_DOFS_1D; k++) {
+      dfloat qkji = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
+      
+      // prefetch geometric factors
+      const int gbase = element*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+      
+      dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+      
+      s_q[blk][k][j][i] = qkji;
+      s_Aq[blk][k][j][i] = r_GwJ*lambda*qkji;
+    }
+
+  // NUM_DOFS_1D
+  //#pragma nounroll 
+  for(int k = 0;k < NUM_DOFS_1D; k++){
+    
+    __syncthreads();
+
+    // prefetch geometric factors
+    const int gbase = element*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+
+    dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
+
+    if(element<numElements){
+      
+      dfloat r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+      dfloat r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+      dfloat r_G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+
+      dfloat  qr = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++){
+	qr += s_D[i][m]*s_q[blk][k][j][m];
+      }
+
+      r_Gqr += r_G00*qr;
+      r_Gqs += r_G01*qr;
+      r_Gqt += r_G02*qr;
+      
+      dfloat r_G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+      dfloat r_G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+
+      dfloat  qs = 0.f;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qs += s_D[j][m]*s_q[blk][k][m][i];
+      }
+      
+      r_Gqr += r_G01*qs;
+      r_Gqs += r_G11*qs;
+      r_Gqt += r_G12*qs;
+      
+      dfloat r_G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+
+      dfloat qt = 0;
+      for(int m = 0; m < NUM_DOFS_1D; m++) {
+	qt += s_D[k][m]*s_q[blk][m][j][i];
+      }
+      
+      r_Gqr += r_G02*qt;
+      r_Gqs += r_G12*qt;
+      r_Gqt += r_G22*qt;
+      
+      s_Gqr[blk][j][i] = r_Gqr;
+      s_Gqs[blk][j][i] = r_Gqs;
+    }
+    
+    // put this here for a bump
+    for(int m = 0; m < NUM_DOFS_1D; m++)
+      s_Aq[blk][m][j][i] += s_D[k][m]*r_Gqt;
+
+    // constant memory is slow for some reason
+    //s_Aq[m][j][i] += const_DofToDofD[k*NUM_DOFS_1D+m]*r_Gqt; 
+    
+    __syncthreads();
+    
+    dfloat r_Auks = 0;
+    for(int m = 0; m < NUM_DOFS_1D; m++){
+      r_Auks   += s_D[m][j]*s_Gqs[blk][m][i];
+    }
+    
+    dfloat r_Aukr = 0;
+    for(int m = 0; m < NUM_DOFS_1D; m++){
+      r_Aukr   += s_D[m][i]*s_Gqr[blk][j][m];
+    }
+    
+    s_Aq[blk][k][j][i] += r_Aukr+r_Auks;
+  }
+  
+  // write out
+  //#pragma unroll NUM_DOFS_1D
+  	      
+  if(element<numElements)
+  for(int k = 0; k < NUM_DOFS_1D; k++){
+    const int id = element*NUM_DOFS_3D +k*NUM_DOFS_1D*NUM_DOFS_1D+ j*NUM_DOFS_1D + i;
+    Aq[id] = s_Aq[blk][k][j][i]; // r_Aq[k];
+  }
+}
 
 
 
-
-void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
-	     const dfloat_t * __restrict__ op,
-	     const dfloat_t * __restrict__ DofToDofD,
-	     const dfloat_t * q,
-	     dfloat_t *lapqout){
+void BK5Host(int NUM_DOFS_1D, int numElements, dfloat lambda,
+	     const dfloat * __restrict__ op,
+	     const dfloat * __restrict__ DofToDofD,
+	     const dfloat * q,
+	     dfloat *lapqout){
 
   
-  dfloat_t Gqr[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat_t Gqs[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
-  dfloat_t Gqt[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  dfloat Gqr[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  dfloat Gqs[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  dfloat Gqt[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
   
   for(int element=0;element<numElements;++element){
     
@@ -479,9 +745,9 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
       for(int j=0;j<NUM_DOFS_1D;++j){
 	for(int i=0;i<NUM_DOFS_1D;++i){
 	  
-	  dfloat_t qr = 0;
-	  dfloat_t qs = 0;
-	  dfloat_t qt = 0;
+	  dfloat qr = 0;
+	  dfloat qs = 0;
+	  dfloat qt = 0;
 	  
 	  for(int n=0;n<NUM_DOFS_1D;++n){
 	    int in = ijN(n,i,NUM_DOFS_1D);
@@ -499,12 +765,12 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
 	  
 	  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
 	  
-	  dfloat_t G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
-	  dfloat_t G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
-	  dfloat_t G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
-	  dfloat_t G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
-	  dfloat_t G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
-	  dfloat_t G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+	  dfloat G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+	  dfloat G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+	  dfloat G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+	  dfloat G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+	  dfloat G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+	  dfloat G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
 	  
 	  Gqr[k][j][i] = (G00*qr + G01*qs + G02*qt);
 	  Gqs[k][j][i] = (G01*qr + G11*qs + G12*qt);
@@ -522,8 +788,8 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
 	  
 	  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
 	  
-	  dfloat_t GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
-	  dfloat_t lapq = lambda*GWJ*q[kji];
+	  dfloat GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+	  dfloat lapq = lambda*GWJ*q[kji];
 	  
 	  for(int n=0;n<NUM_DOFS_1D;++n){
 	    int ni = ijN(i,n,NUM_DOFS_1D);
@@ -549,8 +815,8 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   hipEventCreate(&start);
   hipEventCreate(&end);	
   
-  dfloat_t *h_bwTest1, *c_bwTest1;
-  dfloat_t *h_bwTest2, *c_bwTest2;
+  dfloat *h_bwTest1, *c_bwTest1;
+  dfloat *h_bwTest2, *c_bwTest2;
   
   randAlloc(bwNtotal/2, &h_bwTest1, &c_bwTest1);
   randAlloc(bwNtotal/2, &h_bwTest2, &c_bwTest2);
@@ -559,8 +825,8 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   hipEventRecord(start, stream);
   
   for(int test=0;test<Ntests/2;++test){
-    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
-    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat_t), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest2, c_bwTest1, (bwNtotal/2)*sizeof(dfloat), hipMemcpyDeviceToDevice);
+    hipMemcpy(c_bwTest1, c_bwTest2, (bwNtotal/2)*sizeof(dfloat), hipMemcpyDeviceToDevice);
   }
   
   hipEventRecord(end, stream);
@@ -572,7 +838,7 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
   elapsed /= 1000.; // convert to s
   elapsed /= (double) Ntests;
   
-  double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat_t)/elapsed)/1.e9;
+  double estimatedActualDeviceBandwidth = (bwNtotal*sizeof(dfloat)/elapsed)/1.e9;
   
   hipFree(c_bwTest1);
   hipFree(c_bwTest2);
@@ -588,16 +854,16 @@ double bandwidthTest(hipStream_t stream, int Ntests, size_t bwNtotal){
 
 // leave this here in case we add odd-even versions
 void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
-			  dfloat_t *h_OP,   dfloat_t **c_OP, dfloat_t **c_oddOP,  dfloat_t **c_evenOP){
+			  dfloat *h_OP,   dfloat **c_OP, dfloat **c_oddOP,  dfloat **c_evenOP){
 
   int HALF_COLS_OP = ((NUM_COLS_OP+1)/2);
   int HALF_ROWS_OP = ((NUM_ROWS_OP+1)/2);
   
-  dfloat_t *X = (dfloat_t*) calloc(NUM_COLS_OP*NUM_COLS_OP, sizeof(dfloat_t));
-  dfloat_t *invX = (dfloat_t*) calloc(NUM_COLS_OP*NUM_COLS_OP, sizeof(dfloat_t));
+  dfloat *X = (dfloat*) calloc(NUM_COLS_OP*NUM_COLS_OP, sizeof(dfloat));
+  dfloat *invX = (dfloat*) calloc(NUM_COLS_OP*NUM_COLS_OP, sizeof(dfloat));
 
-  dfloat_t *cubX = (dfloat_t*) calloc(NUM_ROWS_OP*NUM_ROWS_OP, sizeof(dfloat_t));
-  dfloat_t *cubInvX = (dfloat_t*) calloc(NUM_ROWS_OP*NUM_ROWS_OP, sizeof(dfloat_t));
+  dfloat *cubX = (dfloat*) calloc(NUM_ROWS_OP*NUM_ROWS_OP, sizeof(dfloat));
+  dfloat *cubInvX = (dfloat*) calloc(NUM_ROWS_OP*NUM_ROWS_OP, sizeof(dfloat));
 
   for(int n=0;n<NUM_ROWS_OP;++n){
     cubX[n*NUM_ROWS_OP + n] = 1;
@@ -638,13 +904,13 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
   //  if(NUM_COLS_OP%2) invX[(NUM_COLS_OP)*(NUM_COLS_OP)/2] = 1;
   //  if(NUM_ROWS_OP%2) cubInvX[(NUM_ROWS_OP+1)*(NUM_ROWS_OP+1)/2] = 1;
   
-  dfloat_t *IinvX = (dfloat_t*) calloc(NUM_COLS_OP*NUM_ROWS_OP, sizeof(dfloat_t));
-  dfloat_t *cubInvXIinvX = (dfloat_t*) calloc(NUM_COLS_OP*NUM_ROWS_OP, sizeof(dfloat_t));
+  dfloat *IinvX = (dfloat*) calloc(NUM_COLS_OP*NUM_ROWS_OP, sizeof(dfloat));
+  dfloat *cubInvXIinvX = (dfloat*) calloc(NUM_COLS_OP*NUM_ROWS_OP, sizeof(dfloat));
 
   // post multiply by invX
   for(int i=0;i<NUM_ROWS_OP;++i){
     for(int a=0;a<NUM_COLS_OP;++a){
-      dfloat_t resI = 0;
+      dfloat resI = 0;
       for(int n=0;n<NUM_COLS_OP;++n){
 	resI += h_OP [i*NUM_COLS_OP+n]*invX[n*NUM_COLS_OP+a];
       }
@@ -655,7 +921,7 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
   // pre multiply by invX
   for(int i=0;i<NUM_ROWS_OP;++i){
     for(int a=0;a<NUM_COLS_OP;++a){
-      dfloat_t resI = 0;
+      dfloat resI = 0;
       for(int n=0;n<NUM_ROWS_OP;++n){
 	resI += cubInvX[i*NUM_ROWS_OP+n]*IinvX[n*NUM_COLS_OP + a];
       }
@@ -667,8 +933,8 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
   // [ A 0 ]  => [ A[0][0] B[0][0] A[0][1] B[0][1] .. A[0][HALF_DOFS_1D-1] B[0][HALF_DOFS_1D-1] .. 
   // [ 0 B ] 
 
-  dfloat_t *oddOP  = (dfloat_t*) calloc(NUM_ROWS_OP*HALF_ROWS_OP, sizeof(dfloat_t));
-  dfloat_t *evenOP = (dfloat_t*) calloc(NUM_ROWS_OP*HALF_ROWS_OP, sizeof(dfloat_t));
+  dfloat *oddOP  = (dfloat*) calloc(NUM_ROWS_OP*HALF_ROWS_OP, sizeof(dfloat));
+  dfloat *evenOP = (dfloat*) calloc(NUM_ROWS_OP*HALF_ROWS_OP, sizeof(dfloat));
   
   for(int i=0;i<HALF_ROWS_OP;++i){
     for(int a=0;a<HALF_COLS_OP;++a){
@@ -684,13 +950,13 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
   int NoddOP  = HALF_ROWS_OP*HALF_COLS_OP;
   int NevenOP = HALF_ROWS_OP*HALF_COLS_OP;
   
-  hipMalloc(c_oddOP, NoddOP*sizeof(dfloat_t));
-  hipMalloc(c_evenOP, NevenOP*sizeof(dfloat_t));
+  hipMalloc(c_oddOP, NoddOP*sizeof(dfloat));
+  hipMalloc(c_evenOP, NevenOP*sizeof(dfloat));
   
-  hipMemcpy(*c_oddOP,  oddOP,  NoddOP*sizeof(dfloat_t),  hipMemcpyHostToDevice);
-  hipMemcpy(*c_evenOP, evenOP, NoddOP*sizeof(dfloat_t), hipMemcpyHostToDevice);
+  hipMemcpy(*c_oddOP,  oddOP,  NoddOP*sizeof(dfloat),  hipMemcpyHostToDevice);
+  hipMemcpy(*c_evenOP, evenOP, NoddOP*sizeof(dfloat), hipMemcpyHostToDevice);
 
-  hipMemcpy(*c_OP, h_OP,  NUM_COLS_OP*NUM_ROWS_OP*sizeof(dfloat_t),  hipMemcpyHostToDevice);
+  hipMemcpy(*c_OP, h_OP,  NUM_COLS_OP*NUM_ROWS_OP*sizeof(dfloat),  hipMemcpyHostToDevice);
 
   matrixPrint(NUM_COLS_OP, NUM_COLS_OP, X, "X");
   matrixPrint(NUM_ROWS_OP, NUM_ROWS_OP, cubX, "cubX");
@@ -704,10 +970,10 @@ void buildOddEvenMatrices(int NUM_COLS_OP, int NUM_ROWS_OP,
 }
 
 
-void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
-		  dfloat_t *c_op,
-		  dfloat_t *c_DofToDofD, dfloat_t *c_oddDofToDofD, dfloat_t *c_evenDofToDofD,
-		  dfloat_t *c_solIn, dfloat_t *c_solOut, int mode){
+void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat lambda,
+		  dfloat *c_op,
+		  dfloat *c_DofToDofD, dfloat *c_oddDofToDofD, dfloat *c_evenDofToDofD,
+		  dfloat *c_solIn, dfloat *c_solOut, int mode){
   
 #define BK5Kernel(Nq,Nblock)						\
   {									\
@@ -719,7 +985,13 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
     }else if(mode==1){							\
       dim3 G(numElements, 1, 1);					\
       dim3 B(Nq*Nq, 1, 1);						\
-      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,		\
+      hipLaunchKernelGGL(BK5SharedKernel<Nq>, G, B, 0, stream,		\
+			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
+    }									\
+    else if(mode==2){							\
+      dim3 G((numElements+Nblock-1)/Nblock, 1, 1);			\
+      dim3 B(Nq*Nq, Nblock, 1);						\
+      hipLaunchKernelGGL(BK5BlockedSharedKernel<Nq,Nblock>, G, B, 0, stream, \
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
     }else if(mode==2){							\
       dim3 G(numElements, 1, 1);					\
@@ -730,6 +1002,10 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
 
     }
   }
+  
+  //      hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,	\
+  //			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
+
   
 #define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
 
@@ -749,7 +1025,8 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
   }
 
   if(Nq==5){
-    BK5Kernel(5,5);
+    //    BK5Kernel(5,5);
+    BK5Kernel(5,2);
     return;
   }
 
@@ -758,8 +1035,11 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
     return;
   }
 
+  if(mode==2)
+    mode = 1;
+  
   if(Nq==7){
-    BK5Kernel(7,2);
+    BK5Kernel(7,1);
     return;
   }
 
@@ -797,7 +1077,7 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
 }
 
 
-dfloat_t nothingTest(hipStream_t stream, int Ntests){
+dfloat nothingTest(hipStream_t stream, int Ntests){
 
   hipEvent_t start, end;
   hipEventCreate(&start);
@@ -869,7 +1149,7 @@ int main(int argc, char **argv){
   int numElements = atoi(argv[2]);
   int        mode = atoi(argv[3]);
   
-  dfloat_t lambda = 0;
+  dfloat lambda = 0;
   
   printf("Running: NUM_DOFS_1D=%d, numElements=%d, mode=%d\n", Nq, numElements, mode);
 
@@ -880,14 +1160,14 @@ int main(int argc, char **argv){
 
   int Ntests = 100;
   
-  double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+7*Ntotal)*sizeof(dfloat_t));
+  double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+7*Ntotal)*sizeof(dfloat));
   
-  dfloat_t *h_op,      *c_op;
-  dfloat_t *h_solOut,       *c_solOut;
-  dfloat_t *h_solIn,        *c_solIn;
+  dfloat *h_op,      *c_op;
+  dfloat *h_solOut,       *c_solOut;
+  dfloat *h_solIn,        *c_solIn;
 
-  dfloat_t *h_DofToDofD,    *c_DofToDofD;
-  dfloat_t *c_oddDofToDofD, *c_evenDofToDofD;
+  dfloat *h_DofToDofD,    *c_DofToDofD;
+  dfloat *c_oddDofToDofD, *c_evenDofToDofD;
 
   // float fields
   randAlloc(Ntotal*p_Nop, &h_op, &c_op);
@@ -907,9 +1187,9 @@ int main(int argc, char **argv){
   // create Odd-even packed storage for I and transpose(I) and push to constant memory
   buildOddEvenMatrices (Nq,Nq, h_DofToDofD, &c_DofToDofD, &c_oddDofToDofD, &c_evenDofToDofD);
 
-  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToDofD),     c_DofToDofD,     Nq*Nq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
-  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToDofD),  c_oddDofToDofD,  halfNq*halfNq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
-  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToDofD), c_evenDofToDofD, halfNq*halfNq*sizeof(dfloat_t), 0, hipMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_DofToDofD),     c_DofToDofD,     Nq*Nq*sizeof(dfloat), 0, hipMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_oddDofToDofD),  c_oddDofToDofD,  halfNq*halfNq*sizeof(dfloat), 0, hipMemcpyDeviceToDevice);
+  hipMemcpyToSymbol(HIP_SYMBOL(const_evenDofToDofD), c_evenDofToDofD, halfNq*halfNq*sizeof(dfloat), 0, hipMemcpyDeviceToDevice);
   
   hipEvent_t start, end;
   hipEventCreate(&start);
@@ -917,7 +1197,7 @@ int main(int argc, char **argv){
 
   // KERNEL GRID
   // do nothing kernel test
-  dfloat_t nothingElapsed = nothingTest(stream, Ntests);
+  dfloat nothingElapsed = nothingTest(stream, Ntests);
   nothingElapsed = nothingTest(stream, Ntests);
   
   // warm up call
@@ -975,7 +1255,7 @@ int main(int argc, char **argv){
     elapsed /= 1000.;
     elapsed /= (double) Ntests;
 
-    int bytesMoved = (2*Np+7*Np)*sizeof(dfloat_t); // x, Mx, opa   
+    int bytesMoved = (2*Np+7*Np)*sizeof(dfloat); // x, Mx, opa   
     double bw = (bytesMoved*numElements/elapsed)/1.e9;
 
     double flopCount = Np*(6*2*Nq + 17);
@@ -991,15 +1271,15 @@ int main(int argc, char **argv){
   BK5Host (Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
 
   // copy device version to host old q
-  dfloat_t *fromDevice = (dfloat_t*) calloc(numElements*Np, sizeof(dfloat_t));
-  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat_t), hipMemcpyDeviceToHost);
+  dfloat *fromDevice = (dfloat*) calloc(numElements*Np, sizeof(dfloat));
+  hipMemcpy(fromDevice, c_solOut, numElements*Np*sizeof(dfloat), hipMemcpyDeviceToHost);
 
-  dfloat_t maxDiff = 0;
+  dfloat maxDiff = 0;
   
   for(int e=0;e<numElements;++e){
     for(int n=0;n<Np;++n){
       int id = e*Np + n;
-      dfloat_t diff = fabs(h_solOut[id]-fromDevice[id]);
+      dfloat diff = fabs(h_solOut[id]-fromDevice[id]);
       maxDiff = (diff>maxDiff) ? diff:maxDiff;
     }
   }
