@@ -92,15 +92,15 @@ __global__ void nothingKernel(){  }
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 
-  void stiffnessMatrixMultiplyDevice(const int numElements,
-				     const int element,
-				     const dfloat lambda,
-				     const dfloat * __restrict__ op,
-				     const dfloat * __restrict__ QuadToQuadD,
-				     const dfloat * __restrict__ oddQuadToQuadD,
-				     const dfloat * __restrict__ evenQuadToQuadD,
-				     dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
-				     dfloat * __restrict__ r_Ap){
+  void BK3InnerDevice(const int numElements,
+		      const int element,
+		      const dfloat lambda,
+		      const dfloat * __restrict__ op,
+		      const dfloat * __restrict__ QuadToQuadD,
+		      const dfloat * __restrict__ oddQuadToQuadD,
+		      const dfloat * __restrict__ evenQuadToQuadD,
+		      dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
+		      dfloat * __restrict__ r_Ap){
 
   __shared__ dfloat s_Gpr[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D];
   __shared__ dfloat s_Gps[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D];
@@ -189,18 +189,18 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __forceinline__ __device__ 
-  void massMatrixMultiplyDevice(const int numElements,
-				const int element,
-				const dfloat lambda,
-				const dfloat * __restrict__ op,
-				const dfloat * __restrict__ oddDofToQuad,
-				const dfloat * __restrict__ evenDofToQuad,
-				const dfloat * __restrict__ QuadToQuadD,
-				const dfloat * __restrict__ oddQuadToQuadD,
-				const dfloat * __restrict__ evenQuadToQuadD,
-				dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
-				dfloat * __restrict__ r_Ap){
-
+  void BK3OuterDevice(const int numElements,
+		      const int element,
+		      const dfloat lambda,
+		      const dfloat * __restrict__ op,
+		      const dfloat * __restrict__ oddDofToQuad,
+		      const dfloat * __restrict__ evenDofToQuad,
+		      const dfloat * __restrict__ QuadToQuadD,
+		      const dfloat * __restrict__ oddQuadToQuadD,
+		      const dfloat * __restrict__ evenQuadToQuadD,
+		      dfloat s_Ap[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq],
+		      dfloat * __restrict__ r_Ap){
+  
   dfloat r_tmpOdd[HALF_QUAD_1D];
   dfloat r_tmpEven[HALF_QUAD_1D];
 
@@ -267,7 +267,7 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
       for(int b=0;b<HALF_DOFS_1D;++b){
 	int jb = ijN(b,j,HALF_DOFS_1D);
 	resOdd  += oddDofToQuad[jb]*r_tmpOdd[b];
-	  resEven += evenDofToQuad[jb]*r_tmpEven[b];
+	resEven += evenDofToQuad[jb]*r_tmpEven[b];
       }
       
       s_Ap[blk][k][j][a]               = resOdd+resEven;
@@ -315,8 +315,8 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   __syncthreads();
 
   // enters in s_Ap, leaves in r_Ap
-  stiffnessMatrixMultiplyDevice <NUM_DOFS_1D, NUM_QUAD_1D, p_Nblock> (numElements, element, lambda, op,
-								      QuadToQuadD, oddQuadToQuadD, evenQuadToQuadD, s_Ap, r_Ap);
+  BK3InnerDevice <NUM_DOFS_1D, NUM_QUAD_1D, p_Nblock> (numElements, element, lambda, op,
+						       QuadToQuadD, oddQuadToQuadD, evenQuadToQuadD, s_Ap, r_Ap);
   
   __syncthreads();
   
@@ -427,16 +427,16 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
 }
 
 template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
-__global__ void massMatrixMultiplyConstantKernel(const int numElements,
-						 const dfloat lambda,
-						 const dfloat * __restrict__ op,
-						 const dfloat * __restrict__ oddDofToQuad,
-						 const dfloat * __restrict__ evenDofToQuad,
-						 const dfloat * __restrict__ QuadToQuadD,
-						 const dfloat * __restrict__ oddQuadToQuadD,
-						 const dfloat * __restrict__ evenQuadToQuadD,
-						 const dfloat * __restrict__ solIn,
-						 dfloat * __restrict__ solOut){
+ __global__ void BK3ConstantKernel(const int numElements,
+				    const dfloat lambda,
+				    const dfloat * __restrict__ op,
+				    const dfloat * __restrict__ oddDofToQuad,
+				    const dfloat * __restrict__ evenDofToQuad,
+				    const dfloat * __restrict__ QuadToQuadD,
+				    const dfloat * __restrict__ oddQuadToQuadD,
+				    const dfloat * __restrict__ evenQuadToQuadD,
+				    const dfloat * __restrict__ solIn,
+				    dfloat * __restrict__ solOut){
   
   __shared__ dfloat s_tmp1[p_Nblock][NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
   __shared__ dfloat s_QuadToQuadD[NUM_QUAD_2D];
@@ -466,7 +466,7 @@ __global__ void massMatrixMultiplyConstantKernel(const int numElements,
 
   __syncthreads();
   
-  massMatrixMultiplyDevice  <NUM_DOFS_1D, NUM_QUAD_1D, p_Nblock>
+  BK3OuterDevice  <NUM_DOFS_1D, NUM_QUAD_1D, p_Nblock>
     (numElements, element, lambda, op, const_oddDofToQuad, const_evenDofToQuad, s_QuadToQuadD, const_oddQuadToQuadD, const_evenQuadToQuadD, s_tmp1, r_Aq);
   
   if(element<numElements){
@@ -647,24 +647,24 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 				 dfloat *c_QuadToQuadD, dfloat *c_oddQuadToQuadD, dfloat *c_evenQuadToQuadD,
 				 dfloat *c_solIn, dfloat *c_solOut){
   
-#define massMatrixMultiplyKernel(Nq,cubNq,Nblock)			\
+#define BK3Kernel(Nq,cubNq,Nblock)					\
   {									\
     dim3 G((numElements+Nblock-1)/Nblock, 1, 1);			\
     dim3 B(cubNq*cubNq, Nblock, 1);					\
-    massMatrixMultiplyConstantKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>> \
+    BK3ConstantKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>		\
       (numElements, lambda, c_op, c_oddDofToQuad, c_evenDofToQuad, c_QuadToQuadD, c_oddQuadToQuadD,c_evenQuadToQuadD, c_solIn, c_solOut); \
   }
   
-#define ERR printf("massMatrixMultiplyRegister with Nq=%d, cubNq=%d not available", Nq, cubNq); exit(-1)
+#define ERR printf("BK3Register with Nq=%d, cubNq=%d not available", Nq, cubNq); exit(-1)
 
   int Nblock = 1;
   if(Nq==2){
     switch(cubNq){
-    case 2: massMatrixMultiplyKernel(2,2,16); break;
-    case 3: massMatrixMultiplyKernel(2,3, 7); break;
-    case 4: massMatrixMultiplyKernel(2,4, 4); break;
-    case 5: massMatrixMultiplyKernel(2,5, 5); break;
-    case 6: massMatrixMultiplyKernel(2,6, 3); break;
+    case 2: BK3Kernel(2,2,16); break;
+    case 3: BK3Kernel(2,3, 7); break;
+    case 4: BK3Kernel(2,4, 4); break;
+    case 5: BK3Kernel(2,5, 5); break;
+    case 6: BK3Kernel(2,6, 3); break;
     default: ERR;
     }
     return;
@@ -672,11 +672,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==3){
     switch(cubNq){
-    case 3: massMatrixMultiplyKernel(3,3,7); break;
-    case 4: massMatrixMultiplyKernel(3,4,16); break;
-    case 5: massMatrixMultiplyKernel(3,5,5); break;
-    case 6: massMatrixMultiplyKernel(3,6,3); break;
-    case 7: massMatrixMultiplyKernel(3,7,2); break;
+    case 3: BK3Kernel(3,3,7); break;
+    case 4: BK3Kernel(3,4,16); break;
+    case 5: BK3Kernel(3,5,5); break;
+    case 6: BK3Kernel(3,6,3); break;
+    case 7: BK3Kernel(3,7,2); break;
     default: ERR;
     }
     return;
@@ -684,11 +684,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==4){
     switch(cubNq){
-    case 4: massMatrixMultiplyKernel(4,4,4); break;
-    case 5: massMatrixMultiplyKernel(4,5,5); break;
-    case 6: massMatrixMultiplyKernel(4,6,3); break;
-    case 7: massMatrixMultiplyKernel(4,7,2); break;
-    case 8: massMatrixMultiplyKernel(4,8,1); break;
+    case 4: BK3Kernel(4,4,4); break;
+    case 5: BK3Kernel(4,5,5); break;
+    case 6: BK3Kernel(4,6,3); break;
+    case 7: BK3Kernel(4,7,2); break;
+    case 8: BK3Kernel(4,8,1); break;
     default: ERR;
     }
     return;
@@ -696,11 +696,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==5){
     switch(cubNq){
-    case 5: massMatrixMultiplyKernel(5,5,5); break;
-    case 6: massMatrixMultiplyKernel(5,6,3); break;
-    case 7: massMatrixMultiplyKernel(5,7,2); break;
-    case 8: massMatrixMultiplyKernel(5,8,1); break;
-    case 9: massMatrixMultiplyKernel(5,9,2); break;
+    case 5: BK3Kernel(5,5,5); break;
+    case 6: BK3Kernel(5,6,3); break;
+    case 7: BK3Kernel(5,7,2); break;
+    case 8: BK3Kernel(5,8,1); break;
+    case 9: BK3Kernel(5,9,2); break;
     default: ERR;
     }
     return;
@@ -708,11 +708,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==6){
     switch(cubNq){
-    case 6:  massMatrixMultiplyKernel(6, 6, 3); break; // Nb=3 best so far
-    case 7:  massMatrixMultiplyKernel(6, 7, 2); break;
-    case 8:  massMatrixMultiplyKernel(6, 8, 1); break;
-    case 9:  massMatrixMultiplyKernel(6, 9, 2); break;
-    case 10: massMatrixMultiplyKernel(6,10, 1); break;
+    case 6:  BK3Kernel(6, 6, 3); break; // Nb=3 best so far
+    case 7:  BK3Kernel(6, 7, 2); break;
+    case 8:  BK3Kernel(6, 8, 1); break;
+    case 9:  BK3Kernel(6, 9, 2); break;
+    case 10: BK3Kernel(6,10, 1); break;
     default: ERR;
     }
     return;
@@ -720,11 +720,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==7){
     switch(cubNq){
-    case 7:  massMatrixMultiplyKernel(7, 7,2); break;
-    case 8:  massMatrixMultiplyKernel(7, 8,1); break;
-    case 9:  massMatrixMultiplyKernel(7, 9,2); break;
-    case 10: massMatrixMultiplyKernel(7,10,1); break;
-    case 11: massMatrixMultiplyKernel(7,11,1); break;
+    case 7:  BK3Kernel(7, 7,2); break;
+    case 8:  BK3Kernel(7, 8,1); break;
+    case 9:  BK3Kernel(7, 9,2); break;
+    case 10: BK3Kernel(7,10,1); break;
+    case 11: BK3Kernel(7,11,1); break;
 
     default: ERR;
     }
@@ -733,11 +733,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==8){
     switch(cubNq){
-    case 8:  massMatrixMultiplyKernel(8, 8,1); break;
-    case 9:  massMatrixMultiplyKernel(8, 9,2); break;
-    case 10: massMatrixMultiplyKernel(8,10,1); break;
-    case 11: massMatrixMultiplyKernel(8,11,1); break;
-    case 12: massMatrixMultiplyKernel(8,12,1); break;
+    case 8:  BK3Kernel(8, 8,1); break;
+    case 9:  BK3Kernel(8, 9,2); break;
+    case 10: BK3Kernel(8,10,1); break;
+    case 11: BK3Kernel(8,11,1); break;
+    case 12: BK3Kernel(8,12,1); break;
     default: ERR;
     }
     return;
@@ -745,11 +745,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==9){
     switch(cubNq){
-    case 9:  massMatrixMultiplyKernel(9, 9,1); break;
-    case 10: massMatrixMultiplyKernel(9,10,1); break;
-    case 11: massMatrixMultiplyKernel(9,11,1); break;
-    case 12: massMatrixMultiplyKernel(9,12,1); break;
-    case 13: massMatrixMultiplyKernel(9,13,1); break;
+    case 9:  BK3Kernel(9, 9,1); break;
+    case 10: BK3Kernel(9,10,1); break;
+    case 11: BK3Kernel(9,11,1); break;
+    case 12: BK3Kernel(9,12,1); break;
+    case 13: BK3Kernel(9,13,1); break;
 
     default: ERR;
     }
@@ -758,11 +758,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==10){
     switch(cubNq){
-    case 10: massMatrixMultiplyKernel(10,10,1); break;
-    case 11: massMatrixMultiplyKernel(10,11,1); break;
-    case 12: massMatrixMultiplyKernel(10,12,1); break;
-    case 13: massMatrixMultiplyKernel(10,13,1); break;
-    case 14: massMatrixMultiplyKernel(10,14,1); break;
+    case 10: BK3Kernel(10,10,1); break;
+    case 11: BK3Kernel(10,11,1); break;
+    case 12: BK3Kernel(10,12,1); break;
+    case 13: BK3Kernel(10,13,1); break;
+    case 14: BK3Kernel(10,14,1); break;
     default: ERR;
     }
     return;
@@ -770,11 +770,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==11){
     switch(cubNq){
-    case 11: massMatrixMultiplyKernel(11,11,1); break;
-    case 12: massMatrixMultiplyKernel(11,12,1); break;
-    case 13: massMatrixMultiplyKernel(11,13,1); break;
-    case 14: massMatrixMultiplyKernel(11,14,1); break;
-    case 15: massMatrixMultiplyKernel(11,15,1); break;
+    case 11: BK3Kernel(11,11,1); break;
+    case 12: BK3Kernel(11,12,1); break;
+    case 13: BK3Kernel(11,13,1); break;
+    case 14: BK3Kernel(11,14,1); break;
+    case 15: BK3Kernel(11,15,1); break;
 
     default: ERR;
     }
@@ -783,11 +783,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
   
   if(Nq==12){
     switch(cubNq){
-    case 12: massMatrixMultiplyKernel(12,12,1); break;
-    case 13: massMatrixMultiplyKernel(12,13,1); break;
-    case 14: massMatrixMultiplyKernel(12,14,1); break;
-    case 15: massMatrixMultiplyKernel(12,15,1); break;
-      //    case 16: massMatrixMultiplyKernel(12,16,1); break;
+    case 12: BK3Kernel(12,12,1); break;
+    case 13: BK3Kernel(12,13,1); break;
+    case 14: BK3Kernel(12,14,1); break;
+    case 15: BK3Kernel(12,15,1); break;
+      //    case 16: BK3Kernel(12,16,1); break;
     default: ERR;
     }
     return;
@@ -795,11 +795,11 @@ void runMassMatrixMultiplyKernel(cudaStream_t stream, int Nq, int cubNq, int num
 
   if(Nq==13){
     switch(cubNq){
-    case 13: massMatrixMultiplyKernel(13,13,1); break;
-    case 14: massMatrixMultiplyKernel(13,14,1); break;
-    case 15: massMatrixMultiplyKernel(14,15,1); break;
-    case 16: massMatrixMultiplyKernel(15,16,1); break;
-      //    case 16: massMatrixMultiplyKernel(12,16,1); break;
+    case 13: BK3Kernel(13,13,1); break;
+    case 14: BK3Kernel(13,14,1); break;
+    case 15: BK3Kernel(14,15,1); break;
+    case 16: BK3Kernel(15,16,1); break;
+      //    case 16: BK3Kernel(12,16,1); break;
     default: ERR;
     }
     return;
@@ -902,7 +902,7 @@ int main(int argc, char **argv){
   int Ntests = 10;
   
   double estimatedActualDeviceBandwidth =
-  	 bandwidthTest(stream, Ntests, (Ntotal*2+7*cubNtotal)*sizeof(dfloat));
+    bandwidthTest(stream, Ntests, (Ntotal*2+7*cubNtotal)*sizeof(dfloat));
   
   dfloat *h_op,      *c_op;
   dfloat *h_solOut,       *c_solOut;

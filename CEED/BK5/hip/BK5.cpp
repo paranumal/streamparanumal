@@ -328,6 +328,140 @@ __global__ void BK5ImportKernel(const int numElements,
 
 
 
+template <int NUM_DOFS_1D>
+  __forceinline__ __device__ 
+  dfloat BK5CubeDevice(const int numElements,
+		       const int element,
+		       const dfloat lambda,
+		       const dfloat * __restrict__ op,
+		       const dfloat * __restrict__ DofToDofD,
+		       dfloat r_p){
+  
+  __shared__ dfloat s_p[NUM_DOFS_1D][NUM_DOFS_1D][NUM_DOFS_1D];
+  
+  // assumes NUM_DOFS_2D threads
+  int i = threadIdx.x;
+  int j = threadIdx.y;
+  int k = threadIdx.z;
+  
+  dfloat r_Ap = 0; // zero the accumulator
+
+  s_p[k][j][i] = r_p;
+
+  __syncthreads();
+  
+  dfloat G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
+  
+  // prefetch geometric factors
+  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+  
+  if(element<numElements){
+    G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
+    G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
+    G02 = op[gbase+p_G02ID*NUM_DOFS_3D];
+    G11 = op[gbase+p_G11ID*NUM_DOFS_3D];
+    G12 = op[gbase+p_G12ID*NUM_DOFS_3D];
+    G22 = op[gbase+p_G22ID*NUM_DOFS_3D];
+    GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
+  }
+
+  r_Ap = GWJ*lambda*r_p;
+  
+  dfloat pr = 0.f;
+  dfloat ps = 0.f;
+  dfloat pt = 0.f;
+  
+#pragma unroll
+  for(int m = 0; m < NUM_DOFS_1D; m++) {
+    int im = ijN(m,i,NUM_DOFS_1D);
+    int jm = ijN(m,j,NUM_DOFS_1D);
+    int km = ijN(m,k,NUM_DOFS_1D);
+    pr += DofToDofD[im]*s_p[k][j][m];
+    ps += DofToDofD[jm]*s_p[k][m][i];
+    pt += DofToDofD[km]*s_p[m][j][i];
+  }
+  
+  dfloat Gpr = (G00*pr + G01*ps + G02*pt);
+  dfloat Gps = (G01*pr + G11*ps + G12*pt);
+  dfloat Gpt = (G02*pr + G12*ps + G22*pt);
+  
+  
+  __syncthreads();
+
+  s_p[k][j][i] = Gpr;
+
+  __syncthreads();
+  
+#pragma unroll
+  for(int m = 0; m < NUM_DOFS_1D; m++){
+    int mi = ijN(i,m,NUM_DOFS_1D);
+    r_Ap += DofToDofD[mi]*s_p[k][j][m];
+  }
+
+
+  __syncthreads();
+  
+  s_p[k][j][i] = Gps;
+
+  __syncthreads();
+  
+#pragma unroll
+  for(int m = 0; m < NUM_DOFS_1D; m++){
+    int mj = ijN(j,m,NUM_DOFS_1D);
+    r_Ap += DofToDofD[mj]*s_p[k][m][i];
+  }
+
+  __syncthreads();
+  
+  s_p[k][j][i] = Gpt;
+
+  __syncthreads();
+  
+#pragma unroll
+  for(int m = 0; m < NUM_DOFS_1D; m++){
+    int mk= ijN(k,m,NUM_DOFS_1D);
+    r_Ap += DofToDofD[mk]*s_p[m][j][i];
+  }
+  
+  return r_Ap;
+}
+
+template <int NUM_DOFS_1D>
+__global__ void BK5CubeKernel(const int numElements,
+			       const dfloat lambda,
+			       const dfloat * __restrict__ op,
+			       const dfloat * __restrict__ DofToDofD,
+			       const dfloat * __restrict__ solIn,
+			       dfloat * __restrict__ solOut){
+  
+  __shared__ dfloat s_DofToDofD[NUM_DOFS_2D];
+  
+  const int element = blockIdx.x;
+  
+  int a = threadIdx.x;
+  int b = threadIdx.y;
+  int c = threadIdx.z;
+
+  if(c==0)
+    s_DofToDofD[b*NUM_DOFS_1D+a] = DofToDofD[b*NUM_DOFS_1D+a];
+  
+  int id = ijklN(a,b,c,element,NUM_DOFS_1D);
+  
+  dfloat r_p  = solIn[id];
+  
+  __syncthreads();
+  
+  dfloat r_Ap = BK5CubeDevice  <NUM_DOFS_1D>
+    (numElements, element, lambda, op, s_DofToDofD, r_p);
+  
+  solOut[id] = r_Ap;
+
+}
+
+
+
+
+
 void BK5Host(int NUM_DOFS_1D, int numElements, dfloat_t lambda,
 	     const dfloat_t * __restrict__ op,
 	     const dfloat_t * __restrict__ DofToDofD,
@@ -582,12 +716,19 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat_t lambda,
       dim3 B(Nq*Nq, Nblock, 1);						\
       hipLaunchKernelGGL(BK5ConstantKernel<Nq,Nblock>, G, B, 0, stream,	\
 			 numElements, lambda, c_op, c_DofToDofD, c_oddDofToDofD,c_evenDofToDofD, c_solIn, c_solOut); \
-    }else{								\
+    }else if(mode==1){							\
       dim3 G(numElements, 1, 1);					\
       dim3 B(Nq*Nq, 1, 1);						\
       hipLaunchKernelGGL(BK5ImportKernel<Nq>, G, B, 0, stream,		\
 			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
+    }else if(mode==2){							\
+      dim3 G(numElements, 1, 1);					\
+      dim3 B(Nq,Nq, Nq);						\
+      hipLaunchKernelGGL(BK5CubeKernel<Nq>, G, B, 0, stream,		\
+			 numElements, lambda, c_op, c_DofToDofD, c_solIn, c_solOut); \
     }									\
+
+    }
   }
   
 #define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
