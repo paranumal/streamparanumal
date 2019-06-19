@@ -1,8 +1,12 @@
 hipFlags = --amdgpu-target=gfx906  -O3 -ffast-math 
 
+flags = -Ddfloat=double
+flags += -DdfloatString='"double"'
+flags += -I../../core
 
 BK5: BK5.cpp makefile
-	hipcc -o BK5 $(hipFlags) BK5.cpp
+	mpic++ $(flags) -c  -I../../core/ ../../core/meshBasis.cpp
+	hipcc $(flags) -o BK5 $(hipFlags) BK5.cpp meshBasis.o -llapack -lblas
 
 clean:
-	rm -f BK5
+	rm -f BK5 meshBasis.o

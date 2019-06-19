@@ -8,6 +8,8 @@ See LICENSE file.
 #include <stdlib.h>
 #include <hip/hip_runtime.h>
 
+#include <meshBasis.hpp>
+
 #define dfloat double
 
 void matrixPrint(int Nrows, int Ncols, dfloat *A, const char *mess){
@@ -56,17 +58,6 @@ __forceinline__ __device__ __host__ int ijklN(const int i, const int j, const in
 
 #define NUM_DOFS_2D (NUM_DOFS_1D*NUM_DOFS_1D)
 #define NUM_DOFS_3D (NUM_DOFS_1D*NUM_DOFS_1D*NUM_DOFS_1D)
-
-#define p_Nop 7
-
-#define p_G00ID 0
-#define p_G01ID 1
-#define p_G02ID 2
-#define p_G11ID 3
-#define p_G12ID 4
-#define p_G22ID 5
-#define p_GWJID 6
-
 
 __constant__ dfloat const_DofToDofD[MAX_DOFS_1D*MAX_DOFS_1D];
 __constant__ dfloat const_oddDofToDofD[MAX_HALF_DOFS_1D*MAX_HALF_DOFS_1D];
@@ -121,7 +112,7 @@ template <int NUM_DOFS_1D, int p_Nblock >
     dfloat G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
     
     // prefetch geometric factors
-    const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+    const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
 
     if(element<numElements){
       G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
@@ -264,7 +255,7 @@ __global__ void BK5ImportKernel(const int numElements,
   for(int k = 0;k < NUM_DOFS_1D; k++){
 	
     // prefetch geometric factors
-    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    const int gbase = e*p_Nggeo*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
     
     r_G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
     r_G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
@@ -353,7 +344,7 @@ template <int NUM_DOFS_1D>
   dfloat G00 = 0, G01 =0, G02 =0, G11 =0, G12 =0, G22 =0, GWJ =0;
   
   // prefetch geometric factors
-  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
   
   if(element<numElements){
     G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
@@ -492,7 +483,7 @@ __global__ void BK5SharedKernel(const int numElements,
     dfloat qkji = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
 
     // prefetch geometric factors
-    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    const int gbase = e*p_Nggeo*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
     
     dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
     
@@ -518,7 +509,7 @@ __global__ void BK5SharedKernel(const int numElements,
     __syncthreads();
 
     // prefetch geometric factors
-    const int gbase = e*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    const int gbase = e*p_Nggeo*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
 
     dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
 
@@ -633,7 +624,7 @@ __global__ void BK5BlockedSharedKernel(const int numElements,
       dfloat qkji = q[base + k*NUM_DOFS_1D*NUM_DOFS_1D]; // prefetch operation
       
       // prefetch geometric factors
-      const int gbase = element*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+      const int gbase = element*p_Nggeo*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
       
       dfloat r_GwJ = op[gbase+p_GWJID*NUM_DOFS_3D];
       
@@ -648,7 +639,7 @@ __global__ void BK5BlockedSharedKernel(const int numElements,
     __syncthreads();
 
     // prefetch geometric factors
-    const int gbase = element*p_Nop*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
+    const int gbase = element*p_Nggeo*NUM_DOFS_3D + k*NUM_DOFS_1D*NUM_DOFS_1D + j*NUM_DOFS_1D + i;
 
     dfloat r_Gqr = 0, r_Gqs = 0, r_Gqt = 0;
 
@@ -763,7 +754,7 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat lambda,
 	    qt += DofToDofD[kn]*q[nji];	  
 	  }
 	  
-	  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+	  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
 	  
 	  dfloat G00 = op[gbase+p_G00ID*NUM_DOFS_3D];
 	  dfloat G01 = op[gbase+p_G01ID*NUM_DOFS_3D];
@@ -786,7 +777,7 @@ void BK5Host(int NUM_DOFS_1D, int numElements, dfloat lambda,
 	  
 	  int kji = ijklN(i,j,k,element,NUM_DOFS_1D);
 	  
-	  const int gbase = element*p_Nop*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
+	  const int gbase = element*p_Nggeo*NUM_DOFS_3D + ijkN(i,j,k,NUM_DOFS_1D);
 	  
 	  dfloat GWJ = op[gbase+p_GWJID*NUM_DOFS_3D];
 	  dfloat lapq = lambda*GWJ*q[kji];
@@ -1168,19 +1159,26 @@ int main(int argc, char **argv){
   dfloat *c_oddDofToDofD, *c_evenDofToDofD;
 
   // float fields
-  randAlloc(Ntotal*p_Nop, &h_op, &c_op);
+  randAlloc(Ntotal*p_Nggeo, &h_op, &c_op);
   
   randAlloc(Ntotal, &h_solIn, &c_solIn);
   randAlloc(Ntotal, &h_solOut, &c_solOut);
   
   randAlloc(Nq*Nq, &h_DofToDofD, &c_DofToDofD);
-  
+
+#if 0
   // give D the correct symmetry
   for(int i=0;i<halfNq;++i){
     for(int a=0;a<Nq;++a){
       h_DofToDofD[(Nq-1-i)*Nq + Nq-1-a] = -h_DofToDofD[i*Nq+a];
     }
   }
+#else
+  dfloat *r, *w;
+
+  meshJacobiGL(0,0, Nq-1, &r, &w);
+  meshDmatrix1D(Nq-1, Nq, r, &h_DofToDofD);
+#endif
 
   // create Odd-even packed storage for I and transpose(I) and push to constant memory
   buildOddEvenMatrices (Nq,Nq, h_DofToDofD, &c_DofToDofD, &c_oddDofToDofD, &c_evenDofToDofD);
@@ -1266,7 +1264,8 @@ int main(int argc, char **argv){
   }
 
   // check output is correct
-  BK5Host (Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
+  //  BK5Host (Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
+  meshReferenceBK5(Nq, numElements, lambda, h_op, h_DofToDofD, h_solIn, h_solOut);
 
   // copy device version to host old q
   dfloat *fromDevice = (dfloat*) calloc(numElements*Np, sizeof(dfloat));
