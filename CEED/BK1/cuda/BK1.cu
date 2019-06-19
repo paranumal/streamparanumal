@@ -1059,6 +1059,177 @@ template <int NUM_DOFS_1D, int NUM_QUAD_1D, int p_Nblock >
   
 }
 
+template <int NUM_DOFS_1D, int NUM_QUAD_1D>
+  __forceinline__ __device__ 
+  void BK1CubeDevice(const int numElements,
+		     const int element,
+		     const dfloat * __restrict__ op,
+		     const dfloat * __restrict__ DofToQuad,
+		     dfloat s_p[NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq]){
+  
+  const int a = threadIdx.x;
+  const int b = threadIdx.y;
+  const int c = threadIdx.z;
+
+  // assume s_p preloaded
+  
+  __syncthreads();
+  
+  // transform in 'a'
+  dfloat res = 0;
+  if(b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+#pragma unroll 
+    for(int n=0;n<NUM_DOFS_1D;++n){
+      int an = ijN(n,a,NUM_DOFS_1D);		
+      res  += DofToQuad[an]*s_p[c][b][n];
+    }
+  }
+  
+  __syncthreads();
+  
+  if(b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+    s_p[c][b][a]  = res;
+  }
+  
+  __syncthreads();
+  
+  // transform in 'b'
+  res = 0;
+  
+  if(c<NUM_DOFS_1D){
+#pragma unroll 
+    for(int n=0;n<NUM_DOFS_1D;++n){
+      int bn = ijN(n,b,NUM_DOFS_1D);		
+      res  += DofToQuad[bn]*s_p[c][n][a];
+    }
+  }
+  
+  __syncthreads();
+
+  if(c<NUM_DOFS_1D){
+    s_p[c][b][a]  = res;
+  }
+  
+  __syncthreads();
+
+  int gid = ijklN(a,b,c,element, NUM_QUAD_1D);
+  dfloat WJ = op[gid];
+  
+  // transform in 'c'
+  res = 0;
+
+#pragma unroll 
+  for(int n=0;n<NUM_DOFS_1D;++n){
+    int cn = ijN(n,c,NUM_DOFS_1D);		
+    res  += DofToQuad[cn]*s_p[n][b][a];
+  }
+
+  __syncthreads();
+  
+  s_p[c][b][a] = WJ*res;
+  
+  __syncthreads();
+  
+  // test in 'c'
+  res = 0;
+  if(c<NUM_DOFS_1D){
+#pragma unroll 
+    for(int n=0;n<NUM_QUAD_1D;++n){
+      int cn = ijN(c,n,NUM_DOFS_1D);		
+      res  += DofToQuad[cn]*s_p[n][b][a];
+    }
+  }
+
+  __syncthreads();
+
+  if(c<NUM_DOFS_1D){
+    s_p[c][b][a] = res;
+  }
+
+  __syncthreads();
+
+
+  // transform in 'b'
+  res = 0;
+  if(b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+#pragma unroll 
+    for(int n=0;n<NUM_QUAD_1D;++n){
+      int bn = ijN(b,n,NUM_DOFS_1D);		
+      res  += DofToQuad[bn]*s_p[c][n][a];
+    }
+  }
+  
+  __syncthreads();
+  
+  if(b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+    s_p[c][b][a]  = res;
+  }
+
+  __syncthreads();
+  
+  // test in 'a'
+  res = 0;
+  if(a<NUM_DOFS_1D && b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+#pragma unroll 
+    for(int n=0;n<NUM_QUAD_1D;++n){
+      int an = ijN(a,n,NUM_DOFS_1D);		
+      res  += DofToQuad[an]*s_p[c][b][n];
+    }
+  }
+
+  __syncthreads();
+  
+  if(a<NUM_DOFS_1D && b<NUM_DOFS_1D && c<NUM_DOFS_1D){
+    s_p[c][b][a] = res;
+  }
+
+  __syncthreads();
+}
+
+
+template <int NUM_DOFS_1D, int NUM_QUAD_1D>
+  __global__ void BK1CubeKernel(const int numElements,
+				const dfloat * __restrict__ op,
+				const dfloat * __restrict__ DofToQuad,
+				const dfloat * __restrict__ solIn,
+				dfloat * __restrict__ solOut){
+  
+  __shared__ dfloat s_p[NUM_QUAD_1D][NUM_QUAD_1D][NUM_QUAD_1D+p_padCubNq];
+  __shared__ dfloat s_DofToQuad[NUM_QUAD_1D*NUM_DOFS_1D];
+  
+  const int element = blockIdx.x;
+  
+  const int i = threadIdx.x;
+  const int j = threadIdx.y;
+  const int k = threadIdx.z;
+
+  int t = i + j*NUM_QUAD_1D + k*NUM_QUAD_2D;
+
+  int a = t%NUM_DOFS_1D;
+  int b = (t/NUM_DOFS_1D)%NUM_DOFS_1D;
+  int c = (t/NUM_DOFS_2D);
+
+  int id = ijklN(a,b,c,element,NUM_DOFS_1D);
+    
+  if(t<NUM_DOFS_3D){
+    s_p[c][b][a] = solIn[t + element*NUM_DOFS_3D];
+  }
+
+  if(t<NUM_DOFS_1D*NUM_QUAD_1D){
+    s_DofToQuad[t] = DofToQuad[t];
+  }
+  
+  BK1CubeDevice  <NUM_DOFS_1D, NUM_QUAD_1D>
+    (numElements, element, op, s_DofToQuad, s_p);
+  
+  if(t<NUM_DOFS_3D){
+    solOut[t + element*NUM_DOFS_3D] = s_p[c][b][a] ;
+  }
+}
+
+
+
+
 void buildInterpMatrices(int NUM_DOFS_1D, int NUM_QUAD_1D,
 			 dfloat *h_DofToQuad,     dfloat *h_oddDofToQuad, dfloat *h_evenDofToQuad,
 			 dfloat **c_oddDofToQuad, dfloat **c_evenDofToQuad){
@@ -1196,6 +1367,11 @@ void runBK1Kernel(cudaStream_t stream, int Nq, int cubNq, int numElements,
       BK1MonolithicGlobalKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
     else if(mode==6)							\
       BK1MonolithicConstantKernel<Nq,cubNq,Nblock> <<< G, B, 0, stream >>>( numElements, c_op, c_DofToQuad, c_evenDofToQuad, c_solIn, c_solOut); \
+    else if(mode==7){							\
+      dim3 G3(numElements, 1, 1);					\
+      dim3 B3(cubNq,cubNq,cubNq);					\
+      BK1CubeKernel<Nq,cubNq> <<< G3, B3, 0, stream >>>( numElements, c_op, c_DofToQuad, c_solIn, c_solOut); \
+    }									\
   }
   
 #define ERR printf("BK1Register with Nq=%d, cubNq=%d not available", Nq, cubNq); exit(-1)
@@ -1459,7 +1635,7 @@ int main(int argc, char **argv){
   int numElements = atoi(argv[3]);
   int        mode = atoi(argv[4]);
 
-  if(mode==0 || mode>6) {
+  if(mode==0 || mode>7) {
     printf("Exiting: mode %d not supported\n", mode);
   }
   
