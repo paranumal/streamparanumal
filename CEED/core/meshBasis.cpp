@@ -114,7 +114,13 @@ int meshJacobiGQ(dfloat alpha, dfloat beta, int N, dfloat **x, dfloat **w){
       }
     }
   }
-  
+
+#if 0
+  for(int n=0;n<=N;++n){
+    printf("zgl[%d] = % e, wgl[%d] = % e\n", n, x[0][n], n, w[0][n]);
+  }
+#endif
+
   free(WR);
   free(WI);
   free(VR);

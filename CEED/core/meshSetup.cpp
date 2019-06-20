@@ -25,7 +25,7 @@ SOFTWARE.
 */
 
 
-
+#include "omp.h"
 #include "mpi.h"
 #include "mesh.h"
 
@@ -1065,7 +1065,7 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   mesh->Nverts = 8;
 
   // GLL nodes
-  meshJacobiGQ(0, 0, N, &(mesh->gllz), &(mesh->gllw));
+  meshJacobiGL(0, 0, N, &(mesh->gllz), &(mesh->gllw));
 
   // GLL collocation differentiation matrix
   meshDmatrix1D(N, mesh->Nq, mesh->gllz, &(mesh->D));
@@ -1073,13 +1073,13 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   // quadrature
   mesh->cubNq = cubN +1;
   mesh->cubNfp = mesh->cubNq*mesh->cubNq;
+  mesh->cubNp = mesh->cubNq*mesh->cubNq*mesh->Nq;
   
   // GL quadrature
   meshJacobiGQ(0, 0, cubN, &(mesh->cubr), &(mesh->cubw));
 
   // GLL to GL interpolation matrix
-  meshInterpolationMatrix1D(N, mesh->Nq, mesh->gllz, mesh->cubNq, mesh->cubr,
-			    &(mesh->cubInterp));
+  meshInterpolationMatrix1D(N, mesh->Nq, mesh->gllz, mesh->cubNq, mesh->cubr, &(mesh->cubInterp));
 
   // GL to GL differentiation matrix
   meshDmatrix1D(cubN, mesh->cubNq, mesh->cubr, &(mesh->cubD));
@@ -1106,27 +1106,27 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->t[n]+1)<NODETOL)
-      mesh->faceNodes[0*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[0*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->s[n]+1)<NODETOL)
-      mesh->faceNodes[1*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[1*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->r[n]-1)<NODETOL)
-      mesh->faceNodes[2*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[2*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->s[n]-1)<NODETOL)
-      mesh->faceNodes[3*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[3*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->r[n]+1)<NODETOL)
-      mesh->faceNodes[4*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[4*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->t[n]-1)<NODETOL)
-      mesh->faceNodes[5*mesh->Nq+(cnt++)] = n;
+      mesh->faceNodes[5*mesh->Nfp+(cnt++)] = n;
 
   // find node indices of vertex nodes
   mesh->vertexNodes = (int*) calloc(mesh->Nverts, sizeof(int));
@@ -1225,6 +1225,11 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     mesh->device.malloc(mesh->cubNq*mesh->cubNq*sizeof(dfloat),
 			mesh->cubD);
 
+  mesh->o_cubInterp =
+    mesh->device.malloc(mesh->cubNq*mesh->Nq*sizeof(dfloat),
+			mesh->cubInterp);
+
+  
   mesh->o_vmapM =
     mesh->device.malloc(mesh->Nelements*mesh->Nfp*mesh->Nfaces*sizeof(dlong),
                         mesh->vmapM);
@@ -1960,7 +1965,7 @@ void meshPhysicalNodesHex3D(mesh3D *mesh){
     }
   }
 }
-mesh3D *meshSetupBoxHex3D(int N, setupAide &options){
+mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
 
   //  mesh_t *mesh = new mesh_t[1];
   mesh_t *mesh = (mesh_t*) calloc(1, sizeof(mesh_t));
@@ -1991,7 +1996,7 @@ mesh3D *meshSetupBoxHex3D(int N, setupAide &options){
   
   // build an NX x NY x NZ periodic box grid
   
-  hlong NX = 10, NY = 10, NZ = 10; // defaults
+  hlong NX = 3, NY = 3, NZ = 3; // defaults
 
   options.getArgs("BOX NX", NX);
   options.getArgs("BOX NY", NY);
@@ -2095,7 +2100,7 @@ mesh3D *meshSetupBoxHex3D(int N, setupAide &options){
   meshPartitionStatistics(mesh);
 
   // load reference (r,s,t) element nodes
-  meshLoadReferenceNodesHex3D(mesh, N);
+  meshLoadReferenceNodesHex3D(mesh, N, cubN);
 
   // compute physical (x,y) locations of the element nodes
   meshPhysicalNodesHex3D(mesh);
@@ -2375,4 +2380,355 @@ void meshSurfaceGeometricFactorsHex3D(mesh3D *mesh){
   free(cubyre); free(cubyse); free(cubyte);
   free(cubzre); free(cubzse); free(cubzte);
   
+}
+
+int isHigher(const void *a, const void *b){
+
+  hlong *pta = (hlong*) a;
+  hlong *ptb = (hlong*) b;
+
+  if(*pta < *ptb) return -1;
+  if(*pta > *ptb) return +1;
+
+  return 0;
+}
+
+int isLower(const void *a, const void *b){
+
+  hlong *pta = (hlong*) a;
+  hlong *ptb = (hlong*) b;
+
+  if(*pta > *ptb) return -1;
+  if(*pta < *ptb) return +1;
+
+  return 0;
+}
+
+void mysort(hlong *data, int N, const char *order){
+
+  if(strstr(order, "ascend")){
+    qsort(data, N, sizeof(hlong), isHigher);
+  }
+  else{
+    qsort(data, N, sizeof(hlong), isLower);
+  }
+
+}
+
+void occaDeviceConfig(mesh_t *mesh, setupAide &options){
+
+  // OCCA build stuff
+  char deviceConfig[BUFSIZ];
+  int rank, size;
+  rank = mesh->rank;
+  size = mesh->size;
+
+  long int hostId = gethostid();
+
+  long int* hostIds = (long int*) calloc(size,sizeof(long int));
+  MPI_Allgather(&hostId,1,MPI_LONG,hostIds,1,MPI_LONG,mesh->comm);
+
+  int device_id = 0;
+  int totalDevices = 0;
+  for (int r=0;r<rank;r++) {
+    if (hostIds[r]==hostId) device_id++;
+  }
+  for (int r=0;r<size;r++) {
+    if (hostIds[r]==hostId) totalDevices++;
+  }
+
+  if (size==1) options.getArgs("DEVICE NUMBER" ,device_id);
+
+  printf("device_id = %d\n", device_id);
+  
+  //  device_id = device_id%2;
+
+  occa::properties deviceProps;
+  
+  // read thread model/device/platform from options
+  if(options.compareArgs("THREAD MODEL", "CUDA")){
+    //    deviceProps["mode"] = "CUDA";
+    //    deviceProps["device_id"] = 0; string(device_id);
+    sprintf(deviceConfig, "mode: 'CUDA', device_id: %d", device_id);
+  }
+  else if(options.compareArgs("THREAD MODEL", "HIP")){
+    sprintf(deviceConfig, "mode: 'HIP', device_id: %d",device_id);
+  }
+  else if(options.compareArgs("THREAD MODEL", "OpenCL")){
+    int plat;
+    options.getArgs("PLATFORM NUMBER", plat);
+    sprintf(deviceConfig, "mode: 'OpenCL', device_id: %d, platform_id: %d", device_id, plat);
+  }
+  else if(options.compareArgs("THREAD MODEL", "OpenMP")){
+    sprintf(deviceConfig, "mode: 'OpenMP' ");
+  }
+  else{
+    sprintf(deviceConfig, "mode: 'Serial' ");
+  }
+
+  //set number of omp threads to use
+  int Ncores = sysconf(_SC_NPROCESSORS_ONLN);
+  int Nthreads = Ncores/totalDevices;
+
+  //  Nthreads = mymax(1,Nthreads/2);
+  Nthreads = mymax(1,Nthreads/2);
+  omp_set_num_threads(Nthreads);
+
+  if (options.compareArgs("VERBOSE","TRUE"))
+    printf("Rank %d: Ncores = %d, Nthreads = %d, device_id = %d \n", rank, Ncores, Nthreads, device_id);
+
+  std::cout << deviceConfig << std::endl;
+  
+  //  mesh->device.setup( (std::string) deviceConfig); // deviceProps);
+  mesh->device.setup( (std::string)deviceConfig);
+
+#ifdef USE_OCCA_MEM_BYTE_ALIGN 
+  // change OCCA MEM BYTE ALIGNMENT
+  occa::env::OCCA_MEM_BYTE_ALIGN = USE_OCCA_MEM_BYTE_ALIGN;
+#endif
+
+#if USE_MASTER_NOEL==1
+
+  int foo;
+  // check to see if the options specify to use precompiled binaries
+  if(options.compareArgs("USE PRECOMPILED BINARIES", "TRUE")){
+    mesh->device.UsePreCompiledKernels(1);
+    occa::host().UsePreCompiledKernels(1);
+  }
+  else if(options.compareArgs("USE PRECOMPILED BINARIES", "NONROOT")){
+    mesh->device.UsePreCompiledKernels(mesh->rank!=0);
+    occa::host().UsePreCompiledKernels(mesh->rank!=0);
+  }else{
+    mesh->device.UsePreCompiledKernels(0);
+    occa::host().UsePreCompiledKernels(0);
+  }
+    
+#endif
+  
+  //  occa::initTimer(mesh->device);
+
+}
+
+
+void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa::memory &mem, occa::memory &h_mem){
+
+#if 1
+
+  mem = device.malloc(size, source);
+  
+  h_mem = device.mappedAlloc(size, source);
+
+  void *ptr = h_mem.getMappedPointer();
+
+#else
+  //  mem =  device.malloc(size, source);
+  //  void *ptr = device.malloc(size, "mapped: true").ptr();
+
+  occa::properties props;
+  props["mapped"] = true;
+  
+  if(source!=NULL)
+    mem =  device.malloc(size, source);
+  else
+    mem =  device.malloc(size);
+
+  h_mem =  device.malloc(size, props);
+  
+  void *ptr = h_mem.ptr();
+  
+#endif
+  
+  return ptr;
+
+}
+
+void mergeLists(size_t sz,
+		int N1, char *v1,
+		int N2, char *v2,
+		char *v3,
+		int (*compare)(const void *, const void *),
+		void (*match)(void *, void *)){
+    
+  int n1 = 0, n2 = 0, n3 = 0;
+    
+  // merge two lists from v1 and v2
+  for(n3=0;n3<N1+N2;++n3){
+    if(n1<N1 && n2<N2){
+      int c = compare(v1+n1*sz,v2+n2*sz);
+      if(c==-1){
+	memcpy(v3+n3*sz, v1+n1*sz, sz);
+	++n1;
+      }
+      else{
+	memcpy(v3+n3*sz, v2+n2*sz, sz);
+	++n2;
+      }
+    }
+    else if(n1<N1){
+      memcpy(v3+n3*sz, v1+n1*sz, sz);
+      ++n1;
+    }
+    else if(n2<N2){
+      memcpy(v3+n3*sz, v2+n2*sz, sz);
+      ++n2;
+    }
+  }
+  
+  // scan for matches
+  for(n3=0;n3<N1+N2-1;++n3){
+    if(!compare(v3+n3*sz,v3+(n3+1)*sz)){
+      match(v3+n3*sz, v3+(n3+1)*sz);
+    }
+  }
+    
+  /* copy result back to v1, v2 */
+  memcpy(v1, v3,       N1*sz);
+  memcpy(v2, v3+sz*N1, N2*sz);
+}
+
+// assumes N is even and the same on all ranks
+void parallelSort(int size, int rank, MPI_Comm comm,
+		  int N, void *vv, size_t sz,
+		  int (*compare)(const void *, const void *),
+		  void (*match)(void *, void *)
+		  ){
+
+#if 0
+  int rank, size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
+  
+  /* cast void * to char * */
+  char *v = (char*) vv;
+
+  /* sort faces by their vertex number pairs */
+  qsort(v, N, sz, compare);
+    
+  /* now do progressive merges */
+  int NA=N/2, NB = N/2, NC = N/2;
+    
+  MPI_Request recvA, recvC;
+  MPI_Request sendA, sendC;
+  MPI_Status status;
+  int tag = 999;
+    
+  /* temporary buffer for incoming data */
+  void *A = (void*) calloc(NA, sz);
+  void *B = v;
+  void *C = v+NB*sz;
+  
+  /* temporary space for merge sort */
+  void *tmp = (void*) calloc(N, sz);
+
+  /* max and min elements out of place hop one process at each step */
+  for(int step=0;step<size-1;++step){
+      
+    /* send C, receive A */
+    if(rank<size-1)
+      MPI_Isend(C, NC*sz, MPI_CHAR,  rank+1, tag, comm, &sendC);
+    if(rank>0)
+      MPI_Irecv(A, NA*sz, MPI_CHAR,  rank-1, tag, comm, &recvA);
+      
+    if(rank<size-1)
+      MPI_Wait(&sendC, &status);
+    if(rank>0)
+      MPI_Wait(&recvA, &status);
+      
+    /* merge sort A & B */
+    if(rank>0) 
+      mergeLists(sz, NA, (char*)A, NB, (char*)B, (char*)tmp, compare, match);
+      
+    /* send A, receive C */
+    if(rank>0)
+      MPI_Isend(A, NA*sz, MPI_CHAR, rank-1, tag, comm, &sendA);
+    if(rank<size-1)
+      MPI_Irecv(C, NC*sz, MPI_CHAR, rank+1, tag, comm, &recvC);
+      
+    if(rank>0)
+      MPI_Wait(&sendA, &status);
+    if(rank<size-1)
+      MPI_Wait(&recvC, &status);
+      
+    /* merge sort B & C */
+    mergeLists(sz, NB, (char*)B, NC, (char*)C, (char*)tmp, compare, match);
+      
+  }
+    
+  free(tmp);
+  free(A);
+}
+
+void meshParallelGatherScatterSetup(mesh_t *mesh,
+                                      dlong N,
+                                      hlong *globalIds,
+                                      MPI_Comm &comm,
+                                      int verbose) { 
+
+  int rank, size;
+  MPI_Comm_rank(comm, &rank); 
+  MPI_Comm_size(comm, &size); 
+
+  mesh->ogs = ogsSetup(N, globalIds, comm, verbose, mesh->device);
+
+  //use the gs to find what nodes are local to this rank
+  int *minRank = (int *) calloc(N,sizeof(int));
+  int *maxRank = (int *) calloc(N,sizeof(int));
+  for (dlong i=0;i<N;i++) {
+    minRank[i] = rank;
+    maxRank[i] = rank;
+  }
+
+  ogsGatherScatter(minRank, ogsInt, ogsMin, mesh->ogs); //minRank[n] contains the smallest rank taking part in the gather of node n
+  ogsGatherScatter(maxRank, ogsInt, ogsMax, mesh->ogs); //maxRank[n] contains the largest rank taking part in the gather of node n
+
+  // count elements that contribute to global C0 gather-scatter
+  dlong globalCount = 0;
+  dlong localCount = 0;
+  for(dlong e=0;e<mesh->Nelements;++e){
+    int isHalo = 0;
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+      if ((minRank[id]!=rank)||(maxRank[id]!=rank)) {
+        isHalo = 1;
+        break;
+      }
+    }
+    globalCount += isHalo;
+    localCount += 1-isHalo;
+  }
+
+  mesh->globalGatherElementList = (dlong*) calloc(globalCount, sizeof(dlong));
+  mesh->localGatherElementList  = (dlong*) calloc(localCount, sizeof(dlong));
+
+  globalCount = 0;
+  localCount = 0;
+
+  for(dlong e=0;e<mesh->Nelements;++e){
+    int isHalo = 0;
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+      if ((minRank[id]!=rank)||(maxRank[id]!=rank)) {
+        isHalo = 1;
+        break;
+      }
+    }
+    if(isHalo){
+      mesh->globalGatherElementList[globalCount++] = e;
+    } else{
+      mesh->localGatherElementList[localCount++] = e;
+    }
+  }
+  //printf("local = %d, global = %d\n", localCount, globalCount);
+
+  mesh->NglobalGatherElements = globalCount;
+  mesh->NlocalGatherElements = localCount;
+
+  if(globalCount)
+    mesh->o_globalGatherElementList =
+      mesh->device.malloc(globalCount*sizeof(dlong), mesh->globalGatherElementList);
+
+  if(localCount)
+    mesh->o_localGatherElementList =
+      mesh->device.malloc(localCount*sizeof(dlong), mesh->localGatherElementList);
 }
