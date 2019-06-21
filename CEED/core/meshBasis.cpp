@@ -79,7 +79,7 @@ int meshJacobiGQ(dfloat alpha, dfloat beta, int N, dfloat **x, dfloat **w){
   while(1+eps>1){
     eps = eps/2.;
   }
-  printf("MACHINE PRECISION %e\n", eps);
+  // printf("MACHINE PRECISION %e\n", eps);
   
   if (alpha+beta<10*eps) J[0] = 0;
 

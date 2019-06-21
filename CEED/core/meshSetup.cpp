@@ -113,8 +113,6 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
 
 void interpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
 
-  printf("N=%d, M=%d\n", N, M);
-  
   dfloat *Ix1 = (dfloat*) calloc(N*N*M, sizeof(dfloat));
   dfloat *Ix2 = (dfloat*) calloc(N*M*M, sizeof(dfloat));
 
