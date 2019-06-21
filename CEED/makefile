@@ -7,6 +7,7 @@ occa:
 	cd BK5/occa; make 
 	cd BK6/occa; make 
 	cd BK9/occa; make 
+	cd BP/occa; make
 
 cuda:
 	cd BK1/cuda; make 
@@ -39,5 +40,6 @@ occaclean:
 	cd BK5/occa; make clean
 	cd BK6/occa; make clean
 	cd BK9/occa; make clean
+	cd BP/occa; make clean
 
 clean: cudaclean hipclean occaclean
