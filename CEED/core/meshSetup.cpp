@@ -113,6 +113,8 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
 
 void interpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
 
+  printf("N=%d, M=%d\n", N, M);
+  
   dfloat *Ix1 = (dfloat*) calloc(N*N*M, sizeof(dfloat));
   dfloat *Ix2 = (dfloat*) calloc(N*M*M, sizeof(dfloat));
 
@@ -160,16 +162,12 @@ void interpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
 void meshGeometricFactorsHex3D(mesh3D *mesh){
 
   /* unified storage array for geometric factors */
-  mesh->Nvgeo = 12;
-  
-  /* note that we have volume geometric factors for each node */
-  mesh->vgeo = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo*mesh->Np, sizeof(dfloat));
-
+  mesh->Nvgeo   = 12;
+  mesh->vgeo    = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo*mesh->Np,    sizeof(dfloat));
   mesh->cubvgeo = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo*mesh->cubNp, sizeof(dfloat));
 
   /* number of second order geometric factors */
-  mesh->Nggeo = 7;
-
+  mesh->Nggeo   = 7;
   mesh->ggeo    = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo*mesh->Np,    sizeof(dfloat));
   mesh->cubggeo = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo*mesh->cubNp, sizeof(dfloat));
   
@@ -221,20 +219,6 @@ void meshGeometricFactorsHex3D(mesh3D *mesh){
           dfloat sn = mesh->s[n];
           dfloat tn = mesh->t[n];
 
-#if 0
-          /* Jacobian matrix */
-          dfloat xr = 0.125*( (1-tn)*(1-sn)*(xe[1]-xe[0]) + (1-tn)*(1+sn)*(xe[2]-xe[3]) + (1+tn)*(1-sn)*(xe[5]-xe[4]) + (1+tn)*(1+sn)*(xe[6]-xe[7]) );
-          dfloat xs = 0.125*( (1-tn)*(1-rn)*(xe[3]-xe[0]) + (1-tn)*(1+rn)*(xe[2]-xe[1]) + (1+tn)*(1-rn)*(xe[7]-xe[4]) + (1+tn)*(1+rn)*(xe[6]-xe[5]) );
-          dfloat xt = 0.125*( (1-rn)*(1-sn)*(xe[4]-xe[0]) + (1+rn)*(1-sn)*(xe[5]-xe[1]) + (1+rn)*(1+sn)*(xe[6]-xe[2]) + (1-rn)*(1+sn)*(xe[7]-xe[3]) );
-          
-          dfloat yr = 0.125*( (1-tn)*(1-sn)*(ye[1]-ye[0]) + (1-tn)*(1+sn)*(ye[2]-ye[3]) + (1+tn)*(1-sn)*(ye[5]-ye[4]) + (1+tn)*(1+sn)*(ye[6]-ye[7]) );
-          dfloat ys = 0.125*( (1-tn)*(1-rn)*(ye[3]-ye[0]) + (1-tn)*(1+rn)*(ye[2]-ye[1]) + (1+tn)*(1-rn)*(ye[7]-ye[4]) + (1+tn)*(1+rn)*(ye[6]-ye[5]) );
-          dfloat yt = 0.125*( (1-rn)*(1-sn)*(ye[4]-ye[0]) + (1+rn)*(1-sn)*(ye[5]-ye[1]) + (1+rn)*(1+sn)*(ye[6]-ye[2]) + (1-rn)*(1+sn)*(ye[7]-ye[3]) );
-          
-          dfloat zr = 0.125*( (1-tn)*(1-sn)*(ze[1]-ze[0]) + (1-tn)*(1+sn)*(ze[2]-ze[3]) + (1+tn)*(1-sn)*(ze[5]-ze[4]) + (1+tn)*(1+sn)*(ze[6]-ze[7]) );
-          dfloat zs = 0.125*( (1-tn)*(1-rn)*(ze[3]-ze[0]) + (1-tn)*(1+rn)*(ze[2]-ze[1]) + (1+tn)*(1-rn)*(ze[7]-ze[4]) + (1+tn)*(1+rn)*(ze[6]-ze[5]) );
-          dfloat zt = 0.125*( (1-rn)*(1-sn)*(ze[4]-ze[0]) + (1+rn)*(1-sn)*(ze[5]-ze[1]) + (1+rn)*(1+sn)*(ze[6]-ze[2]) + (1-rn)*(1+sn)*(ze[7]-ze[3]) );
-#else
 	  for(int m=0;m<mesh->Nq;++m){
 	    int idr = e*mesh->Np + k*mesh->Nq*mesh->Nq + j*mesh->Nq + m;
 	    int ids = e*mesh->Np + k*mesh->Nq*mesh->Nq + m*mesh->Nq + i;
@@ -253,7 +237,6 @@ void meshGeometricFactorsHex3D(mesh3D *mesh){
 	  dfloat xr = xre[n], xs = xse[n], xt = xte[n];
 	  dfloat yr = yre[n], ys = yse[n], yt = yte[n];
 	  dfloat zr = zre[n], zs = zse[n], zt = zte[n];
-#endif
 	  
           /* compute geometric factors for affine coordinate transform*/
           dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
@@ -1073,7 +1056,7 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   // quadrature
   mesh->cubNq = cubN +1;
   mesh->cubNfp = mesh->cubNq*mesh->cubNq;
-  mesh->cubNp = mesh->cubNq*mesh->cubNq*mesh->Nq;
+  mesh->cubNp = mesh->cubNq*mesh->cubNq*mesh->cubNq;
   
   // GL quadrature
   meshJacobiGQ(0, 0, cubN, &(mesh->cubr), &(mesh->cubw));
