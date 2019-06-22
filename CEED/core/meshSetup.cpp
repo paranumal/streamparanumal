@@ -1949,7 +1949,9 @@ void meshPhysicalNodesHex3D(mesh3D *mesh){
 mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
 
   //  mesh_t *mesh = new mesh_t[1];
-  mesh_t *mesh = (mesh_t*) calloc(1, sizeof(mesh_t));
+  mesh_t *mesh = new mesh_t();
+
+  //(mesh_t*) calloc(1, sizeof(mesh_t));
   
   int rank, size;
   
@@ -2468,6 +2470,7 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
   occa::env::OCCA_MEM_BYTE_ALIGN = USE_OCCA_MEM_BYTE_ALIGN;
 #endif
 
+  #if 0
 #if USE_MASTER_NOEL==1
 
   int foo;
@@ -2485,7 +2488,7 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
   }
     
 #endif
-  
+#endif
   //  occa::initTimer(mesh->device);
 
 }
@@ -2493,7 +2496,7 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
 
 void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa::memory &mem, occa::memory &h_mem){
 
-#if 1
+#if 0
 
   mem = device.malloc(size, source);
   
@@ -2508,11 +2511,6 @@ void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa
   occa::properties props;
   props["mapped"] = true;
   
-  if(source!=NULL)
-    mem =  device.malloc(size, source);
-  else
-    mem =  device.malloc(size);
-
   h_mem =  device.malloc(size, props);
   
   void *ptr = h_mem.ptr();
@@ -2642,7 +2640,7 @@ void parallelSort(int size, int rank, MPI_Comm comm,
 
 void meshParallelGatherScatterSetup(mesh_t *mesh,
                                       dlong N,
-                                      hlong *globalIds,
+                                      dlong *globalIds,
                                       MPI_Comm &comm,
                                       int verbose) { 
 
