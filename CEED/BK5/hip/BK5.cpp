@@ -4,6 +4,7 @@ See LICENSE file.
 
 */
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <hip/hip_runtime.h>
@@ -11,6 +12,16 @@ See LICENSE file.
 #include <meshBasis.hpp>
 
 #define dfloat double
+
+#include <sys/time.h>
+double getTod(){
+  struct timeval time;
+  if(gettimeofday( &time, 0 )) return -1;
+  
+ long cur_time = 1000000 * time.tv_sec + time.tv_usec;
+ double sec = cur_time / 1000000.0;
+ return sec;
+}
 
 void matrixPrint(int Nrows, int Ncols, dfloat *A, const char *mess){
 #if 0
@@ -911,7 +922,7 @@ void runBK5Kernel(hipStream_t stream, int Nq, int numElements, dfloat lambda,
   }
   
   
-#define ERR printf("massMatrixMultiplyRegister with Nq=%d not available", Nq); exit(-1)
+#define ERR printf("BK5 with Nq=%d not available", Nq); exit(-1)
 
   if(Nq==2){
     BK5Kernel(2,16);
@@ -1044,7 +1055,7 @@ int main(int argc, char **argv){
   hipStreamCreate(&stream);
   
   if(argc!=4){
-    printf("Usage: ./massMatrixMultiplyVT Nq numElements mode\n");
+    printf("Usage: ./BK5 Nq numElements mode\n");
     exit(-1);
   }
 
@@ -1053,7 +1064,7 @@ int main(int argc, char **argv){
   int numElements = atoi(argv[2]);
   int        mode = atoi(argv[3]);
   
-  dfloat lambda = 0;
+  dfloat lambda = 10;
   
   printf("Running: NUM_DOFS_1D=%d, numElements=%d, mode=%d\n", Nq, numElements, mode);
 
@@ -1062,7 +1073,7 @@ int main(int argc, char **argv){
 
   int    Ntotal = numElements*Np;
 
-  int Ntests = 100;
+  int Ntests = 10;
   
   double estimatedActualDeviceBandwidth = bandwidthTest(stream, Ntests, (Ntotal*2+7*Ntotal)*sizeof(dfloat));
   
@@ -1140,6 +1151,8 @@ int main(int argc, char **argv){
   
   hipDeviceSynchronize();
 
+  double startTod = getTod();
+  
   {
     hipEventRecord(start, stream);
     
@@ -1160,6 +1173,8 @@ int main(int argc, char **argv){
     hipEventRecord(end, stream);
 
     hipDeviceSynchronize();
+
+    double elapsedTod = (getTod()-startTod)/Ntests;
     
     float elapsed;
     hipEventElapsedTime(&elapsed, start, end);
@@ -1171,10 +1186,10 @@ int main(int argc, char **argv){
 
     double flopCount = Np*(6*2*Nq + 17);
     double gflops = (flopCount*numElements/elapsed)/1.e9;
-    
-    printf("%2d %8d %8d %e %e %e %e %e %e %%%% [BK5: N, numElements, Ndofs,"
-	   " elapsed, dofsPerSecond, nothingElapsed, BW in GB/s, estimatedActualDeviceBandwidth, GFLOPS/s]\n",
-	   Nq-1, numElements, Np*numElements, elapsed, numElements*(Np/elapsed),
+
+    printf("%2d %8d %8d %e (%e) %e %e %e %e %e %%%% [BK5: N, numElements, Ndofs,"
+	   " elapsed (clockElapsed), dofsPerSecond, nothingElapsed, BW in GB/s, estimatedActualDeviceBandwidth, GFLOPS/s]\n",
+	   Nq-1, numElements, Np*numElements, elapsed, elapsedTod, numElements*(Np/elapsed),
 	   nothingElapsed, bw, estimatedActualDeviceBandwidth, gflops);
   }
 
@@ -1198,7 +1213,7 @@ int main(int argc, char **argv){
   
   hipEventDestroy(start);
   hipEventDestroy(end);	
-  
+
   return 0;
 
 }

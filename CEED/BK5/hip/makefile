@@ -1,4 +1,5 @@
-hipFlags = --amdgpu-target=gfx906  -O3 -ffast-math 
+hipFlags = --amdgpu-target=gfx906  -O3 -ffp-contract=fast
+#ffp-contract=fast
 
 flags = -Ddfloat=double
 flags += -DdfloatString='"double"'

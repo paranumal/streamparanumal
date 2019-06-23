@@ -153,7 +153,7 @@ int main(int argc, char **argv){
 
   // ------------------------------------------------------------------------------
   // build kernel  
-  occa::kernel BK5Kernel = device.buildKernel("BK5.okl", "BK5CubeKernel", props);
+  occa::kernel BK5Kernel = device.buildKernel("BK5.okl", "BK5", props);
 
   // ------------------------------------------------------------------------------
   // populate device arrays
