@@ -780,9 +780,6 @@
       }
     }
 
-    //#pragma unroll p_halfNq
-
-    @exclusive dfloat r_pt0, r_pt1, r_Gpt0, r_Gpt1;
     for(int k=0;k<p_halfNq;++k;@inner(2)){
       for(int j=0;j<p_Nq;++j;@inner(1)){
 	for(int i=0;i<p_Nq;++i;@inner(0)){
@@ -828,9 +825,9 @@
 	    dfloat G12 = op[gbase+p_G12ID*p_Np];
 	    dfloat G22 = op[gbase+p_G22ID*p_Np];
 	    
-	    s_Gpr[k][j][i] = G00*pr0 + G01*ps0 + G02*r_pt0;
-	    s_Gps[k][j][i] = G01*pr0 + G11*ps0 + G12*r_pt0;
-	    s_Gpt[k][j][i] = G02*pr0 + G12*ps0 + G22*r_pt0;
+	    s_Gpr[k][j][i] = G00*pr0 + G01*ps0 + G02*pt0;
+	    s_Gps[k][j][i] = G01*pr0 + G11*ps0 + G12*pt0;
+	    s_Gpt[k][j][i] = G02*pr0 + G12*ps0 + G22*pt0;
 	  }
 	  
 	  {
@@ -842,9 +839,9 @@
 	    dfloat G12 = op[gbase+p_G12ID*p_Np];
 	    dfloat G22 = op[gbase+p_G22ID*p_Np];
 	    
-	    s_Gpr[p_Nq-1-k][j][i] = G00*pr1 + G01*ps1 + G02*r_pt1;
-	    s_Gps[p_Nq-1-k][j][i] = G01*pr1 + G11*ps1 + G12*r_pt1;
-	    s_Gpt[p_Nq-1-k][j][i] = -(G02*pr1 + G12*ps1 + G22*r_pt1);
+	    s_Gpr[p_Nq-1-k][j][i] = G00*pr1 + G01*ps1 + G02*pt1;
+	    s_Gps[p_Nq-1-k][j][i] = G01*pr1 + G11*ps1 + G12*pt1;
+	    s_Gpt[p_Nq-1-k][j][i] = G02*pr1 + G12*ps1 + G22*pt1;
 	  }
 	}
       }
@@ -900,8 +897,8 @@
 #pragma unroll p_Nq
 	  for(int m=0;m<p_Nq;++m){
 	    dfloat Dmk = s_D[m][k];
-	    lapt0 += Dmk*s_Gpt[k][m][i];
-	    lapt1 += Dmk*s_Gpt[p_Nq-1-k][m][i];
+	    lapt0 += Dmk*s_Gpt[m][j][i];
+	    lapt1 += Dmk*s_Gpt[p_Nq-1-m][j][i];
 	  }
 
 	  Ap0 += lapt0;
