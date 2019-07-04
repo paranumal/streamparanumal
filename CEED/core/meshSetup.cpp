@@ -1946,12 +1946,43 @@ void meshPhysicalNodesHex3D(mesh3D *mesh){
     }
   }
 }
+
+void meshChooseBoxDimensions(hlong Nelements, int *NX, int *NY, int *NZ){
+
+  int Ncr = pow(Nelements, 1./3);
+  
+  int bestNX = Ncr, bestNY = Ncr, bestNZ = Ncr;
+
+  int mismatch = Nelements - Ncr*Ncr*Ncr;
+
+  int delta = (Ncr>40) ? 40:Ncr-1;
+
+  for(int k=-delta;k<=delta;++k){
+    for(int j=k;j<=delta;++j){
+      for(int i=j;i<=delta;++i){
+	int nx = Ncr + i;
+	int ny = Ncr + j;
+	int nz = Ncr + k;
+	int newMismatch = Nelements - nx*ny*nz;
+	if(fabs(newMismatch)<fabs(mismatch)){
+	  bestNX = nx;
+	  bestNY = ny;
+	  bestNZ = nz;
+	  mismatch = newMismatch;
+	}
+      }
+    }
+  }
+  
+  *NX = bestNX;
+  *NY = bestNY;
+  *NZ = bestNZ;
+  
+}
+
 mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
 
-  //  mesh_t *mesh = new mesh_t[1];
   mesh_t *mesh = new mesh_t();
-
-  //(mesh_t*) calloc(1, sizeof(mesh_t));
   
   int rank, size;
   
@@ -1981,10 +2012,19 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
   
   hlong NX = 3, NY = 3, NZ = 3; // defaults
 
-  options.getArgs("BOX NX", NX);
-  options.getArgs("BOX NY", NY);
-  options.getArgs("BOX NZ", NZ);
-
+  int NdofsTarget = 0;
+  options.getArgs("TARGET NODES", NdofsTarget);
+  if(NdofsTarget){
+    int tmpNp = (N+1)*(N+1)*(N+1);
+    int NelementsTarget = (NdofsTarget+tmpNp-1)/tmpNp;
+    meshChooseBoxDimensions(NelementsTarget, &NX, &NY, &NZ);
+    printf("TARGET NODES = %d, ACTUAL NODES = %d, NELEMENTS = [%d,%d,%d=>%d]\n", NdofsTarget, NX*NY*NZ*tmpNp, NX,NY,NZ, NX*NY*NZ);
+  }else{
+    options.getArgs("BOX NX", NX);
+    options.getArgs("BOX NY", NY);
+    options.getArgs("BOX NZ", NZ);
+  }
+  
   dfloat XMIN = -1, XMAX = +1; // default bi-unit cube
   dfloat YMIN = -1, YMAX = +1;
   dfloat ZMIN = -1, ZMAX = +1;
