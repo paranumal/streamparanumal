@@ -2482,8 +2482,8 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
 #if USE_CUDA_NATIVE==1
     cudaStream_t cuStream;
     // Default: cuStream = 0
-    cudaStreamCreate(&cuStream);
-    
+    cudaStreamCreate(&cuStream);// , CU_STREAM_DEFAULT);
+
     //  ---[ Get CUDA Info ]----
     int cuDeviceID = 0;
     CUdevice cuDevice;
