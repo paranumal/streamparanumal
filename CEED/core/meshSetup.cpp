@@ -29,6 +29,11 @@ SOFTWARE.
 #include "mpi.h"
 #include "mesh.h"
 
+#if USE_CUDA_NATIVE==1
+#include <occa/modes/cuda/utils.hpp>
+#include <cuda_runtime_api.h>
+#endif
+
 int findBestPeriodicMatch(dfloat xper, dfloat yper, dfloat zper,
 			  dfloat x1, dfloat y1, dfloat z1,
 			  int Np2, int *nodeList, dfloat *x2, dfloat *y2, dfloat *z2, int *nP){
@@ -2473,6 +2478,22 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
     //    deviceProps["mode"] = "CUDA";
     //    deviceProps["device_id"] = 0; string(device_id);
     sprintf(deviceConfig, "mode: 'CUDA', device_id: %d", device_id);
+
+#if USE_CUDA_NATIVE==1
+    cudaStream_t cuStream;
+    // Default: cuStream = 0
+    cudaStreamCreate(&cuStream);
+    
+    //  ---[ Get CUDA Info ]----
+    int cuDeviceID = 0;
+    CUdevice cuDevice;
+    CUcontext cuContext;
+    
+    cuDeviceGet(&cuDevice, cuDeviceID);
+    cuCtxGetCurrent(&cuContext);
+    mesh->device = occa::cuda::wrapDevice(cuDevice, cuContext);
+#endif
+    
   }
   else if(options.compareArgs("THREAD MODEL", "HIP")){
     sprintf(deviceConfig, "mode: 'HIP', device_id: %d",device_id);
@@ -2503,7 +2524,9 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
   std::cout << deviceConfig << std::endl;
   
   //  mesh->device.setup( (std::string) deviceConfig); // deviceProps);
+#if USE_CUDA_NATIVE!=1
   mesh->device.setup( (std::string)deviceConfig);
+#endif
 
 #ifdef USE_OCCA_MEM_BYTE_ALIGN 
   // change OCCA MEM BYTE ALIGNMENT

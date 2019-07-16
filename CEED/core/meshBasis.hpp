@@ -27,6 +27,7 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "params.h"
 
 extern "C"
 {
@@ -133,11 +134,3 @@ void meshReferenceBK5(int Nq,
 		      const dfloat * qIII,
 		      dfloat *lapqIII);
 
-#define p_GWJID 0
-#define p_G00ID 1
-#define p_G01ID 2
-#define p_G02ID 3
-#define p_G11ID 4
-#define p_G12ID 5
-#define p_G22ID 6
-#define p_Nggeo 7
