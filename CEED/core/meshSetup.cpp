@@ -1056,6 +1056,9 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   // GLL collocation differentiation matrix
   meshDmatrix1D(N, mesh->Nq, mesh->gllz, &(mesh->D));
 
+  // GLL top C0 mode filter matrix
+  meshContinuousFilterMatrix1D(N, N-1, mesh->gllz, &(mesh->filterMatrix));
+  
   // quadrature
   mesh->cubNq = cubN +1;
   mesh->cubNfp = mesh->cubNq*mesh->cubNq;
@@ -1182,6 +1185,9 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   }
   
   mesh->o_D = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->D);
+
+  mesh->o_filterMatrix = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->filterMatrix);
+
   
   mesh->o_vgeo =
     mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nvgeo*sizeof(dfloat),

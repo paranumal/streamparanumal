@@ -78,6 +78,8 @@ void meshDmatricesQuad2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **Dr, 
 void meshDmatricesTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **Dr, dfloat **Ds, dfloat **Dt);
 void meshDmatricesHex3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **Dr, dfloat **Ds, dfloat **Dt);
 
+void meshContinuousFilterMatrix1D(int N, int Nlow, dfloat *r, dfloat **F);
+
 void meshInterpolationMatrix1D(int N,
 			       int NpointsIn, dfloat *rIn, 
 			       int NpointsOut, dfloat *rOut,

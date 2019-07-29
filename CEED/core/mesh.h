@@ -95,6 +95,8 @@ typedef struct {
   dfloat *r, *s, *t;    // coordinates of local nodes
   dfloat *Dr, *Ds, *Dt; // collocation differentiation matrices
   dfloat *Dmatrices;
+  dfloat *filterMatrix; // C0 basis filter matrix
+  
   dfloat *MM, *invMM;           // reference mass matrix
   dfloat *Smatrices;
   int maxNnzPerRow;
@@ -147,6 +149,8 @@ typedef struct {
   occa::memory o_D; // tensor product differentiation matrix (for Hexes)
   occa::memory o_cubD; // tensor product differentiation matrix (for Hexes)
   occa::memory o_cubInterp;
+
+  occa::memory o_filterMatrix; // tensor product filter matrix (for hexes)
   
   occa::memory o_Smatrices;
   occa::memory o_vgeo, o_sgeo;

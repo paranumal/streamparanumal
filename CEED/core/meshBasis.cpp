@@ -347,6 +347,45 @@ int meshVandermonde1D(int N, int Npoints, dfloat *r, dfloat **V, dfloat **Vr){
 }
 
 
+// C0 basis
+int meshContinuousVandermonde1D(int N, int Npoints, dfloat *r, dfloat **V, dfloat **Vr){
+
+  int Np = (N+1);
+  
+  *V  = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Vr = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+
+  for(int n=0; n<Npoints; n++){
+
+    int sk = 0;
+    for(int i=0; i<=N; i++){
+      int id = n*Np+sk;
+      if(i==0){
+	V[0][id] = 0.5*(1-r[n]);
+	Vr[0][id] = -0.5;
+      }
+      else  if(i==1){
+	V[0][id] = 0.5*(1+r[n]);
+	Vr[0][id] = +0.5;
+      }
+      else{
+	// 0.25*(1+r)*(1-r)*P^{0,0}_{i-2}(r)
+	dfloat P =  meshJacobiP(r[n], 0, 0, i-2);
+	dfloat Pr = meshGradJacobiP(r[n], 0, 0, i-2);
+	V[0][id]  = 0.25*(1+r[n])*(1-r[n])*P;
+	Vr[0][id] = 0.25*( (-2*r[n])*P + (1+r[n])*(1-r[n])*Pr);
+      }
+      
+      sk++;
+    }
+  }
+  
+  return Np;
+}
+
+
+
+
 
 int meshVandermondeTri2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **V, dfloat **Vr, dfloat **Vs){
 
@@ -628,6 +667,61 @@ void meshDmatrix1D(int N, int Npoints, dfloat *r, dfloat **Dr){
   
   free(V);
   free(Vr);
+}
+
+
+void meshContinuousFilterMatrix1D(int N, int Nlow, dfloat *r, dfloat **F){
+  
+  dfloat *VC0, *VrC0;
+  dfloat *L = (dfloat*) calloc((N+1)*(N+1), sizeof(dfloat));
+  dfloat *LinvF = (dfloat*) calloc((N+1)*(N+1), sizeof(dfloat));
+  
+  int Np = meshContinuousVandermonde1D(N, N+1, r, &VC0, &VrC0);
+  //  int Np = meshVandermonde1D(N, N+1, r, &VC0, &VrC0); use 
+  printf("CONTINUOUS VANDERMONDE MATRIX: [\n");
+  for(int n=0;n<Np;++n){
+    for(int m=0;m<Np;++m){
+      printf("% e ", VC0[n*Np+m]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+  
+  *F = (dfloat *) calloc(Np*Np, sizeof(dfloat));
+
+  for(int n=0;n<=Nlow;++n){
+    L[n*(N+1)+n] = 1;
+  }
+  
+  matrixRightSolve(Np, Np, L, Np, Np, VC0, LinvF);
+
+  for(int n=0;n<Np;++n){
+    for(int m=0;m<Np;++m){
+      dfloat res = 0;
+      printf("% e ", LinvF[n*Np+m]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+  
+  printf("FILTER MATRIX: [\n");
+  for(int n=0;n<Np;++n){
+    for(int m=0;m<Np;++m){
+      dfloat res = 0;
+      for(int i=0;i<Np;++i){
+	res += VC0[n*Np+i]*LinvF[i*Np+m];
+      }
+      F[0][n*Np+m] = res;
+      printf("% e ", res);
+    }
+    printf("\n");
+  }
+  printf("\n");
+  
+  free(VC0);
+  free(VrC0);
+  free(L);
+  free(LinvF);
 }
 
 
