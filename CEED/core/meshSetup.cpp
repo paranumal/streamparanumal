@@ -1261,6 +1261,11 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
 
   }
 
+  mesh->o_localizedIds =
+    mesh->device.malloc(mesh->Nelements*mesh->Np*sizeof(dlong),
+                        mesh->localizedIds);
+
+  
   kernelInfo["defines/" "p_dim"]= 3;
   kernelInfo["defines/" "p_N"]= mesh->N;
   kernelInfo["defines/" "p_Nq"]= mesh->N+1;
@@ -1367,11 +1372,13 @@ void meshOccaCloneDevice(mesh_t *donorMesh, mesh_t *mesh){
   mesh->computeStream = donorMesh->computeStream;
   
 }
+
 typedef struct{
 
   int baseRank;
   hlong baseId;
-
+  hlong localizedId;
+  
 }parallelNode_t;
 
 
@@ -2153,7 +2160,10 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
   
   // global nodes
   meshParallelConnectNodes(mesh); 
- 
+
+  // localized numbering (contiguous on node)
+  meshLocalizedConnectNodes(mesh);
+  
   return mesh;
 }
 void interpolateFaceHex3D(int *faceNodes, dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
@@ -2779,4 +2789,185 @@ void meshParallelGatherScatterSetup(mesh_t *mesh,
   if(localCount)
     mesh->o_localGatherElementList =
       mesh->device.malloc(localCount*sizeof(dlong), mesh->localGatherElementList);
+}
+
+
+// uniquely label each node with a global index, used for gatherScatter
+// - specialized with local numbering for on device GS
+void meshLocalizedConnectNodes(mesh_t *mesh){
+
+  int rank, size;
+  rank = mesh->rank; 
+  size = mesh->size; 
+
+  dlong localNodeCount = mesh->Np*mesh->Nelements;
+  dlong *allLocalNodeCounts = (dlong*) calloc(size, sizeof(dlong));
+
+  MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
+                allLocalNodeCounts, 1, MPI_DLONG,
+                mesh->comm);
+  
+  hlong gatherNodeStart = 0;
+  for(int r=0;r<rank;++r)
+    gatherNodeStart += allLocalNodeCounts[r];
+  
+  free(allLocalNodeCounts);
+
+  // form continuous node numbering (local=>virtual gather)
+  parallelNode_t *localNodes =
+    (parallelNode_t*) calloc((mesh->totalHaloPairs+mesh->Nelements)*mesh->Np,
+                             sizeof(parallelNode_t));
+
+  // use local numbering
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+
+      localNodes[id].baseRank = rank;
+      localNodes[id].baseId = 1 + id + gatherNodeStart;
+
+    }
+  }
+
+  dlong localChange = 0, gatherChange = 1;
+
+  parallelNode_t *sendBuffer =
+    (parallelNode_t*) calloc(mesh->totalHaloPairs*mesh->Np, sizeof(parallelNode_t));
+
+  // keep comparing numbers on positive and negative traces until convergence
+  while(gatherChange>0){
+
+    // reset change counter
+    localChange = 0;
+
+    // send halo data and recv into extension of buffer
+    meshHaloExchange(mesh, mesh->Np*sizeof(parallelNode_t),
+                     localNodes, sendBuffer, localNodes+localNodeCount);
+
+    // compare trace nodes
+    for(dlong e=0;e<mesh->Nelements;++e){
+      for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
+        dlong id  = e*mesh->Nfp*mesh->Nfaces + n;
+        dlong idM = mesh->vmapM[id];
+        dlong idP = mesh->vmapP[id];
+        hlong gidM = localNodes[idM].baseId;
+        hlong gidP = localNodes[idP].baseId;
+
+        int baseRankM = localNodes[idM].baseRank;
+        int baseRankP = localNodes[idP].baseRank;
+        
+        if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
+          ++localChange;
+          localNodes[idP].baseRank    = localNodes[idM].baseRank;
+          localNodes[idP].baseId      = localNodes[idM].baseId;
+        }
+        
+        if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
+          ++localChange;
+          localNodes[idM].baseRank    = localNodes[idP].baseRank;
+          localNodes[idM].baseId      = localNodes[idP].baseId;
+        }
+      }
+    }
+
+    // sum up changes
+    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_DLONG, MPI_SUM, mesh->comm);
+  }
+
+
+  // now renumber the nodes that are owned locally and reconnect
+  hlong *localizedIds = (hlong*) calloc(localNodeCount, sizeof(hlong));
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+      if(localNodes[id].baseRank == rank) { // locally owned node
+	dlong gid = localNodes[id].baseId-1-gatherNodeStart; 
+	localizedIds[gid] = 1;
+      }
+    }
+  }
+
+  hlong cnt = gatherNodeStart;
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+      if(localizedIds[id]){
+	++cnt;
+	localizedIds[id] = cnt;
+      }
+    }
+  }
+
+  mesh->Nlocalized = cnt-gatherNodeStart;
+  mesh->startLocalized = gatherNodeStart;
+  
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->Np;++n){
+      dlong id = e*mesh->Np+n;
+      if(localNodes[id].baseRank == rank) { // locally owned node
+	localNodes[id].localizedId = localizedIds[id];
+      }
+      else{
+	localNodes[id].localizedId = 0;
+      }
+    }
+  }
+
+  gatherChange = 1;
+  // keep comparing numbers on positive and negative traces until convergence
+  while(gatherChange>0){
+    
+    // reset change counter
+    localChange = 0;
+    
+    // send halo data and recv into extension of buffer
+    meshHaloExchange(mesh, mesh->Np*sizeof(parallelNode_t),
+                     localNodes, sendBuffer, localNodes+localNodeCount);
+
+    // look for nodes that have not been numbered yet
+    for(dlong e=0;e<mesh->Nelements;++e){
+      for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
+        dlong id  = e*mesh->Nfp*mesh->Nfaces + n;
+        dlong idM = mesh->vmapM[id];
+        dlong idP = mesh->vmapP[id];
+
+	int localizedIdM = localNodes[idM].localizedId;
+	int localizedIdP = localNodes[idP].localizedId;
+	
+        if(localizedIdM==0){ // not numbered yet
+          ++localChange;
+	  localNodes[idM].localizedId = localNodes[idP].localizedId;
+        }
+
+        if(localizedIdP==0){ // not numbered yet
+          ++localChange;
+	  localNodes[idP].localizedId = localNodes[idM].localizedId;
+        }
+      }
+    }
+
+    // sum up changes
+    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_DLONG, MPI_SUM, mesh->comm);
+  }
+
+  //make a locally-ordered version
+  mesh->localizedIds = (hlong*) calloc(localNodeCount, sizeof(hlong));
+  for(dlong id=0;id<localNodeCount;++id){
+    mesh->localizedIds[id] = localNodes[id].localizedId;
+  }
+  
+  printf("Local nodes=%d, Localized nodes=%d\n",
+	 localNodeCount, mesh->Nlocalized);
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->Np;++n){
+      if(!mesh->localizedIds[e*mesh->Np+n]){
+	printf("!! %d !!", mesh->localizedIds[e*mesh->Np+n]);
+      }
+    }
+  }
+  
+  free(localNodes);
+  free(sendBuffer);
+  free(localizedIds);
+  
 }

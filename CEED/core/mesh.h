@@ -63,6 +63,11 @@ typedef struct {
   void *gsh, *hostGsh; // gslib struct pointer
   ogs_t *ogs; //occa gs pointer
 
+  dlong Nlocalized;
+  hlong *localizedIds;
+  hlong startLocalized;
+  occa::memory o_localizedIds;
+
   // list of elements that are needed for global gather-scatter
   dlong NglobalGatherElements;
   dlong *globalGatherElementList;
@@ -223,6 +228,9 @@ void meshParallelConnect(mesh_t *mesh);
 
 /* build global connectivity in parallel */
 void meshParallelConnectNodes(mesh_t *mesh);
+
+/* build global connectivity in terms of localized global nodes */
+void meshLocalizedConnectNodes(mesh_t *mesh);
 
 void meshHaloSetup(mesh_t *mesh);
 
