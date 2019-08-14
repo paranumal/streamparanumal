@@ -21,6 +21,8 @@ typedef struct {
 
   MPI_Comm comm;
   int rank, size; // MPI rank and size (process count)
+
+  int elementType;
   
   int dim;
   int Nverts, Nfaces, NfaceVertices;
@@ -106,7 +108,7 @@ typedef struct {
   dfloat *Smatrices;
   int maxNnzPerRow;
   dfloat *x, *y, *z;    // coordinates of physical nodes
-  
+
   // indices of vertex nodes
   int *vertexNodes;
 
@@ -345,10 +347,13 @@ void meshPlotAdaptiveContour3D(mesh_t *mesh, char *fname, dfloat *u, int Nlevels
 void meshGeometricFactorsHex3D(mesh3D *mesh);
 
 void meshSurfaceGeometricFactorsHex3D(mesh3D *mesh);
+void meshSurfaceGeometricFactorsTet3D(mesh3D *mesh);
 
 void meshPhysicalNodesHex3D(mesh3D *mesh);
+void meshPhysicalNodesTet3D(mesh3D *mesh);
 
-void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N);
+void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN);
+void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN);
 
 void meshGradientHex3D(mesh3D *mesh, dfloat *q, dfloat *dqdx, dfloat *dqdy, dfloat *dqdz);
 
@@ -410,9 +415,17 @@ void interpolateHex3D(dfloat *Inter, dfloat *x, int N, dfloat *Ix, int M);
 
 
 mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options);
+mesh3D *meshSetupBoxTet3D(int N, int cubN, setupAide &options);
 
 void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dfloat zper);
 
+
+int meshWarpBlendNodesTet3D(int N, dfloat **r, dfloat **s, dfloat **t);
+
+#define TRIANGLES 3
+#define QUADRILATERALS 4
+#define TETRAHEDRA 6
+#define HEXAHEDRA 12
 
 #endif
 

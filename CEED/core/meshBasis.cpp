@@ -32,6 +32,10 @@ SOFTWARE.
 #define cubNq3 (cubNq*cubNq*cubNq)
 #define Nq3 (Nq*Nq*Nq)
 
+// ------------------------------------------------------------------------
+// 1D GAUSS QUADRATURE
+// ------------------------------------------------------------------------
+
 dfloat mygamma(dfloat x){
 
   dfloat lgam = lgamma(x);
@@ -128,6 +132,11 @@ int meshJacobiGQ(dfloat alpha, dfloat beta, int N, dfloat **x, dfloat **w){
   return N+1;
 }
 
+// ------------------------------------------------------------------------
+// 1D GAUSS-LEGENDRE-LOBATTO QUADRATURE
+// ------------------------------------------------------------------------
+
+
 int meshJacobiGL(dfloat alpha, dfloat beta, int N, dfloat **x, dfloat **w){
 
   *x = (dfloat*) calloc(N+1, sizeof(dfloat));
@@ -165,6 +174,9 @@ int meshJacobiGL(dfloat alpha, dfloat beta, int N, dfloat **x, dfloat **w){
   return N+1;
 }
 
+// ------------------------------------------------------------------------
+// 1D JACOBI POLYNOMIALS
+// ------------------------------------------------------------------------
 
 
 dfloat meshJacobiP(dfloat a, dfloat alpha, dfloat beta, int N){
@@ -224,6 +236,10 @@ void meshOrthonormalBasis1D(dfloat a, int i, dfloat *P, dfloat *Pr){
   *Pr = p1a;
 }
 
+// ------------------------------------------------------------------------
+// 2D POLYNOMIALS
+// ------------------------------------------------------------------------
+
 
 void meshOrthonormalBasisTri2D(dfloat a, dfloat b, int i, int j, dfloat *P, dfloat *Pr, dfloat *Ps){
   // 
@@ -267,6 +283,10 @@ void meshOrthonormalBasisQuad2D(dfloat a, dfloat b, int i, int j, dfloat *P, dfl
   *Ps = p1*p2b;
   
 }
+
+// ------------------------------------------------------------------------
+// 3D POLYNOMIALS
+// ------------------------------------------------------------------------
 
 // TW: check normalization
 void meshOrthonormalBasisTet3D(dfloat a, dfloat b, dfloat c, int i, int j, int k, dfloat *P, dfloat *Pr, dfloat *Ps, dfloat *Pt){
@@ -325,6 +345,47 @@ void meshOrthonormalBasisHex3D(dfloat a, dfloat b, dfloat c, int i, int j, int k
   
 }
 
+// ------------------------------------------------------------------------
+// 3D (UNSTRUCTURED) INTERPOLATION NODES
+// ------------------------------------------------------------------------
+
+#include "meshNodesTet3D.h"
+
+int meshWarpBlendNodesTet3D(int N, dfloat **r, dfloat **s, dfloat **t){
+
+  int Np = (N+1)*(N+2)*(N+3)/6;
+
+  *r = (dfloat*) calloc(Np, sizeof(dfloat));
+  *s = (dfloat*) calloc(Np, sizeof(dfloat));
+  *t = (dfloat*) calloc(Np, sizeof(dfloat));
+
+  for(int n=0;n<Np;++n){
+    dfloat *rstn;
+
+    switch(N){
+    case 1: rstn = rst_N01[n]; break;
+    case 2: rstn = rst_N02[n]; break;
+    case 3: rstn = rst_N03[n]; break;
+    case 4: rstn = rst_N04[n]; break;
+    case 5: rstn = rst_N05[n]; break;
+    case 6: rstn = rst_N06[n]; break;
+    case 7: rstn = rst_N07[n]; break;
+    case 8: rstn = rst_N08[n]; break;
+    case 9: rstn = rst_N09[n]; break;
+    case 10:rstn = rst_N10[n]; break;
+    }
+
+    r[0][n] = rstn[0];
+    s[0][n] = rstn[1];
+    t[0][n] = rstn[2];
+  }
+  
+}
+
+
+// ------------------------------------------------------------------------
+// 1D VANDERMONDE MATRICES
+// ------------------------------------------------------------------------
 
 int meshVandermonde1D(int N, int Npoints, dfloat *r, dfloat **V, dfloat **Vr){
 
@@ -383,9 +444,9 @@ int meshContinuousVandermonde1D(int N, int Npoints, dfloat *r, dfloat **V, dfloa
   return Np;
 }
 
-
-
-
+// ------------------------------------------------------------------------
+// 2D VANDERMONDE MATRICES
+// ------------------------------------------------------------------------
 
 int meshVandermondeTri2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **V, dfloat **Vr, dfloat **Vs){
 
@@ -444,7 +505,9 @@ int meshVandermondeQuad2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **V, 
   return Np;
 }
 
-
+// ------------------------------------------------------------------------
+// 3D VANDERMONDE MATRICES
+// ------------------------------------------------------------------------
 
 int meshVandermondeTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t,
 			  dfloat **V, dfloat **Vr, dfloat **Vs, dfloat **Vt){
@@ -487,7 +550,6 @@ int meshVandermondeTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t,
   return Np;
 }
 
-
 int meshVandermondeHex3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **V, dfloat **Vr, dfloat **Vs, dfloat **Vt){
 
   int Np = (N+1)*(N+1)*(N+1);
@@ -513,6 +575,11 @@ int meshVandermondeHex3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, df
 
   return Np;
 }
+
+
+// ------------------------------------------------------------------------
+// LINEAR ALGEBRA
+// ------------------------------------------------------------------------
 
 
 // C = A/B  = trans(trans(B)\trans(A))
@@ -669,6 +736,9 @@ void meshDmatrix1D(int N, int Npoints, dfloat *r, dfloat **Dr){
   free(Vr);
 }
 
+// ------------------------------------------------------------------------
+// 1D OPERATOR MATRICES
+// ------------------------------------------------------------------------
 
 void meshContinuousFilterMatrix1D(int N, int Nlow, dfloat *r, dfloat **F){
   
@@ -725,7 +795,9 @@ void meshContinuousFilterMatrix1D(int N, int Nlow, dfloat *r, dfloat **F){
 }
 
 
-
+// ------------------------------------------------------------------------
+// 2D OPERATOR MATRICES
+// ------------------------------------------------------------------------
 
 void meshDmatricesTri2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **Dr, dfloat **Ds){
   
@@ -758,6 +830,10 @@ void meshDmatricesQuad2D(int N, int Npoints, dfloat *r, dfloat *s, dfloat **Dr, 
   free(Vr);
   free(Vs);
 }
+
+// ------------------------------------------------------------------------
+// 3D OPERATOR MATRICES
+// ------------------------------------------------------------------------
 
 void meshDmatricesTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **Dr, dfloat **Ds, dfloat **Dt){
 
@@ -799,6 +875,10 @@ void meshDmatricesHex3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfl
 
 }
 
+// ------------------------------------------------------------------------
+// 1D INTERPOLATION MATRICES
+// ------------------------------------------------------------------------
+
 // assumes NpointsIn = (N+1)
 void meshInterpolationMatrix1D(int N,
 			       int NpointsIn, dfloat *rIn, 
@@ -819,6 +899,9 @@ void meshInterpolationMatrix1D(int N,
   free(VOut); free(VrOut);
 }
 
+// ------------------------------------------------------------------------
+// 2D INTERPOLATION MATRICES
+// ------------------------------------------------------------------------
 
 // assumes NpointsIn = (N+1)*(N+2)/2
 void meshInterpolationMatrixTri2D(int N,
@@ -839,6 +922,11 @@ void meshInterpolationMatrixTri2D(int N,
   free(VIn);  free(VrIn);  free(VsIn);
   free(VOut); free(VrOut); free(VsOut);
 }
+
+
+// ------------------------------------------------------------------------
+// 3D INTERPOLATION MATRICES
+// ------------------------------------------------------------------------
 
 
 // assumes NpointsIn = (N+1)*(N+2)*(N+3)/6
@@ -880,6 +968,11 @@ void meshMassMatrix(int Np, dfloat *V, dfloat **MM){
   
   matrixInverse(Np, MM[0]);
 }
+
+
+// ------------------------------------------------------------------------
+// 2D LIFT MATRIX
+// ------------------------------------------------------------------------
 
 
 void meshLiftMatrixTri2D(int N, int Np, int *faceNodes, dfloat *r, dfloat *s, dfloat **LIFT){
@@ -951,6 +1044,10 @@ void meshLiftMatrixTri2D(int N, int Np, int *faceNodes, dfloat *r, dfloat *s, df
   free(Vr);
   free(Vs);
 }
+
+// ------------------------------------------------------------------------
+// 3D LIFT MATRIX
+// ------------------------------------------------------------------------
 
 void meshLiftMatrixTet3D(int N, int Np, int *faceNodes, dfloat *r, dfloat *s, dfloat *t, dfloat **LIFT){
 
@@ -1253,6 +1350,10 @@ int meshCubatureSurfaceMatricesTri2D(int N, int Np, dfloat *r, dfloat *s, dfloat
 
 #if TEST_MESH_BASIS==1
 #include "mpi.h"
+
+// ------------------------------------------------------------------------
+// TEST CODE
+// ------------------------------------------------------------------------
 
 // mpic++ -I../libs/gatherScatter/ -I../../occa/include  -I../include -o meshBasis meshBasis.c matrixInverse.c readArray.c -Ddfloat=double -llapack -lblas -lm -DDHOLMES='"../"' -DdfloatFormat='"%lf"' -DTEST_MESH_BASIS=1 
 
