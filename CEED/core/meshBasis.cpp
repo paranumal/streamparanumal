@@ -1347,6 +1347,63 @@ int meshCubatureSurfaceMatricesTri2D(int N, int Np, dfloat *r, dfloat *s, dfloat
   return Nfaces*intNfp;
 }
 
+void meshInterpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
+
+  dfloat *Ix1 = (dfloat*) calloc(N*N*M, sizeof(dfloat));
+  dfloat *Ix2 = (dfloat*) calloc(N*M*M, sizeof(dfloat));
+
+  for(int k=0;k<N;++k){
+    for(int j=0;j<N;++j){
+      for(int i=0;i<M;++i){
+	dfloat tmp = 0;
+	for(int n=0;n<N;++n){
+	  tmp += I[i*N + n]*x[k*N*N+j*N+n];
+	}
+	Ix1[k*N*M+j*M+i] = tmp;
+      }
+    }
+  }
+
+  for(int k=0;k<N;++k){
+    for(int j=0;j<M;++j){
+      for(int i=0;i<M;++i){
+	dfloat tmp = 0;
+	for(int n=0;n<N;++n){
+	  tmp += I[j*N + n]*Ix1[k*N*M+n*M+i];
+	}
+	Ix2[k*M*M+j*M+i] = tmp;
+      }
+    }
+  }
+
+  for(int k=0;k<M;++k){
+    for(int j=0;j<M;++j){
+      for(int i=0;i<M;++i){
+	dfloat tmp = 0;
+	for(int n=0;n<N;++n){
+	  tmp += I[k*N + n]*Ix2[n*M*M+j*M+i];
+	}
+	Ix[k*M*M+j*M+i] = tmp;
+      }
+    }
+  }
+
+  free(Ix1);
+  free(Ix2);
+  
+}
+
+void meshInterpolateTet3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
+
+  for(int m=0;m<M;++m){
+    dfloat res = 0;
+    for(int n=0;n<N;++n){
+      res += I[m*N+n]*x[n];
+    }
+    Ix[m] = res;
+  }
+}
+
 
 #if TEST_MESH_BASIS==1
 #include "mpi.h"

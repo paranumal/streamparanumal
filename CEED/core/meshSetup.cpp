@@ -116,51 +116,6 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
   }
 }
 
-void interpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
-
-  dfloat *Ix1 = (dfloat*) calloc(N*N*M, sizeof(dfloat));
-  dfloat *Ix2 = (dfloat*) calloc(N*M*M, sizeof(dfloat));
-
-  for(int k=0;k<N;++k){
-    for(int j=0;j<N;++j){
-      for(int i=0;i<M;++i){
-	dfloat tmp = 0;
-	for(int n=0;n<N;++n){
-	  tmp += I[i*N + n]*x[k*N*N+j*N+n];
-	}
-	Ix1[k*N*M+j*M+i] = tmp;
-      }
-    }
-  }
-
-  for(int k=0;k<N;++k){
-    for(int j=0;j<M;++j){
-      for(int i=0;i<M;++i){
-	dfloat tmp = 0;
-	for(int n=0;n<N;++n){
-	  tmp += I[j*N + n]*Ix1[k*N*M+n*M+i];
-	}
-	Ix2[k*M*M+j*M+i] = tmp;
-      }
-    }
-  }
-
-  for(int k=0;k<M;++k){
-    for(int j=0;j<M;++j){
-      for(int i=0;i<M;++i){
-	dfloat tmp = 0;
-	for(int n=0;n<N;++n){
-	  tmp += I[k*N + n]*Ix2[n*M*M+j*M+i];
-	}
-	Ix[k*M*M+j*M+i] = tmp;
-      }
-    }
-  }
-
-  free(Ix1);
-  free(Ix2);
-  
-}
 
 void meshGeometricFactorsTet3D(mesh3D *mesh){
 
@@ -227,7 +182,7 @@ void meshGeometricFactorsTet3D(mesh3D *mesh){
     mesh->ggeo[mesh->Nggeo*e + G22ID] = J*(tx*tx + ty*ty + tz*tz);
     mesh->ggeo[mesh->Nggeo*e + GWJID] = J;
 
-    for(int n=0;n<mesh->cubNp;++n){
+   for(int n=0;n<mesh->cubNp;++n){
       dfloat cubrn = mesh->cubr[n];
       dfloat cubsn = mesh->cubs[n];
       dfloat cubtn = mesh->cubt[n];
@@ -262,9 +217,9 @@ void meshGeometricFactorsTet3D(mesh3D *mesh){
       gbase[mesh->cubNp*G12ID] = JW*(bx*cx + by*cy + bz*cz);
       gbase[mesh->cubNp*G22ID] = JW*(cx*cx + cy*cy + cz*cz);
       gbase[mesh->cubNp*GWJID] = JW;
-      
-    }
-    
+      //      printf("% e ", JW);
+   }
+   //   printf("\n"); 
   }
 
   //printf("minJ = %g, maxJ = %g\n", minJ, maxJ);
@@ -402,17 +357,17 @@ void meshGeometricFactorsHex3D(mesh3D *mesh){
       }
     }
 
-    interpolateHex3D(mesh->cubInterp, xre, mesh->Nq, cubxre, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, xse, mesh->Nq, cubxse, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, xte, mesh->Nq, cubxte, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, xre, mesh->Nq, cubxre, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, xse, mesh->Nq, cubxse, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, xte, mesh->Nq, cubxte, mesh->cubNq);
 
-    interpolateHex3D(mesh->cubInterp, yre, mesh->Nq, cubyre, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, yse, mesh->Nq, cubyse, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, yte, mesh->Nq, cubyte, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, yre, mesh->Nq, cubyre, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, yse, mesh->Nq, cubyse, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, yte, mesh->Nq, cubyte, mesh->cubNq);
 
-    interpolateHex3D(mesh->cubInterp, zre, mesh->Nq, cubzre, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, zse, mesh->Nq, cubzse, mesh->cubNq);
-    interpolateHex3D(mesh->cubInterp, zte, mesh->Nq, cubzte, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, zre, mesh->Nq, cubzre, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, zse, mesh->Nq, cubzse, mesh->cubNq);
+    meshInterpolateHex3D(mesh->cubInterp, zte, mesh->Nq, cubzte, mesh->cubNq);
     
     //geometric data for quadrature
     for(int k=0;k<mesh->cubNq;++k){
@@ -1170,15 +1125,19 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   dfloat *cubaz, *cubbz, *cubcz;
   dfloat *cubaw, *cubbw, *cubcw;
 
+  // just use same basis for all directions so we can reuse D matrix :-(
   int cubNa = meshJacobiGQ(0.0, 0.0, cubN, &cubaz, &cubaw);
-  int cubNb = meshJacobiGQ(1.0, 0.0, cubN, &cubbz, &cubbw);
-  int cubNc = meshJacobiGQ(2.0, 0.0, cubN, &cubcz, &cubcw);
+  int cubNb = meshJacobiGQ(0.0, 0.0, cubN, &cubbz, &cubbw);
+  int cubNc = meshJacobiGQ(0.0, 0.0, cubN, &cubcz, &cubcw);
 
-  printf("cubNq = %d, cubNa = %d, cubNb = %d, cubNc = %d\n",
-	 N+1, cubNa, cubNb, cubNc);
-  mesh->cubNq = N+1;
-  mesh->cubNp = cubNa*cubNb*cubNc;
+  meshJacobiGL(0, 0, N, &(mesh->gllz), &(mesh->gllw));
+  meshInterpolationMatrix1D(N, mesh->Nq, mesh->gllz, cubNa, cubaz, &(mesh->cubInterp));
   
+  printf("cubNq = %d, cubNa = %d, cubNb = %d, cubNc = %d\n",
+	 cubN+1, cubNa, cubNb, cubNc);
+  mesh->cubNq = cubNa;
+  mesh->cubNp = cubNa*cubNb*cubNc;
+
   mesh->cubr = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
   mesh->cubs = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
   mesh->cubt = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
@@ -1188,10 +1147,13 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   for(int k=0;k<cubNc;++k){
     for(int j=0;j<cubNb;++j){
       for(int i=0;i<cubNa;++i){
-	mesh->cubr[cnt] = cubaz[i];
-	mesh->cubs[cnt] = cubbz[j];
-	mesh->cubt[cnt] = cubcz[k];
-	mesh->cubw[cnt] = cubaw[i]*cubbw[j]*cubcw[k];
+	dfloat a = cubaz[i];
+	dfloat b = cubbz[j];
+	dfloat c = cubcz[k];
+	mesh->cubr[cnt] = 0.25*(1+a)*(1-b)*(1-c)-1;
+	mesh->cubs[cnt] = 0.50*(1+b)*(1-c)-1;
+	mesh->cubt[cnt] = c;
+	mesh->cubw[cnt] = cubaw[i]*cubbw[j]*cubcw[k]*0.5*(1-b)*pow(0.5*(1-c),2);
 	++cnt;
       }
     }
@@ -1199,6 +1161,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   
   // collocation differentiation matrices
   meshDmatricesTet3D(N, Np, mesh->r, mesh->s, mesh->t, &(mesh->Dr), &(mesh->Ds), &(mesh->Dt));
+  meshDmatrix1D(cubN, mesh->cubNq, cubaz, &(mesh->cubD));
 
   dfloat *V, *Vr, *Vs, *Vt;
   dfloat *cubV, *cubVr, *cubVs, *cubVt;
@@ -1206,7 +1169,21 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   // Vandermonde matrices
   meshVandermondeTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
   meshVandermondeTet3D(N,    mesh->Np, mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
-  
+
+  // interopolation matrix to cubature
+  mesh->cubInterp3D = (dfloat*) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  matrixRightSolve(mesh->cubNp, mesh->Np, cubV, mesh->Np, mesh->Np, V, mesh->cubInterp3D);
+
+#if 0
+  printf("cubInterp3D:\n");
+  for(int n=0;n<mesh->cubNp;++n){
+    for(int m=0;m<mesh->Np;++m){
+      printf("% e ", mesh->cubInterp3D[n*mesh->Np+m]);
+    }
+    printf("\n");
+  }
+#endif
+
   // mass matrix
   meshMassMatrix(Np, V, &(mesh->MM));
   
@@ -1232,7 +1209,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
       mesh->faceNodes[2*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
-    if(fabs(mesh->r[n]+1)<NODETOL)
+  if(fabs(mesh->r[n]+1)<NODETOL)
       mesh->faceNodes[3*mesh->Nfp+(cnt++)] = n;
 
   for(int f=0;f<mesh->Nfaces;++f){
@@ -1396,43 +1373,60 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
 
   if(NnotInterior>0)
     mesh->o_notInternalElementIds = mesh->device.malloc(NnotInterior*sizeof(dlong), notInternalElementIds);
+
+  if(mesh->elementType==HEXAHEDRA){
   
-  //lumped mass matrix
-  mesh->MM = (dfloat *) calloc(mesh->Np*mesh->Np, sizeof(dfloat));
-  for (int k=0;k<mesh->Nq;k++) {
-    for (int j=0;j<mesh->Nq;j++) {
-      for (int i=0;i<mesh->Nq;i++) {
-	int n = i+j*mesh->Nq+k*mesh->Nq*mesh->Nq;
-	mesh->MM[n+n*mesh->Np] = mesh->gllw[i]*mesh->gllw[j]*mesh->gllw[k];
+    //lumped mass matrix
+    mesh->MM = (dfloat *) calloc(mesh->Np*mesh->Np, sizeof(dfloat));
+    for (int k=0;k<mesh->Nq;k++) {
+      for (int j=0;j<mesh->Nq;j++) {
+	for (int i=0;i<mesh->Nq;i++) {
+	  int n = i+j*mesh->Nq+k*mesh->Nq*mesh->Nq;
+	  mesh->MM[n+n*mesh->Np] = mesh->gllw[i]*mesh->gllw[j]*mesh->gllw[k];
+	}
       }
     }
+    
+    mesh->o_D = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->D);
+    
+    mesh->o_filterMatrix = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->filterMatrix);
+
+    mesh->o_vgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nvgeo*sizeof(dfloat),
+			  mesh->vgeo);
+    
+    mesh->o_sgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->Nfp*mesh->Nsgeo*sizeof(dfloat),
+			  mesh->sgeo);
+    
+    mesh->o_ggeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nggeo*sizeof(dfloat),
+			  mesh->ggeo);
+
+    mesh->o_cubvgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nvgeo*mesh->cubNp*sizeof(dfloat),
+			  mesh->cubvgeo);
+    
+    mesh->o_cubsgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->cubNfp*mesh->Nsgeo*sizeof(dfloat),
+			  mesh->cubsgeo);
+    
+
+  }
+  
+  if(mesh->elementType==TETRAHEDRA){
+
+    mesh->o_vgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nvgeo*sizeof(dfloat),  mesh->vgeo);
+    
+    mesh->o_sgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->Nsgeo*sizeof(dfloat), mesh->sgeo);
+    
+    mesh->o_ggeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nggeo*sizeof(dfloat), mesh->ggeo);
   }
 
-  mesh->o_D = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->D);
   
-  mesh->o_filterMatrix = mesh->device.malloc(mesh->Nq*mesh->Nq*sizeof(dfloat), mesh->filterMatrix);
-  
-  
-  mesh->o_vgeo =
-    mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nvgeo*sizeof(dfloat),
-			mesh->vgeo);
-  
-  mesh->o_sgeo =
-    mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->Nfp*mesh->Nsgeo*sizeof(dfloat),
-			mesh->sgeo);
-  
-  mesh->o_ggeo =
-    mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nggeo*sizeof(dfloat),
-			mesh->ggeo);
-  
-  mesh->o_cubvgeo =
-    mesh->device.malloc(mesh->Nelements*mesh->Nvgeo*mesh->cubNp*sizeof(dfloat),
-			mesh->cubvgeo);
-
-  mesh->o_cubsgeo =
-    mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->cubNfp*mesh->Nsgeo*sizeof(dfloat),
-			mesh->cubsgeo);
-
   mesh->o_cubggeo =
     mesh->device.malloc(mesh->Nelements*mesh->Nggeo*mesh->cubNp*sizeof(dfloat),
 			mesh->cubggeo);
@@ -1440,11 +1434,25 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   mesh->o_cubD =
     mesh->device.malloc(mesh->cubNq*mesh->cubNq*sizeof(dfloat),
 			mesh->cubD);
-
+  
   mesh->o_cubInterp =
     mesh->device.malloc(mesh->cubNq*mesh->Nq*sizeof(dfloat),
 			mesh->cubInterp);
 
+
+  if(mesh->elementType==TETRAHEDRA){
+    dfloat *cubComboInterp3D = (dfloat*) calloc(2*mesh->cubNp*mesh->Np, sizeof(dfloat));
+    int cnt = 0;
+    for(int n=0;n<mesh->cubNp;++n){
+      for(int m=0;m<mesh->Np;++m){
+	cubComboInterp3D[n*mesh->Np+m+0*mesh->cubNp*mesh->Np] = mesh->cubInterp3D[n*mesh->Np+m];
+	cubComboInterp3D[m*mesh->cubNp+n+1*mesh->cubNp*mesh->Np] = mesh->cubInterp3D[n*mesh->Np+m];
+      }
+    }
+    mesh->o_cubInterp3D =
+      mesh->device.malloc(2*mesh->cubNp*mesh->Np*sizeof(dfloat),
+			  cubComboInterp3D);
+  }
   
   mesh->o_vmapM =
     mesh->device.malloc(mesh->Nelements*mesh->Nfp*mesh->Nfaces*sizeof(dlong),

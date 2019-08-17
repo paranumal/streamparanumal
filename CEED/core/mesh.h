@@ -139,7 +139,8 @@ typedef struct {
   int cubNp, cubNfp, cubNq;
   dfloat *cubr, *cubs, *cubt, *cubw; // coordinates and weights of local cubature nodes
   dfloat *cubx, *cuby, *cubz;    // coordinates of physical nodes
-  dfloat *cubInterp; // interpolate from W&B to cubature nodes
+  dfloat *cubInterp;  // interpolate from W&B to cubature nodes
+  dfloat *cubInterp3D; // interpolate from W&B to cubature nodes
   dfloat *cubD;       // 1D differentiation matrix
 
   dfloat *cubvgeo;  //volume geometric data at cubature points
@@ -156,6 +157,7 @@ typedef struct {
   occa::memory o_D; // tensor product differentiation matrix (for Hexes)
   occa::memory o_cubD; // tensor product differentiation matrix (for Hexes)
   occa::memory o_cubInterp;
+  occa::memory o_cubInterp3D;
 
   occa::memory o_filterMatrix; // tensor product filter matrix (for hexes)
   
@@ -409,7 +411,8 @@ dfloat meshMRABSetup3D(mesh3D *mesh, dfloat *EToDT, int maxLevels, dfloat finalT
 void meshMRABWeightedPartition3D(mesh3D *mesh, dfloat *weights,
                                       int numLevels, int *levels);
 
-void interpolateHex3D(dfloat *Inter, dfloat *x, int N, dfloat *Ix, int M);
+void meshInterpolateHex3D(dfloat *Inter, dfloat *x, int N, dfloat *Ix, int M);
+void meshInterpolateTet3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M);
 
 #define norm3(a,b,c) ( sqrt((a)*(a)+(b)*(b)+(c)*(c)) )
 
