@@ -2487,6 +2487,7 @@ mesh3D *meshSetupBoxTet3D(int N, int cubN, setupAide &options){
     options.getArgs("BOX NY", NY);
     options.getArgs("BOX NZ", NZ);
   }
+  printf("BOX NX:Z = %d,%d,%d\n", NX, NY, NZ);
   
   dfloat XMIN = -1, XMAX = +1; // default bi-unit cube
   dfloat YMIN = -1, YMAX = +1;
