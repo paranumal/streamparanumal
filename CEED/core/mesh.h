@@ -180,6 +180,14 @@ typedef struct {
 
   occa::memory o_ggeo; // second order geometric factors
 
+  // tensor-product arrays
+  int tpNq, tpNp;
+  occa::memory o_tpI; // 1D interpolation matrix for Jacobi polynomials
+  occa::memory o_tpD; // 1D collocation differentiation matrix for tensor product
+  occa::memory o_tpW; // 1D weighting factors for modified KS basis
+  occa::memory o_tpvgeo; // reference geometric factors for collapsed coordinate to reference element transform
+  occa::memory o_tpSignChanges; // sign to multiply when global to local
+  
   occa::kernel haloExtractKernel;
   occa::kernel haloGetKernel;
   occa::kernel haloPutKernel;
