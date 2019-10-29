@@ -7,7 +7,7 @@ sc = (4/3)/sqrt(8/9);
 
 maxNcub = length(cubXYZW);
 
-fp = fopen('GimbutasXiaoCubatureTet3D.c','w');
+fp = fopen('GimbutasXiaoCubatureTet3D.cpp','w');
 
 fprintf(fp, '#include <stdio.h>\n');
 fprintf(fp, '#include <stdlib.h>\n\n');
@@ -60,7 +60,7 @@ end
 
 fprintf(fp, 'int GimbutasXiaoCubatureTet3D(int cubN, dfloat **cubr, dfloat **cubs, dfloat **cubt, dfloat **cubw){\n');
 
-fprintf(fp, '  int cubNp = cubNps[cubN];\n\n');
+fprintf(fp, '  int cubNp = cubNps[cubN-1];\n\n');
 fprintf(fp, '  *cubr = (dfloat*) calloc(cubNp, sizeof(dfloat)); \n');
 fprintf(fp, '  *cubs = (dfloat*) calloc(cubNp, sizeof(dfloat)); \n');
 fprintf(fp, '  *cubt = (dfloat*) calloc(cubNp, sizeof(dfloat)); \n');
