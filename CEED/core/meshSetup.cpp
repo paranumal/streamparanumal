@@ -1263,7 +1263,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   meshVandermondeTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
   meshVandermondeTet3D(N,    mesh->Np, mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
 
-  // interopolation matrix to cubature
+  // interpolation matrix to cubature
   mesh->cubInterp3D = (dfloat*) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
   matrixRightSolve(mesh->cubNp, mesh->Np, cubV, mesh->Np, mesh->Np, V, mesh->cubInterp3D);
 
@@ -1284,8 +1284,19 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   //  meshLiftMatrixTet3D(N, Np, mesh->faceNodes, mesh->r, mesh->s, mesh->t, &(mesh->LIFT));
 
   // interpolation derivative to cubature
-  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt));
-
+#if 0
+  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt,
+		     &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt));
+#else
+  mesh->cubDr = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  mesh->cubDs = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  mesh->cubDt = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  
+  matrixRightSolve(mesh->cubNp, Np, cubVr, Np, Np, V, mesh->cubDr);
+  matrixRightSolve(mesh->cubNp, Np, cubVs, Np, Np, V, mesh->cubDs);
+  matrixRightSolve(mesh->cubNp, Np, cubVt, Np, Np, V, mesh->cubDt);
+#endif
+  
   mesh->faceNodes = (int*) calloc(mesh->Nfp*mesh->Nfaces, sizeof(int));
 
   cnt = 0;
@@ -1538,7 +1549,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     int cnt = 0;
     for(int n=0;n<mesh->cubNp;++n){
       for(int m=0;m<mesh->Np;++m){
-	cubComboInterp3D[n*mesh->Np+m+0*mesh->cubNp*mesh->Np] = mesh->cubInterp3D[n*mesh->Np+m];
+	cubComboInterp3D[n*mesh->Np   +m+0*mesh->cubNp*mesh->Np] = mesh->cubInterp3D[n*mesh->Np+m];
 	cubComboInterp3D[m*mesh->cubNp+n+1*mesh->cubNp*mesh->Np] = mesh->cubInterp3D[n*mesh->Np+m];
       }
     }
