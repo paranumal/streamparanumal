@@ -293,13 +293,14 @@ void meshGeometricFactorsTet3D(mesh3D *mesh){
 
    for(int n=0;n<mesh->cubNp;++n){
       dfloat *gbase = mesh->cubggeo + mesh->Nggeo*mesh->cubNp*e + n;
-      gbase[mesh->cubNp*G00ID] = J*(rx*rx + ry*ry + rz*rz); // 
-      gbase[mesh->cubNp*G01ID] = J*(rx*sx + ry*sy + rz*sz);
-      gbase[mesh->cubNp*G02ID] = J*(rx*tx + ry*ty + rz*tz);
-      gbase[mesh->cubNp*G11ID] = J*(sx*sx + sy*sy + sz*sz);
-      gbase[mesh->cubNp*G12ID] = J*(sx*tx + sy*ty + sz*tz);
-      gbase[mesh->cubNp*G22ID] = J*(tx*tx + ty*ty + tz*tz);
-      gbase[mesh->cubNp*GWJID] = J;
+      dfloat JW = J*mesh->cubw[n];
+      gbase[mesh->cubNp*G00ID] = JW*(rx*rx + ry*ry + rz*rz); // 
+      gbase[mesh->cubNp*G01ID] = JW*(rx*sx + ry*sy + rz*sz);
+      gbase[mesh->cubNp*G02ID] = JW*(rx*tx + ry*ty + rz*tz);
+      gbase[mesh->cubNp*G11ID] = JW*(sx*sx + sy*sy + sz*sz);
+      gbase[mesh->cubNp*G12ID] = JW*(sx*tx + sy*ty + sz*tz);
+      gbase[mesh->cubNp*G22ID] = JW*(tx*tx + ty*ty + tz*tz);
+      gbase[mesh->cubNp*GWJID] = JW;
       //      printf("% e ", JW);
    }
    //   printf("\n"); 
@@ -1283,7 +1284,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   //  meshLiftMatrixTet3D(N, Np, mesh->faceNodes, mesh->r, mesh->s, mesh->t, &(mesh->LIFT));
 
   // interpolation derivative to cubature
-  //  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt);
+  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt));
 
   mesh->faceNodes = (int*) calloc(mesh->Nfp*mesh->Nfaces, sizeof(int));
 
@@ -1544,6 +1545,24 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     mesh->o_cubInterp3D =
       mesh->device.malloc(2*mesh->cubNp*mesh->Np*sizeof(dfloat),
 			  cubComboInterp3D);
+
+    dfloat *cubD3D = (dfloat*) calloc(6*mesh->cubNp*mesh->Np, sizeof(dfloat));
+
+    for(int n=0;n<mesh->cubNp;++n){
+      for(int m=0;m<mesh->Np;++m){
+	int idT = n + m*mesh->cubNp;
+	int id  = n*mesh->Np + m;
+	cubD3D[idT + 0*mesh->cubNp*mesh->Np] = mesh->cubDr[id];
+	cubD3D[idT + 1*mesh->cubNp*mesh->Np] = mesh->cubDs[id];
+	cubD3D[idT + 2*mesh->cubNp*mesh->Np] = mesh->cubDt[id];
+	cubD3D[id  + 3*mesh->cubNp*mesh->Np] = mesh->cubDr[id];
+	cubD3D[id  + 4*mesh->cubNp*mesh->Np] = mesh->cubDs[id];
+	cubD3D[id  + 5*mesh->cubNp*mesh->Np] = mesh->cubDt[id];
+      }
+    }
+
+    mesh->o_cubD3D = mesh->device.malloc(6*mesh->cubNp*mesh->Np*sizeof(dfloat), cubD3D);
+    free(cubD3D);
   }
   
   mesh->o_vmapM =
@@ -3521,7 +3540,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
 
   // keep comparing numbers on positive and negative traces until convergence
   while(gatherChange>0){
-
+    printf("localChange=%d\n", localChange);
     // reset change counter
     localChange = 0;
 

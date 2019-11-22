@@ -142,7 +142,8 @@ typedef struct {
   dfloat *cubInterp;  // interpolate from W&B to cubature nodes
   dfloat *cubInterp3D; // interpolate from W&B to cubature nodes
   dfloat *cubD;       // 1D differentiation matrix
-
+  dfloat *cubDr,*cubDs,*cubDt;       // 3D differentiation matrices
+  
   dfloat *cubvgeo;  //volume geometric data at cubature points
   dfloat *cubsgeo;  //surface geometric data at cubature points
   dfloat *cubggeo;  //second type volume geometric data at cubature points
@@ -158,7 +159,8 @@ typedef struct {
   occa::memory o_cubD; // tensor product differentiation matrix (for Hexes)
   occa::memory o_cubInterp;
   occa::memory o_cubInterp3D;
-
+  occa::memory o_cubD3D;
+  
   occa::memory o_filterMatrix; // tensor product filter matrix (for hexes)
   
   occa::memory o_Smatrices;
