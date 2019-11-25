@@ -354,7 +354,7 @@ void meshOrthonormalBasisHex3D(dfloat a, dfloat b, dfloat c, int i, int j, int k
 
 int meshWarpBlendNodesTri2D(int N, dfloat **r, dfloat **s){
 
-  int Np = (N+1)*(N+2)/2;
+  int Np = ((N+1)*(N+2))/2;
 
   *r = (dfloat*) calloc(Np, sizeof(dfloat));
   *s = (dfloat*) calloc(Np, sizeof(dfloat));
@@ -928,6 +928,26 @@ void meshDmatricesTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfl
 
   dfloat *V, *Vr, *Vs, *Vt;
   int Np = meshVandermondeTet3D(N, Npoints, r, s, t, &V, &Vr, &Vs, &Vt);
+
+  *Dr = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Ds = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Dt = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+
+  matrixRightSolve(Np, Np, Vr, Np, Np, V, Dr[0]);
+  matrixRightSolve(Np, Np, Vs, Np, Np, V, Ds[0]);
+  matrixRightSolve(Np, Np, Vt, Np, Np, V, Dt[0]);
+
+  free(V);
+  free(Vr);
+  free(Vs);
+  free(Vt);
+}
+
+
+void meshDmatricesPrism3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **Dr, dfloat **Ds, dfloat **Dt){
+
+  dfloat *V, *Vr, *Vs, *Vt;
+  int Np = meshVandermondePrism3D(N, Npoints, r, s, t, &V, &Vr, &Vs, &Vt);
 
   *Dr = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
   *Ds = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));

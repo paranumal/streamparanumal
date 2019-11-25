@@ -253,17 +253,18 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
       zre[n] = 0; zse[n] = 0; zte[n] = 0; 
     }
     
-    for(int k=0;k<mesh->Nq;++k){
+    for(int k=0;k<mesh->Nq1D;++k){
       for(int n=0;n<mesh->Np2D;++n){
-	hlong nk = n+k*mesh->Np2D+e*mesh->Np;
-
+	hlong nk = n+k*mesh->Np2D;
+	
 	for(int m=0;m<mesh->Np2D;++m){
 	  hlong mk = m+k*mesh->Np2D+e*mesh->Np;
 	  dfloat Drnm = mesh->Dr2D[n*mesh->Np2D+m];
-	  dfloat Dsnm = mesh->Ds2D[n*mesh->Np2D+m];
 	  xre[nk] += Drnm*mesh->x[mk];
 	  yre[nk] += Drnm*mesh->y[mk];
 	  zre[nk] += Drnm*mesh->z[mk];
+
+	  dfloat Dsnm = mesh->Ds2D[n*mesh->Np2D+m];
 	  xse[nk] += Dsnm*mesh->x[mk];
 	  yse[nk] += Dsnm*mesh->y[mk];
 	  zse[nk] += Dsnm*mesh->z[mk];
@@ -279,6 +280,13 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
 	dfloat xr = xre[nk], xs = xse[nk], xt = xte[nk];
 	dfloat yr = yre[nk], ys = yse[nk], yt = yte[nk];
 	dfloat zr = zre[nk], zs = zse[nk], zt = zte[nk];
+
+#if 0
+	printf("X=(% 3.2f, % 3.2f, % 3.2f) jacobian matrix(n=%d,k=%d,e=%d) ="
+	       "[% 3.2f,% 3.2f,% 3.2f;% 3.2f,% 3.2f,% 3.2f;% 3.2f,% 3.2f,% 3.2f]\n",
+	       mesh->x[nk], mesh->y[nk], mesh->z[nk],
+	       n,k,e,xr, xs, xt, yr, ys, yt, zr, zs, zt);
+#endif
 	
 	/* compute geometric factors for affine coordinate transform*/
 	dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
@@ -1457,83 +1465,78 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   mesh->Nfp = Nfp;
   mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
   mesh->Nq = N+1;
-  mesh->Np2D = (N+1)*(N+2)/2;
-  mesh->Nq1D = N+1;
+  mesh->Np2D = ((N+1)*(N+2))/2;
   
   meshWarpBlendNodesTri2D(N, &(mesh->r2D), &(mesh->s2D));
-  meshJacobiGL(0, 0, N, &(mesh->t1D), &(mesh->w1D));
+  mesh->Nq1D = meshJacobiGL(0, 0, N, &(mesh->t1D), &(mesh->w1D));
 
   mesh->r = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
   mesh->s = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
   mesh->t = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+
+  FILE *fp = fopen("prismNodes.dat", "w");
   for(int k=0;k<mesh->Nq;++k){
     for(int n=0;n<mesh->Np2D;++n){
       int id = n + k*mesh->Np2D;
       mesh->r[id] = mesh->r2D[n];
       mesh->s[id] = mesh->s2D[n];
       mesh->t[id] = mesh->t1D[k];
+      fprintf(fp, "%e %e %e\n", mesh->r[id], mesh->s[id], mesh->t[id]);
     }
   }
+  fclose(fp);
   
-  meshJacobiGQ(0, 0, N, &(mesh->cubt1D), &(mesh->cubw1D));
+  mesh->cubNq1D = meshJacobiGQ(0, 0, N, &(mesh->cubt1D), &(mesh->cubw1D));
   
   if(2*cubN<=20){ // ?
     printf("LOADING GIMBUTAS CUBATURE: %d\n", 2*cubN);
     int GimbutasXiaoCubatureTri2D(int cubN, dfloat **cubr, dfloat **cubs, dfloat **cubw);
-    int cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &(mesh->cubr2D), &(mesh->cubs2D), &(mesh->cubw2D));
+    mesh->cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &(mesh->cubr2D), &(mesh->cubs2D), &(mesh->cubw2D));
   }else{
     printf("cubN*2=%d not available\n", 2*cubN);
     exit(-1);
   }
+
+  mesh->cubNp = mesh->cubNq1D*mesh->cubNp2D;
   
   // collocation differentiation matrices
-  meshDmatricesTri2D(N, Np, mesh->r2D, mesh->s2D, &(mesh->Dr2D), &(mesh->Ds2D));
-  meshDmatrix1D(N, mesh->Nq, mesh->t1D, &(mesh->Dt1D));
-  meshDmatrix1D(cubN, mesh->cubNq, mesh->cubt1D, &(mesh->cubDt1D));
-
-  dfloat *V, *Vr, *Vs, *Vt;
-  dfloat *cubV, *cubVr, *cubVs, *cubVt;
+  meshDmatricesTri2D(N, mesh->Np2D, mesh->r2D, mesh->s2D, &(mesh->Dr2D), &(mesh->Ds2D));
+  meshDmatrix1D(   N, mesh->Nq1D,    mesh->t1D, &(mesh->Dt1D));
+  meshDmatrix1D(cubN, mesh->cubNq1D, mesh->cubt1D, &(mesh->cubDt1D));
 
 #if 0
-  LATER
-  // Vandermonde matrices
-  meshVandermondePrism3D(N, mesh->cubNp2D, mesh->cubNq1D, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
-  meshVandermondePrism3D(N,    mesh->Np2D, mesh->Nq1D,    mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
-
-  // interpolation matrix to cubature
-  mesh->cubInterp3D = (dfloat*) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
-  matrixRightSolve(mesh->cubNp, mesh->Np, cubV, mesh->Np, mesh->Np, V, mesh->cubInterp3D);
-  
-#if 0
-  printf("cubInterp3D:\n");
-  for(int n=0;n<mesh->cubNp;++n){
-    for(int m=0;m<mesh->Np;++m){
-      printf("% e ", mesh->cubInterp3D[n*mesh->Np+m]);
+  printf("Dr2D=[\n");
+  for(int n=0;n<mesh->Np2D;++n){
+    for(int m=0;m<mesh->Np2D;++m){
+      printf("%e ", mesh->Dr2D[n*mesh->Np2D+m]);
     }
     printf("\n");
   }
+  printf("]\n");
+
+  printf("Ds2D=[\n");
+  for(int n=0;n<mesh->Np2D;++n){
+    for(int m=0;m<mesh->Np2D;++m){
+      printf("%e ", mesh->Ds2D[n*mesh->Np2D+m]);
+    }
+    printf("\n");
+  }
+  printf("]\n");
 #endif
 
-  // mass matrix
-  meshMassMatrix(Np, V, &(mesh->MM));
   
-  // lift matrix
-  //  meshLiftMatrixTet3D(N, Np, mesh->faceNodes, mesh->r, mesh->s, mesh->t, &(mesh->LIFT));
+  dfloat *V, *Vr, *Vs, *Vt;
+  dfloat *cubV, *cubVr, *cubVs, *cubVt;
 
-  // interpolation derivative to cubature
-#if 0
-  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt,
-		     &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt));
-#else
-  mesh->cubDr = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
-  mesh->cubDs = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
-  mesh->cubDt = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
-  
-  matrixRightSolve(mesh->cubNp, Np, cubVr, Np, Np, V, mesh->cubDr);
-  matrixRightSolve(mesh->cubNp, Np, cubVs, Np, Np, V, mesh->cubDs);
-  matrixRightSolve(mesh->cubNp, Np, cubVt, Np, Np, V, mesh->cubDt);
-#endif
-#endif
+  meshVandermondeTri2D(N, mesh->Np2D,    mesh->r2D, mesh->s2D, &V, &Vr, &Vs);
+  meshVandermondeTri2D(N, mesh->cubNp2D, mesh->cubr2D, mesh->cubs2D, &cubV, &cubVr, &cubVs);
+  mesh->cubInterp2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
+  matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubV, mesh->Np2D, mesh->Np2D, V, mesh->cubInterp2D);
+
+  meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V, &Vr);
+  meshVandermonde1D(N, mesh->cubNq1D, mesh->cubt1D, &cubV, &cubVr);
+  mesh->cubInterp1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
+  matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubV, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterp1D);
   
   mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
   for(int n=0;n<mesh->NfpTotal;++n){
@@ -1583,8 +1586,6 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
       mesh->vertexNodes[3] = n;
   }
 }
-
-
 
 
 void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
@@ -2537,6 +2538,8 @@ void meshPhysicalNodesPrism3D(mesh3D *mesh){
   mesh->x = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
   mesh->y = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
   mesh->z = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
+
+  //  FILE *fp = fopen("prismPhysicalNodes.dat", "w");
   
   dlong cnt = 0;
   for(dlong e=0;e<mesh->Nelements;++e){ /* for each element */
@@ -2567,9 +2570,9 @@ void meshPhysicalNodesPrism3D(mesh3D *mesh){
     for(int n=0;n<mesh->Np;++n){ /* for each node */
       
       /* (r,s,t) coordinates of interpolation nodes*/
-      dfloat rn = mesh->r2D[n]; 
-      dfloat sn = mesh->s2D[n];
-      dfloat tn = mesh->t1D[n];
+      dfloat rn = mesh->r2D[n%mesh->Np2D]; 
+      dfloat sn = mesh->s2D[n%mesh->Np2D];
+      dfloat tn = mesh->t1D[n/mesh->Np2D];
 
       /* physical coordinate of interpolation node */
       mesh->x[cnt]  = -0.25*(rn+sn)*(1-tn)*xe1 + 0.25*(1+rn)*(1-tn)*xe2 + 0.25*(1+sn)*(1-tn)*xe3;
@@ -2581,9 +2584,12 @@ void meshPhysicalNodesPrism3D(mesh3D *mesh){
       mesh->z[cnt]  = -0.25*(rn+sn)*(1-tn)*ze1 + 0.25*(1+rn)*(1-tn)*ze2 + 0.25*(1+sn)*(1-tn)*ze3;
       mesh->z[cnt] += -0.25*(rn+sn)*(1+tn)*ze4 + 0.25*(1+rn)*(1+tn)*ze5 + 0.25*(1+sn)*(1+tn)*ze6;
 
+      //      fprintf(fp,"%e %e %e\n", mesh->x[cnt],mesh->y[cnt],mesh->z[cnt]);
+      
       ++cnt;
     }
   }
+  //  fclose(fp);
 }
 
 
@@ -3097,7 +3103,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   
   // vertices on each face
   int faceVertices[5][4] =
-    {{0,1,2,-1},{0,1,4,3},{1,2,5,4},{0,3,4,2},{3,4,5,-1}}; // check
+    {{0,1,2,-1},{0,1,4,3},{1,2,5,4},{0,4,5,3},{3,4,5,-1}}; // check
      
   mesh->faceVertices =
     (int*) calloc(mesh->NfaceVertices*mesh->Nfaces, sizeof(int));
@@ -3196,26 +3202,25 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
     EToV0[0] = a; EToV0[1] = b; EToV0[2] = d; EToV0[3] = e; EToV0[4] = f; EToV0[5] = h;
     EToV1[0] = b; EToV1[1] = c; EToV1[2] = d; EToV1[3] = f; EToV1[4] = g; EToV1[5] = h;
 
-    dfloat xa = XMIN + i*dx, ya = YMIN + j*dy, za = ZMIN + k*dz;
-    dfloat xb = XMIN +(i+1)*dx, yb = YMIN + j*dy, zb = ZMIN + k*dz;
-    dfloat xc = XMIN +(i+1)*dx, yc = YMIN +(j+1)*dy, zc = ZMIN + k*dz;
-    dfloat xd = XMIN + i*dx, yd = YMIN + (j+1)*dy, zd = ZMIN + k*dz;
+    dfloat xa = XMIN + i*dx,    ya = YMIN + j*dy,     za = ZMIN + k*dz;
+    dfloat xb = XMIN +(i+1)*dx, yb = YMIN + j*dy,     zb = ZMIN + k*dz;
+    dfloat xc = XMIN +(i+1)*dx, yc = YMIN + (j+1)*dy, zc = ZMIN + k*dz;
+    dfloat xd = XMIN + i*dx,    yd = YMIN + (j+1)*dy, zd = ZMIN + k*dz;
 
-    dfloat xe = XMIN + i*dx, ye = YMIN + j*dy, ze = ZMIN + (k+1)*dz;
-    dfloat xf = XMIN +(i+1)*dx, yf = YMIN + j*dy, zf = ZMIN + (k+1)*dz;
+    dfloat xe = XMIN + i*dx,    ye = YMIN + j*dy,     ze = ZMIN + (k+1)*dz;
+    dfloat xf = XMIN +(i+1)*dx, yf = YMIN + j*dy,     zf = ZMIN + (k+1)*dz;
     dfloat xg = XMIN +(i+1)*dx, yg = YMIN + (j+1)*dy, zg = ZMIN + (k+1)*dz;
-    dfloat xh = XMIN + i*dx, yh = YMIN + (j+1)*dy, zh = ZMIN + (k+1)*dz;
+    dfloat xh = XMIN + i*dx,    yh = YMIN + (j+1)*dy, zh = ZMIN + (k+1)*dz;
     
     dfloat *ex0 = mesh->EX+(eo+0)*mesh->Nverts, *ey0 = mesh->EY+(eo+0)*mesh->Nverts, *ez0 = mesh->EZ+(eo+0)*mesh->Nverts;
     dfloat *ex1 = mesh->EX+(eo+1)*mesh->Nverts, *ey1 = mesh->EY+(eo+1)*mesh->Nverts, *ez1 = mesh->EZ+(eo+1)*mesh->Nverts;
 
     ex0[0] = xa; ex0[1] = xb; ex0[2] = xd; ex0[3] = xe; ex0[4] = xf; ex0[5] = xh;
-    ex1[0] = xb; ex1[1] = xc; ex1[2] = xd; ex1[3] = xf; ex1[4] = xg; ex1[5] = xh;
-
     ey0[0] = ya; ey0[1] = yb; ey0[2] = yd; ey0[3] = ye; ey0[4] = yf; ey0[5] = yh;
-    ey1[0] = yb; ey1[1] = yc; ey1[2] = yd; ey1[3] = yf; ey1[4] = yg; ey1[5] = yh;
-    
     ez0[0] = za; ez0[1] = zb; ez0[2] = zd; ez0[3] = ze; ez0[4] = zf; ez0[5] = zh;
+    
+    ex1[0] = xb; ex1[1] = xc; ex1[2] = xd; ex1[3] = xf; ex1[4] = xg; ex1[5] = xh;
+    ey1[0] = yb; ey1[1] = yc; ey1[2] = yd; ey1[3] = yf; ey1[4] = yg; ey1[5] = yh;
     ez1[0] = zb; ez1[1] = zc; ez1[2] = zd; ez1[3] = zf; ez1[4] = zg; ez1[5] = zh;
     
     mesh->elementInfo[e] = 1; // ?
