@@ -27,19 +27,19 @@ sum(cubw)
 [min(cubs),max(cubs)];
 [min(1+cubr+cubs),max(1+cubr+cubs)];
 
-  fprintf(fp, 'dfloat cubR%d[%d] = {', Ncub, length(cubr));
+  fprintf(fp, 'dfloat cubTriR%d[%d] = {', Ncub, length(cubr));
   for c=1:length(cubr)-1
     fprintf(fp, '% 17.15e,', cubr(c));
   end
   fprintf(fp, '% 17.15e};\n', cubr(end));
 
-  fprintf(fp, 'dfloat cubS%d[%d] = {', Ncub, length(cubs));
+  fprintf(fp, 'dfloat cubTriS%d[%d] = {', Ncub, length(cubs));
   for c=1:length(cubs)-1
     fprintf(fp, '% 17.15e,', cubs(c));
   end
   fprintf(fp, '% 17.15e};\n', cubs(end));
 
-  fprintf(fp, 'dfloat cubW%d[%d] = {', Ncub, length(cubw));
+  fprintf(fp, 'dfloat cubTriW%d[%d] = {', Ncub, length(cubw));
   for c=1:length(cubw)-1
     fprintf(fp, '% 17.15e,', cubw(c));
   end
@@ -57,7 +57,7 @@ fprintf(fp, '  *cubw = (dfloat*) calloc(cubNp, sizeof(dfloat)); \n\n');
 fprintf(fp, '  dfloat *cubR, *cubS, *cubW;\n');
 fprintf(fp, '  switch(cubN){\n');
 for n=1:maxNcub
-  fprintf(fp, '    case %d: cubR = cubR%d; cubS = cubS%d; cubW = cubW%d; break;\n',n,n,n,n);
+  fprintf(fp, '    case %d: cubR = cubTriR%d; cubS = cubTriS%d; cubW = cubTriW%d; break;\n',n,n,n,n);
 end
 fprintf(fp, '    default: exit(-1); \n');
 fprintf(fp, '  }\n\n');

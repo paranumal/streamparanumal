@@ -46,22 +46,24 @@ int findBestPeriodicMatch(dfloat xper, dfloat yper, dfloat zper,
     
     /* next node */
     const int i2 = nodeList[n];
-    for(int zp=0;zp<2;++zp){
-      for(int yp=0;yp<2;++yp){
-	for(int xp=0;xp<2;++xp){
+    if(i2!=-1){
+      for(int zp=0;zp<2;++zp){
+	for(int yp=0;yp<2;++yp){
+	  for(int xp=0;xp<2;++xp){
 
-	  /* distance between target and next node */
-	  const dfloat dist2 =
-	    pow(fabs(x1-x2[i2])-xp*xper,2) +
+	    /* distance between target and next node */
+	    const dfloat dist2 =
+	      pow(fabs(x1-x2[i2])-xp*xper,2) +
 	    pow(fabs(y1-y2[i2])-yp*yper,2) +
-	    pow(fabs(z1-z2[i2])-zp*zper,2);
-	  
-	  /* if next node is closer to target update match */
-	  if(isFirst==1 || dist2<mindist2){
-	    mindist2 = dist2;
-	    matchIndex = i2;
-	    *nP = n;
-	    isFirst=0;
+	      pow(fabs(z1-z2[i2])-zp*zper,2);
+	    
+	    /* if next node is closer to target update match */
+	    if(isFirst==1 || dist2<mindist2){
+	      mindist2 = dist2;
+	      matchIndex = i2;
+	      *nP = n;
+	      isFirst=0;
+	    }
 	  }
 	}
       }
@@ -78,9 +80,9 @@ int findBestPeriodicMatch(dfloat xper, dfloat yper, dfloat zper,
 void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dfloat zper){
   
   /* volume indices of the interior and exterior face nodes for each element */
-  mesh->vmapM = (dlong*) calloc(mesh->Nfp*mesh->Nfaces*mesh->Nelements, sizeof(dlong));
-  mesh->vmapP = (dlong*) calloc(mesh->Nfp*mesh->Nfaces*mesh->Nelements, sizeof(dlong));
-  mesh->mapP  = (dlong*) calloc(mesh->Nfp*mesh->Nfaces*mesh->Nelements, sizeof(dlong));
+  mesh->vmapM = (dlong*) calloc(mesh->NfpTotal*mesh->Nelements, sizeof(dlong));
+  mesh->vmapP = (dlong*) calloc(mesh->NfpTotal*mesh->Nelements, sizeof(dlong));
+  mesh->mapP  = (dlong*) calloc(mesh->NfpTotal*mesh->Nelements, sizeof(dlong));
   
   /* assume elements already connected */
   for(dlong e=0;e<mesh->Nelements;++e){
@@ -93,139 +95,32 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
       }
       /* for each node on this face find the neighbor node */
       for(int n=0;n<mesh->Nfp;++n){
-        dlong  idM = mesh->faceNodes[f*mesh->Nfp+n] + e*mesh->Np;
-        dfloat xM = mesh->x[idM];
-        dfloat yM = mesh->y[idM];
-        dfloat zM = mesh->z[idM];
-        int nP;
-        
-        int  idP = findBestPeriodicMatch(xper, yper, zper,
-					 xM, yM, zM,
-					 mesh->Nfp, 
-					 mesh->faceNodes+fP*mesh->Nfp,
-					 mesh->x+eP*mesh->Np,
-					 mesh->y+eP*mesh->Np,
-					 mesh->z+eP*mesh->Np, &nP);
-	
-        dlong id = mesh->Nfaces*mesh->Nfp*e + f*mesh->Nfp + n;
-        mesh->vmapM[id] = idM;
-        mesh->vmapP[id] = idP + eP*mesh->Np;
-        mesh->mapP[id] = eP*mesh->Nfaces*mesh->Nfp + fP*mesh->Nfp + nP;
+	int fidM = mesh->faceNodes[f*mesh->Nfp+n];
+	if(fidM!=-1){
+	  dlong  idM = fidM+ e*mesh->Np;
+	  dfloat xM = mesh->x[idM];
+	  dfloat yM = mesh->y[idM];
+	  dfloat zM = mesh->z[idM];
+	  int nP;
+	  
+	  int  idP = findBestPeriodicMatch(xper, yper, zper,
+					   xM, yM, zM,
+					   mesh->Nfp, 
+					   mesh->faceNodes+fP*mesh->Nfp,
+					   mesh->x+eP*mesh->Np,
+					   mesh->y+eP*mesh->Np,
+					   mesh->z+eP*mesh->Np, &nP);
+	  
+	  dlong id = mesh->NfpTotal*e + f*mesh->Nfp + n;
+	  mesh->vmapM[id] = idM;
+	  mesh->vmapP[id] = idP + eP*mesh->Np;
+	  mesh->mapP[id] = eP*mesh->NfpTotal + fP*mesh->Nfp + nP;
+	}
       }
     }
   }
 }
 
-#if 0
-void meshGeometricFactorsTet3D(mesh3D *mesh){
-
-  /* unified storage array for geometric factors */
-  mesh->Nvgeo = 12;
-  mesh->vgeo = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo, 
-        sizeof(dfloat));
-
-  /* number of second order geometric factors */
-  mesh->Nggeo = 7;
-  mesh->ggeo = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo, sizeof(dfloat));
-
-  mesh->cubggeo = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo*mesh->cubNp, sizeof(dfloat));
-  
-
-  dfloat minJ = 1e9, maxJ = -1e9;
-  for(dlong e=0;e<mesh->Nelements;++e){ /* for each element */
-
-    /* find vertex indices and physical coordinates */
-    dlong id = e*mesh->Nverts;
-
-    /* vertex coordinates */
-    dfloat xe1 = mesh->EX[id+0], ye1 = mesh->EY[id+0], ze1 = mesh->EZ[id+0];
-    dfloat xe2 = mesh->EX[id+1], ye2 = mesh->EY[id+1], ze2 = mesh->EZ[id+1];
-    dfloat xe3 = mesh->EX[id+2], ye3 = mesh->EY[id+2], ze3 = mesh->EZ[id+2];
-    dfloat xe4 = mesh->EX[id+3], ye4 = mesh->EY[id+3], ze4 = mesh->EZ[id+3];
-
-    /* Jacobian matrix */
-    dfloat xr = 0.5*(xe2-xe1), xs = 0.5*(xe3-xe1), xt = 0.5*(xe4-xe1);
-    dfloat yr = 0.5*(ye2-ye1), ys = 0.5*(ye3-ye1), yt = 0.5*(ye4-ye1);
-    dfloat zr = 0.5*(ze2-ze1), zs = 0.5*(ze3-ze1), zt = 0.5*(ze4-ze1);
-
-    /* compute geometric factors for affine coordinate transform*/
-    dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
-    
-    dfloat rx =  (ys*zt - zs*yt)/J, ry = -(xs*zt - zs*xt)/J, rz =  (xs*yt - ys*xt)/J;
-    dfloat sx = -(yr*zt - zr*yt)/J, sy =  (xr*zt - zr*xt)/J, sz = -(xr*yt - yr*xt)/J;
-    dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
-
-    if(J<0) printf("bugger: got negative geofac\n");
-    minJ = mymin(minJ,J);
-    maxJ = mymax(maxJ,J);
-    
-    /* store geometric factors */
-    mesh->vgeo[mesh->Nvgeo*e + RXID] = rx;
-    mesh->vgeo[mesh->Nvgeo*e + RYID] = ry;
-    mesh->vgeo[mesh->Nvgeo*e + RZID] = rz;
-    mesh->vgeo[mesh->Nvgeo*e + SXID] = sx;
-    mesh->vgeo[mesh->Nvgeo*e + SYID] = sy;
-    mesh->vgeo[mesh->Nvgeo*e + SZID] = sz;
-    mesh->vgeo[mesh->Nvgeo*e + TXID] = tx;
-    mesh->vgeo[mesh->Nvgeo*e + TYID] = ty;
-    mesh->vgeo[mesh->Nvgeo*e + TZID] = tz;
-    mesh->vgeo[mesh->Nvgeo*e +  JID] = J;
-    //    printf("geo: %g,%g,%g - %g,%g,%g - %g,%g,%g\n",
-    //     rx,ry,rz, sx,sy,sz, tx,ty,tz);
-
-    /* store second order geometric factors */
-    mesh->ggeo[mesh->Nggeo*e + G00ID] = J*(rx*rx + ry*ry + rz*rz);
-    mesh->ggeo[mesh->Nggeo*e + G01ID] = J*(rx*sx + ry*sy + rz*sz);
-    mesh->ggeo[mesh->Nggeo*e + G02ID] = J*(rx*tx + ry*ty + rz*tz);
-    mesh->ggeo[mesh->Nggeo*e + G11ID] = J*(sx*sx + sy*sy + sz*sz);
-    mesh->ggeo[mesh->Nggeo*e + G12ID] = J*(sx*tx + sy*ty + sz*tz);
-    mesh->ggeo[mesh->Nggeo*e + G22ID] = J*(tx*tx + ty*ty + tz*tz);
-    mesh->ggeo[mesh->Nggeo*e + GWJID] = J;
-
-   for(int n=0;n<mesh->cubNp;++n){
-      dfloat cubrn = mesh->cubr[n];
-      dfloat cubsn = mesh->cubs[n];
-      dfloat cubtn = mesh->cubt[n];
-      dfloat ar = -2./(cubsn+cubtn);
-      dfloat as = 2*(1.+cubrn)/pow(cubsn+cubtn,2);
-      dfloat at = 2*(1.+cubrn)/pow(cubsn+cubtn,2);
-      dfloat br = 0;
-      dfloat bs = 2./(1-cubtn);
-      dfloat bt = 2.*(1+cubsn)/pow(1-cubtn,2);
-      dfloat cr = 0;
-      dfloat cs = 0;
-      dfloat ct = 1.0;
-
-      dfloat ax = rx*ar + sx*as + tx*at;
-      dfloat bx = rx*br + sx*bs + tx*bt;
-      dfloat cx = rx*cr + sx*cs + tx*ct;
-
-      dfloat ay = ry*ar + sy*as + ty*at;
-      dfloat by = ry*br + sy*bs + ty*bt;
-      dfloat cy = ry*cr + sy*cs + ty*ct;
-
-      dfloat az = rz*ar + sz*as + tz*at;
-      dfloat bz = rz*br + sz*bs + tz*bt;
-      dfloat cz = rz*cr + sz*cs + tz*ct;
-
-      dfloat JW = J*mesh->cubw[n];
-      dfloat *gbase = mesh->cubggeo + mesh->Nggeo*mesh->cubNp*e + n;
-      gbase[mesh->cubNp*G00ID] = JW*(ax*ax + ay*ay + az*az); // 
-      gbase[mesh->cubNp*G01ID] = JW*(ax*bx + ay*by + az*bz);
-      gbase[mesh->cubNp*G02ID] = JW*(ax*cx + ay*cy + az*cz);
-      gbase[mesh->cubNp*G11ID] = JW*(bx*bx + by*by + bz*bz);
-      gbase[mesh->cubNp*G12ID] = JW*(bx*cx + by*cy + bz*cz);
-      gbase[mesh->cubNp*G22ID] = JW*(cx*cx + cy*cy + cz*cz);
-      gbase[mesh->cubNp*GWJID] = JW;
-      //      printf("% e ", JW);
-   }
-   //   printf("\n"); 
-  }
-
-  //printf("minJ = %g, maxJ = %g\n", minJ, maxJ);
-}
- 
-#else
 void meshGeometricFactorsTet3D(mesh3D *mesh){
 
   /* unified storage array for geometric factors */
@@ -308,7 +203,209 @@ void meshGeometricFactorsTet3D(mesh3D *mesh){
 
   //printf("minJ = %g, maxJ = %g\n", minJ, maxJ);
 }
-#endif
+
+void meshGeometricFactorsPrism3D(mesh3D *mesh){
+
+  /* unified storage array for geometric factors */
+  mesh->Nvgeo   = 12;
+  mesh->vgeo    = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo*mesh->Np,    sizeof(dfloat));
+  mesh->cubvgeo = (dfloat*) calloc(mesh->Nelements*mesh->Nvgeo*mesh->cubNp, sizeof(dfloat));
+
+  /* number of second order geometric factors */
+  mesh->Nggeo   = 7;
+  mesh->ggeo    = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo*mesh->Np,    sizeof(dfloat));
+  mesh->cubggeo = (dfloat*) calloc(mesh->Nelements*mesh->Nggeo*mesh->cubNp, sizeof(dfloat));
+  
+  dfloat minJ = 1e9, maxJ = -1e9, maxSkew = 0;
+
+  dfloat *xre = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *xse = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *xte = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *yre = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *yse = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *yte = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *zre = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *zse = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  dfloat *zte = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  
+  dfloat *cubxre = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubxse = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubxte = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubyre = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubyse = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubyte = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubzre = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubzse = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+  dfloat *cubzte = (dfloat*) calloc(mesh->cubNp, sizeof(dfloat));
+
+  for(dlong e=0;e<mesh->Nelements;++e){ /* for each element */
+
+    /* find vertex indices and physical coordinates */
+    dlong id = e*mesh->Nverts;
+    
+    dfloat *xe = mesh->EX + id;
+    dfloat *ye = mesh->EY + id;
+    dfloat *ze = mesh->EZ + id;
+
+    for(int n=0;n<mesh->Np;++n){
+      xre[n] = 0; xse[n] = 0; xte[n] = 0;
+      yre[n] = 0; yse[n] = 0; yte[n] = 0; 
+      zre[n] = 0; zse[n] = 0; zte[n] = 0; 
+    }
+    
+    for(int k=0;k<mesh->Nq;++k){
+      for(int n=0;n<mesh->Np2D;++n){
+	hlong nk = n+k*mesh->Np2D+e*mesh->Np;
+
+	for(int m=0;m<mesh->Np2D;++m){
+	  hlong mk = m+k*mesh->Np2D+e*mesh->Np;
+	  dfloat Drnm = mesh->Dr2D[n*mesh->Np2D+m];
+	  dfloat Dsnm = mesh->Ds2D[n*mesh->Np2D+m];
+	  xre[nk] += Drnm*mesh->x[mk];
+	  yre[nk] += Drnm*mesh->y[mk];
+	  zre[nk] += Drnm*mesh->z[mk];
+	  xse[nk] += Dsnm*mesh->x[mk];
+	  yse[nk] += Dsnm*mesh->y[mk];
+	  zse[nk] += Dsnm*mesh->z[mk];
+	}
+	for(int m=0;m<mesh->Nq1D;++m){
+	  hlong nm = n+m*mesh->Np2D+e*mesh->Np;
+	  dfloat Dtkm = mesh->Dt1D[k*mesh->Nq1D+m];
+	  xte[nk] += Dtkm*mesh->x[nm];
+	  yte[nk] += Dtkm*mesh->y[nm];
+	  zte[nk] += Dtkm*mesh->z[nm];
+	}
+	  
+	dfloat xr = xre[nk], xs = xse[nk], xt = xte[nk];
+	dfloat yr = yre[nk], ys = yse[nk], yt = yte[nk];
+	dfloat zr = zre[nk], zs = zse[nk], zt = zte[nk];
+	
+	/* compute geometric factors for affine coordinate transform*/
+	dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
+	
+	dfloat hr = sqrt(xr*xr+yr*yr+zr*zr);
+	dfloat hs = sqrt(xs*xs+ys*ys+zs*zs);
+	dfloat ht = sqrt(xt*xt+yt*yt+zt*zt);
+	minJ = mymin(J, minJ);
+	maxJ = mymax(J, maxJ);
+	maxSkew = mymax(maxSkew, hr/hs);
+	maxSkew = mymax(maxSkew, hr/ht);
+	maxSkew = mymax(maxSkew, hs/hr);
+	maxSkew = mymax(maxSkew, hs/ht);
+	maxSkew = mymax(maxSkew, ht/hr);
+	maxSkew = mymax(maxSkew, ht/hs);
+        
+	if(J<1e-12) printf("J = %g !!!!!!!!!!!!!\n", J);
+        
+	dfloat rx =  (ys*zt - zs*yt)/J, ry = -(xs*zt - zs*xt)/J, rz =  (xs*yt - ys*xt)/J;
+	dfloat sx = -(yr*zt - zr*yt)/J, sy =  (xr*zt - zr*xt)/J, sz = -(xr*yt - yr*xt)/J;
+	dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
+        
+	/* store geometric factors */
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*RXID] = rx;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*RYID] = ry;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*RZID] = rz;
+        
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*SXID] = sx;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*SYID] = sy;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*SZID] = sz;
+        
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*TXID] = tx;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*TYID] = ty;
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*TZID] = tz;
+	
+	mesh->vgeo[mesh->Nvgeo*mesh->Np*e + nk + mesh->Np*JID]  = J;
+      }
+    }
+    
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, xre, mesh->Np2D, mesh->Nq1D, cubxre, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, xse, mesh->Np2D, mesh->Nq1D, cubxse, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, xte, mesh->Np2D, mesh->Nq1D, cubxte, mesh->cubNp2D, mesh->cubNq1D);
+
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, yre, mesh->Np2D, mesh->Nq1D, cubyre, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, yse, mesh->Np2D, mesh->Nq1D, cubyse, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, yte, mesh->Np2D, mesh->Nq1D, cubyte, mesh->cubNp2D, mesh->cubNq1D);
+
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, zre, mesh->Np2D, mesh->Nq1D, cubzre, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, zse, mesh->Np2D, mesh->Nq1D, cubzse, mesh->cubNp2D, mesh->cubNq1D);
+    meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, zte, mesh->Np2D, mesh->Nq1D, cubzte, mesh->cubNp2D, mesh->cubNq1D);
+    
+    //geometric data for quadrature
+    for(int k=0;k<mesh->cubNq;++k){
+      for(int n=0;n<mesh->cubNp2D;++n){
+	
+	int m = k*mesh->cubNp2D + n;
+	  
+	/* Jacobian matrix */
+	dfloat xr = cubxre[m], xs = cubxse[m], xt = cubxte[m];
+	dfloat yr = cubyre[m], ys = cubyse[m], yt = cubyte[m];
+	dfloat zr = cubzre[m], zs = cubzse[m], zt = cubzte[m];
+	
+	/* compute geometric factors for affine coordinate transform*/
+	dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
+	
+	if(J<1e-12) printf("CUBATURE J = %g !!!!!!!!!!!!!\n", J);
+	
+	dfloat rx =  (ys*zt - zs*yt)/J, ry = -(xs*zt - zs*xt)/J, rz =  (xs*yt - ys*xt)/J;
+	dfloat sx = -(yr*zt - zr*yt)/J, sy =  (xr*zt - zr*xt)/J, sz = -(xr*yt - yr*xt)/J;
+	dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
+        
+	dfloat JW = J*mesh->cubw2D[n]*mesh->cubw1D[k];
+        
+	/* store geometric factors */
+	dlong base = mesh->Nvgeo*mesh->cubNp*e + n;
+	mesh->cubvgeo[base + mesh->cubNp*RXID] = rx;
+	mesh->cubvgeo[base + mesh->cubNp*RYID] = ry;
+	mesh->cubvgeo[base + mesh->cubNp*RZID] = rz;
+        
+	mesh->cubvgeo[base + mesh->cubNp*SXID] = sx;
+	mesh->cubvgeo[base + mesh->cubNp*SYID] = sy;
+	mesh->cubvgeo[base + mesh->cubNp*SZID] = sz;
+        
+	mesh->cubvgeo[base + mesh->cubNp*TXID] = tx;
+	mesh->cubvgeo[base + mesh->cubNp*TYID] = ty;
+	mesh->cubvgeo[base + mesh->cubNp*TZID] = tz;
+        
+	mesh->cubvgeo[base + mesh->cubNp*JID]  = J;
+	mesh->cubvgeo[base + mesh->cubNp*JWID] = JW;
+	mesh->cubvgeo[base + mesh->cubNp*IJWID] = 1./JW;
+	
+	
+	/* store second order geometric factors */
+	base = mesh->Nggeo*mesh->cubNp*e + n;
+	mesh->cubggeo[base + mesh->cubNp*G00ID] = JW*(rx*rx + ry*ry + rz*rz);
+	mesh->cubggeo[base + mesh->cubNp*G01ID] = JW*(rx*sx + ry*sy + rz*sz);
+	mesh->cubggeo[base + mesh->cubNp*G02ID] = JW*(rx*tx + ry*ty + rz*tz);
+	mesh->cubggeo[base + mesh->cubNp*G11ID] = JW*(sx*sx + sy*sy + sz*sz);
+	mesh->cubggeo[base + mesh->cubNp*G12ID] = JW*(sx*tx + sy*ty + sz*tz);
+	mesh->cubggeo[base + mesh->cubNp*G22ID] = JW*(tx*tx + ty*ty + tz*tz);
+	mesh->cubggeo[base + mesh->cubNp*GWJID] = JW;
+      }
+    }
+  }
+  
+  {
+    dfloat globalMinJ, globalMaxJ, globalMaxSkew;
+
+    MPI_Reduce(&minJ, &globalMinJ, 1, MPI_DFLOAT, MPI_MIN, 0, mesh->comm);
+    MPI_Reduce(&maxJ, &globalMaxJ, 1, MPI_DFLOAT, MPI_MAX, 0, mesh->comm);
+    MPI_Reduce(&maxSkew, &globalMaxSkew, 1, MPI_DFLOAT, MPI_MAX, 0, mesh->comm);
+
+    if(mesh->rank==0)
+      printf("J in range [%g,%g] and max Skew = %g\n", globalMinJ, globalMaxJ, globalMaxSkew);
+  }
+
+  free(xre); free(xse); free(xte);
+  free(yre); free(yse); free(yte);
+  free(zre); free(zse); free(zte);
+
+  free(cubxre); free(cubxse); free(cubxte);
+  free(cubyre); free(cubyse); free(cubyte);
+  free(cubzre); free(cubzse); free(cubzte);
+  
+}
+
+
 
 void meshGeometricFactorsHex3D(mesh3D *mesh){
 
@@ -1196,6 +1293,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   mesh->N = N;
   mesh->Np = Np;
   mesh->Nfp = Nfp;
+  mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
   mesh->Nq = N+1;
   
   int Nrows, Ncols;
@@ -1297,7 +1395,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
   matrixRightSolve(mesh->cubNp, Np, cubVt, Np, Np, V, mesh->cubDt);
 #endif
   
-  mesh->faceNodes = (int*) calloc(mesh->Nfp*mesh->Nfaces, sizeof(int));
+  mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
 
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
@@ -1339,6 +1437,141 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
 }
 
 
+void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
+
+  dfloat deps = 1.;
+  while((1.+deps)>1.)
+    deps *= 0.5;
+
+  dfloat NODETOL = 1000.*deps;
+
+  int Np = ((N+1)*(N+2)*(N+1))/2;
+  int Nfp = (N+1)*(N+2)/2;
+  
+  mesh->N = N;
+  mesh->Np = Np;
+  mesh->Nfp = Nfp;
+  mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
+  mesh->Nq = N+1;
+  
+  int Nrows, Ncols;
+
+  // node data
+  dfloat *r2D, *s2D, *t1D;
+  dfloat *Dr2D, *Ds2D, *Dt1D;
+  dfloat *cubt1D, *cubw1D, *cubDt1D;
+
+  dfloat *cubr2D, *cubs2D, *cubw2D;
+  
+  meshWarpBlendNodesTri2D(N, &r2D, &s2D);
+
+  meshJacobiGQ(0, 0, N, &cubt1D, &cubw1D);
+  
+  if(2*cubN<=20){ // ?
+    printf("LOADING GIMBUTAS CUBATURE: %d\n", 2*cubN);
+    int GimbutasXiaoCubatureTri2D(int cubN, dfloat **cubr, dfloat **cubs, dfloat **cubw);
+    int cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &cubr2D, &cubs2D, &cubw2D);
+  }else{
+    printf("cubN*2=%d not available\n", 2*cubN);
+    exit(-1);
+  }
+  
+  // collocation differentiation matrices
+  meshDmatricesTri2D(N, Np, r2D, s2D, &Dr2D, &Ds2D);
+  meshDmatrix1D(N, mesh->Nq, t1D, &Dt1D);
+  meshDmatrix1D(cubN, mesh->cubNq, cubt1D, &cubDt1D);
+
+  dfloat *V, *Vr, *Vs, *Vt;
+  dfloat *cubV, *cubVr, *cubVs, *cubVt;
+
+  // Vandermonde matrices
+  meshVandermondeTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
+  meshVandermondeTet3D(N,    mesh->Np, mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
+
+  // interpolation matrix to cubature
+  mesh->cubInterp3D = (dfloat*) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  matrixRightSolve(mesh->cubNp, mesh->Np, cubV, mesh->Np, mesh->Np, V, mesh->cubInterp3D);
+
+#if 0
+  printf("cubInterp3D:\n");
+  for(int n=0;n<mesh->cubNp;++n){
+    for(int m=0;m<mesh->Np;++m){
+      printf("% e ", mesh->cubInterp3D[n*mesh->Np+m]);
+    }
+    printf("\n");
+  }
+#endif
+
+  // mass matrix
+  meshMassMatrix(Np, V, &(mesh->MM));
+  
+  // lift matrix
+  //  meshLiftMatrixTet3D(N, Np, mesh->faceNodes, mesh->r, mesh->s, mesh->t, &(mesh->LIFT));
+
+  // interpolation derivative to cubature
+#if 0
+  meshDmatricesTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt,
+		     &(mesh->cubDr), &(mesh->cubDs), &(mesh->cubDt));
+#else
+  mesh->cubDr = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  mesh->cubDs = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  mesh->cubDt = (dfloat *) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
+  
+  matrixRightSolve(mesh->cubNp, Np, cubVr, Np, Np, V, mesh->cubDr);
+  matrixRightSolve(mesh->cubNp, Np, cubVs, Np, Np, V, mesh->cubDs);
+  matrixRightSolve(mesh->cubNp, Np, cubVt, Np, Np, V, mesh->cubDt);
+#endif
+  
+  mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
+  for(int n=0;n<mesh->NfpTotal;++n){
+    mesh->faceNodes[n] = -1;
+  }
+ 
+  int cnt = 0;
+  for(int n=0;n<mesh->Np;++n)
+    if(fabs(mesh->t[n]+1)<NODETOL)
+      mesh->faceNodes[0*mesh->Nfp+(cnt++)] = n;
+  cnt = 0;
+  for(int n=0;n<mesh->Np;++n)
+    if(fabs(mesh->s[n]+1)<NODETOL)
+      mesh->faceNodes[1*mesh->Nfp+(cnt++)] = n;
+  cnt = 0;
+  for(int n=0;n<mesh->Np;++n)
+    if(fabs(mesh->r[n]+mesh->s[n])<NODETOL)
+      mesh->faceNodes[2*mesh->Nfp+(cnt++)] = n;
+  cnt = 0;
+  for(int n=0;n<mesh->Np;++n)
+  if(fabs(mesh->r[n]+1)<NODETOL)
+      mesh->faceNodes[3*mesh->Nfp+(cnt++)] = n;
+  cnt = 0;
+  for(int n=0;n<mesh->Np;++n)
+    if(fabs(mesh->t[n]-1)<NODETOL)
+      mesh->faceNodes[4*mesh->Nfp+(cnt++)] = n;
+
+  
+  for(int f=0;f<mesh->Nfaces;++f){
+    printf("%d: ", f);
+    for(int n=0;n<mesh->Nfp;++n){
+      printf("%d ", mesh->faceNodes[f*mesh->Nfp+n]);
+    }
+    printf("\n");
+  }
+  
+  // find node indices of vertex nodes
+  mesh->vertexNodes = (int*) calloc(mesh->Nverts, sizeof(int));
+  for(int n=0;n<mesh->Np;++n){
+    if( fabs(mesh->r[n]+mesh->s[n]+mesh->t[n]+3)<NODETOL)
+      mesh->vertexNodes[0] = n;
+    if( fabs(mesh->r[n]-1)<NODETOL)
+      mesh->vertexNodes[1] = n;
+    if( fabs(mesh->s[n]-1)<NODETOL)
+      mesh->vertexNodes[2] = n;
+    if( fabs(mesh->t[n]-1)<NODETOL)
+      mesh->vertexNodes[3] = n;
+  }
+}
+
+
 
 
 void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
@@ -1352,6 +1585,7 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   mesh->N = N;
   mesh->Nq = N+1;
   mesh->Nfp = (N+1)*(N+1);
+  mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
   mesh->Np = (N+1)*(N+1)*(N+1);
   mesh->Nverts = 8;
 
@@ -1395,7 +1629,7 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
     }
   }
 
-  mesh->faceNodes = (int*) calloc(mesh->Nfp*mesh->Nfaces, sizeof(int));
+  mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
 
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
@@ -1500,7 +1734,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
 			  mesh->vgeo);
     
     mesh->o_sgeo =
-      mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->Nfp*mesh->Nsgeo*sizeof(dfloat),
+      mesh->device.malloc(mesh->Nelements*mesh->NfpTotal*mesh->Nsgeo*sizeof(dfloat),
 			  mesh->sgeo);
     
     mesh->o_ggeo =
@@ -1577,11 +1811,11 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   }
   
   mesh->o_vmapM =
-    mesh->device.malloc(mesh->Nelements*mesh->Nfp*mesh->Nfaces*sizeof(dlong),
+    mesh->device.malloc(mesh->Nelements*mesh->NfpTotal*sizeof(dlong),
                         mesh->vmapM);
 
   mesh->o_vmapP =
-    mesh->device.malloc(mesh->Nelements*mesh->Nfp*mesh->Nfaces*sizeof(dlong),
+    mesh->device.malloc(mesh->Nelements*mesh->NfpTotal*sizeof(dlong),
                         mesh->vmapP);
 
   mesh->o_EToB =
@@ -1626,7 +1860,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   kernelInfo["defines/" "p_Np"]= mesh->Np;
   kernelInfo["defines/" "p_Nfp"]= mesh->Nfp;
   kernelInfo["defines/" "p_Nfaces"]= mesh->Nfaces;
-  kernelInfo["defines/" "p_NfacesNfp"]= mesh->Nfp*mesh->Nfaces;
+  kernelInfo["defines/" "p_NfacesNfp"]= mesh->NfpTotal;
   kernelInfo["defines/" "p_Nvgeo"]= mesh->Nvgeo;
   kernelInfo["defines/" "p_Nsgeo"]= mesh->Nsgeo;
   kernelInfo["defines/" "p_Nggeo"]= mesh->Nggeo;
@@ -1640,7 +1874,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   kernelInfo["defines/" "p_WSJID"]= WSJID;
   kernelInfo["defines/" "p_WIJID"]= WIJID;
 
-  int maxNodes = mymax(mesh->Np, (mesh->Nfp*mesh->Nfaces));
+  int maxNodes = mymax(mesh->Np, (mesh->NfpTotal));
   kernelInfo["defines/" "p_maxNodes"]= maxNodes;
 
   kernelInfo["defines/" "p_Lambda2"]= 0.5f;
@@ -1796,8 +2030,8 @@ void meshParallelConnectNodes(mesh_t *mesh){
 
     // compare trace nodes
     for(dlong e=0;e<mesh->Nelements;++e){
-      for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
-        dlong id  = e*mesh->Nfp*mesh->Nfaces + n;
+      for(int n=0;n<mesh->NfpTotal;++n){
+        dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
         hlong gidM = localNodes[idM].baseId;
@@ -1897,6 +2131,7 @@ void meshConnect(mesh_t *mesh){
     for(int f=0;f<mesh->Nfaces;++f){
       
       for(int n=0;n<mesh->NfaceVertices;++n){
+
         dlong vid = e*mesh->Nverts + mesh->faceVertices[f*mesh->NfaceVertices+n];
         faces[cnt].v[n] = mesh->EToV[vid];
       }
@@ -2095,8 +2330,10 @@ void meshParallelConnect(mesh_t *mesh){
         hlong maxv = 0;
         for(int n=0;n<mesh->NfaceVertices;++n){
           int nid = mesh->faceVertices[f*mesh->NfaceVertices+n];
-          hlong id = mesh->EToV[e*mesh->Nverts + nid];
-          maxv = mymax(maxv, id);
+	  if(nid!=-1){
+	    hlong id = mesh->EToV[e*mesh->Nverts + nid];
+	    maxv = mymax(maxv, id);
+	  }
         }
         int destRank = (int) (maxv%size);
         
@@ -2108,9 +2345,9 @@ void meshParallelConnect(mesh_t *mesh){
         sendFaces[id].face = f;
         for(int n=0;n<mesh->NfaceVertices;++n){
           int nid = mesh->faceVertices[f*mesh->NfaceVertices+n];
-          sendFaces[id].v[n] = mesh->EToV[e*mesh->Nverts + nid];
+          sendFaces[id].v[n] =(nid!=-1) ? mesh->EToV[e*mesh->Nverts + nid]: -1;
         }
-
+	
         mysort(sendFaces[id].v,mesh->NfaceVertices, "descending");
 
         sendFaces[id].NfaceVertices = mesh->NfaceVertices;
@@ -2281,7 +2518,63 @@ void meshPhysicalNodesTet3D(mesh3D *mesh){
     }
   }
 }
- 
+
+void meshPhysicalNodesPrism3D(mesh3D *mesh){
+  
+  mesh->x = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
+  mesh->y = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
+  mesh->z = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
+  
+  dlong cnt = 0;
+  for(dlong e=0;e<mesh->Nelements;++e){ /* for each element */
+
+    dlong id = e*mesh->Nverts;
+
+    dfloat xe1 = mesh->EX[id+0]; /* x-coordinates of vertices */
+    dfloat xe2 = mesh->EX[id+1];
+    dfloat xe3 = mesh->EX[id+2];
+    dfloat xe4 = mesh->EX[id+3];
+    dfloat xe5 = mesh->EX[id+4];
+    dfloat xe6 = mesh->EX[id+5];
+
+    dfloat ye1 = mesh->EY[id+0]; /* y-coordinates of vertices */
+    dfloat ye2 = mesh->EY[id+1];
+    dfloat ye3 = mesh->EY[id+2];
+    dfloat ye4 = mesh->EY[id+3];
+    dfloat ye5 = mesh->EY[id+4];
+    dfloat ye6 = mesh->EY[id+5];
+    
+    dfloat ze1 = mesh->EZ[id+0]; /* z-coordinates of vertices */
+    dfloat ze2 = mesh->EZ[id+1];
+    dfloat ze3 = mesh->EZ[id+2];
+    dfloat ze4 = mesh->EZ[id+3];
+    dfloat ze5 = mesh->EZ[id+4];
+    dfloat ze6 = mesh->EZ[id+5];
+    
+    for(int n=0;n<mesh->Np;++n){ /* for each node */
+      
+      /* (r,s,t) coordinates of interpolation nodes*/
+      dfloat rn = mesh->r2D[n]; 
+      dfloat sn = mesh->s2D[n];
+      dfloat tn = mesh->t1D[n];
+
+      /* physical coordinate of interpolation node */
+      mesh->x[cnt]  = -0.25*(rn+sn)*(1-tn)*xe1 + 0.25*(1+rn)*(1-tn)*xe2 + 0.25*(1+sn)*(1-tn)*xe3;
+      mesh->x[cnt] += -0.25*(rn+sn)*(1+tn)*xe4 + 0.25*(1+rn)*(1+tn)*xe5 + 0.25*(1+sn)*(1+tn)*xe6;
+
+      mesh->y[cnt]  = -0.25*(rn+sn)*(1-tn)*ye1 + 0.25*(1+rn)*(1-tn)*ye2 + 0.25*(1+sn)*(1-tn)*ye3;
+      mesh->y[cnt] += -0.25*(rn+sn)*(1+tn)*ye4 + 0.25*(1+rn)*(1+tn)*ye5 + 0.25*(1+sn)*(1+tn)*ye6;
+
+      mesh->z[cnt]  = -0.25*(rn+sn)*(1-tn)*ze1 + 0.25*(1+rn)*(1-tn)*ze2 + 0.25*(1+sn)*(1-tn)*ze3;
+      mesh->z[cnt] += -0.25*(rn+sn)*(1+tn)*ze4 + 0.25*(1+rn)*(1+tn)*ze5 + 0.25*(1+sn)*(1+tn)*ze6;
+
+      ++cnt;
+    }
+  }
+}
+
+
+
 void meshPhysicalNodesHex3D(mesh3D *mesh){
   
   mesh->x = (dfloat*) calloc(mesh->Nelements*mesh->Np,sizeof(dfloat));
@@ -2770,6 +3063,190 @@ mesh3D *meshSetupBoxTet3D(int N, int cubN, setupAide &options){
   return mesh;
 }
 
+mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
+
+  mesh_t *mesh = new mesh_t();
+  
+  int rank, size;
+  
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  
+  MPI_Comm_dup(MPI_COMM_WORLD, &mesh->comm);
+  
+  mesh->rank = rank;
+  mesh->size = size;
+  
+  mesh->dim = 3;
+  mesh->Nverts = 6; // number of vertices per element
+  mesh->Nfaces = 5;
+  mesh->NfaceVertices = 4; // MAX NUMBER OF face vertices (pad by -1) ? 
+  
+  // vertices on each face
+  int faceVertices[5][4] =
+    {{0,1,2,-1},{0,1,4,3},{1,2,5,4},{0,3,4,2},{3,4,5,-1}}; // check
+     
+  mesh->faceVertices =
+    (int*) calloc(mesh->NfaceVertices*mesh->Nfaces, sizeof(int));
+
+  memcpy(mesh->faceVertices, faceVertices[0], mesh->NfaceVertices*mesh->Nfaces*sizeof(int));
+  
+  // build an NX x NY x NZ periodic box grid
+  
+  hlong NX = 3, NY = 3, NZ = 3; // defaults
+  
+  int NdofsTarget = 0;
+  options.getArgs("TARGET NODES", NdofsTarget);
+  if(NdofsTarget){
+    int tmpNp = 2*(N+1)*(N+2)*(N+1)/2;
+    int NboxesTarget = (NdofsTarget+tmpNp-1)/tmpNp;
+    meshChooseBoxDimensions(NboxesTarget, &NX, &NY, &NZ);
+    printf("TARGET NODES = %d, ACTUAL NODES = %d, NELEMENTS = [%d,%d,%d=>%d]\n", NdofsTarget, NX*NY*NZ*tmpNp, NX,NY,NZ, NX*NY*NZ);
+  }else{
+    options.getArgs("BOX NX", NX);
+    options.getArgs("BOX NY", NY);
+    options.getArgs("BOX NZ", NZ);
+  }
+  printf("BOX NX:Z = %d,%d,%d\n", NX, NY, NZ);
+  
+  dfloat XMIN = -1, XMAX = +1; // default bi-unit cube
+  dfloat YMIN = -1, YMAX = +1;
+  dfloat ZMIN = -1, ZMAX = +1;
+  
+  options.getArgs("BOX XMIN", XMIN);
+  options.getArgs("BOX YMIN", YMIN);
+  options.getArgs("BOX ZMIN", ZMIN);
+
+  options.getArgs("BOX XMAX", XMAX);
+  options.getArgs("BOX YMAX", YMAX);
+  options.getArgs("BOX ZMAX", ZMAX);
+
+  hlong allNelements = NX*NY*NZ;
+
+  hlong chunkNelements = allNelements/size;
+
+  hlong start = chunkNelements*rank;
+  hlong end   = chunkNelements*(rank+1);
+  
+  if(mesh->rank==(size-1))
+    end = allNelements;
+     
+     
+  mesh->Nnodes = NX*NY*NZ; // assume periodic and global number of nodes
+  mesh->Nelements = 2*(end-start);
+  mesh->NboundaryFaces = 0;
+
+  printf("Rank %d initially has %d elements\n", mesh->rank, mesh->Nelements);
+  
+  mesh->EToV = (hlong*) calloc(mesh->Nelements*mesh->Nverts, sizeof(hlong));
+
+  mesh->EX = (dfloat*) calloc(mesh->Nelements*mesh->Nverts, sizeof(dfloat));
+  mesh->EY = (dfloat*) calloc(mesh->Nelements*mesh->Nverts, sizeof(dfloat));
+  mesh->EZ = (dfloat*) calloc(mesh->Nelements*mesh->Nverts, sizeof(dfloat));
+
+  mesh->elementInfo = (hlong*) calloc(mesh->Nelements, sizeof(hlong));
+  
+  // [0,NX]
+  dfloat dx = (XMAX-XMIN)/NX; // xmin+0*dx, xmin + NX*(XMAX-XMIN)/NX
+  dfloat dy = (YMAX-YMIN)/NY;
+  dfloat dz = (ZMAX-ZMIN)/NZ;
+  for(hlong n=start;n<end;++n){
+
+    int i = n%NX;      // [0, NX)
+    int j = (n/NX)%NY; // [0, NY)
+    int k = n/(NX*NY); // [0, NZ)
+
+    hlong eo = 6*(n-start);
+  
+    int ip = (i+1)%NX;
+    int jp = (j+1)%NY;
+    int kp = (k+1)%NZ;
+
+    int a = i  +  j*NX + k*NX*NY;
+    int b = ip +  j*NX + k*NX*NY;
+    int c = ip + jp*NX + k*NX*NY;
+    int d = i  + jp*NX + k*NX*NY;
+    
+    int e = i  +  j*NX + kp*NX*NY;
+    int f = ip +  j*NX + kp*NX*NY;
+    int g = ip + jp*NX + kp*NX*NY;
+    int h = i  + jp*NX + kp*NX*NY;
+    
+    // do not use for coordinates
+    hlong *EToV0 = mesh->EToV+(eo+0)*mesh->Nverts;
+    hlong *EToV1 = mesh->EToV+(eo+1)*mesh->Nverts;
+    hlong *EToV2 = mesh->EToV+(eo+2)*mesh->Nverts;
+    hlong *EToV3 = mesh->EToV+(eo+3)*mesh->Nverts;
+    hlong *EToV4 = mesh->EToV+(eo+4)*mesh->Nverts;
+    hlong *EToV5 = mesh->EToV+(eo+5)*mesh->Nverts;
+    
+    EToV0[0] = a; EToV0[1] = b; EToV0[2] = d; EToV0[3] = e; EToV0[4] = f; EToV0[5] = h;
+    EToV1[0] = b; EToV1[1] = c; EToV1[2] = d; EToV1[3] = f; EToV1[4] = g; EToV1[5] = h;
+
+    dfloat xa = XMIN + i*dx, ya = YMIN + j*dy, za = ZMIN + k*dz;
+    dfloat xb = XMIN +(i+1)*dx, yb = YMIN + j*dy, zb = ZMIN + k*dz;
+    dfloat xc = XMIN +(i+1)*dx, yc = YMIN +(j+1)*dy, zc = ZMIN + k*dz;
+    dfloat xd = XMIN + i*dx, yd = YMIN + (j+1)*dy, zd = ZMIN + k*dz;
+
+    dfloat xe = XMIN + i*dx, ye = YMIN + j*dy, ze = ZMIN + (k+1)*dz;
+    dfloat xf = XMIN +(i+1)*dx, yf = YMIN + j*dy, zf = ZMIN + (k+1)*dz;
+    dfloat xg = XMIN +(i+1)*dx, yg = YMIN + (j+1)*dy, zg = ZMIN + (k+1)*dz;
+    dfloat xh = XMIN + i*dx, yh = YMIN + (j+1)*dy, zh = ZMIN + (k+1)*dz;
+    
+    dfloat *ex0 = mesh->EX+(eo+0)*mesh->Nverts, *ey0 = mesh->EY+(eo+0)*mesh->Nverts, *ez0 = mesh->EZ+(eo+0)*mesh->Nverts;
+    dfloat *ex1 = mesh->EX+(eo+1)*mesh->Nverts, *ey1 = mesh->EY+(eo+1)*mesh->Nverts, *ez1 = mesh->EZ+(eo+1)*mesh->Nverts;
+
+    ex0[0] = xa; ex0[1] = xb; ex0[2] = xd; ex0[3] = xe; ex0[4] = xf; ex0[5] = xh;
+    ex1[0] = xb; ex1[1] = xc; ex1[2] = xd; ex1[3] = xf; ex1[4] = xg; ex1[5] = xh;
+    
+    ey0[0] = ya; ey0[1] = yb; ey0[2] = yd; ey0[3] = ye; ey0[4] = yf; ey0[5] = yh;
+    ey1[0] = yb; ey1[1] = yc; ey1[2] = yd; ey1[3] = yf; ey1[4] = yg; ey1[5] = yh;
+    
+    ez0[0] = za; ez0[1] = zb; ez0[2] = zd; ez0[3] = ze; ez0[4] = zf; ez0[5] = zh;
+    ez1[0] = zb; ez1[1] = zc; ez1[2] = zd; ez1[3] = zf; ez1[4] = zg; ez1[5] = zh;
+    
+    mesh->elementInfo[e] = 1; // ?
+    
+  }
+  
+  // partition elements using Morton ordering & parallel sort
+  meshGeometricPartition3D(mesh);
+     
+  mesh->EToB = (int*) calloc(mesh->Nelements*mesh->Nfaces, sizeof(int)); 
+  
+  // connect elements using parallel sort
+  meshParallelConnect(mesh);
+  
+  // print out connectivity statistics
+  meshPartitionStatistics(mesh);
+  
+  // load reference (r,s,t) element nodes
+  meshLoadReferenceNodesPrism3D(mesh, N, cubN); 
+
+  // compute physical (x,y) locations of the element nodes
+  meshPhysicalNodesPrism3D(mesh); 
+
+  // compute geometric factors
+  meshGeometricFactorsPrism3D(mesh); 
+
+  // set up halo exchange info for MPI (do before connect face nodes)
+  meshHaloSetup(mesh);
+
+  // connect face nodes (find trace indices)
+  meshConnectPeriodicFaceNodes3D(mesh,XMAX-XMIN,YMAX-YMIN,ZMAX-ZMIN); // needs to fix this !
+     
+  // compute surface geofacs (including halo)
+  //  meshSurfaceGeometricFactorsPrism3D(mesh);
+  
+  // global nodes
+  meshParallelConnectNodes(mesh); 
+  
+  // localized numbering (contiguous on node)
+  meshLocalizedConnectNodes(mesh);
+  
+  return mesh;
+}
+
 
 
 
@@ -2899,7 +3376,7 @@ void meshSurfaceGeometricFactorsTet3D(mesh3D *mesh){
       dlong baseM = e*mesh->Nfaces + f;
       
       // awkward: (need to find eP,fP relative to bulk+halo)
-      dlong idP = mesh->vmapP[e*mesh->Nfp*mesh->Nfaces+f*mesh->Nfp+0];
+      dlong idP = mesh->vmapP[e*mesh->NfpTotal+f*mesh->Nfp+0];
       dlong eP = (idP>=0) ? (idP/mesh->Np):e;
       
       int fP = mesh->EToF[baseM];
@@ -2924,7 +3401,7 @@ void meshSurfaceGeometricFactorsHex3D(mesh3D *mesh){
   /* unified storage array for geometric factors */
   mesh->Nsgeo = 17;
   mesh->sgeo = (dfloat*) calloc((mesh->Nelements+mesh->totalHaloPairs)*
-                                mesh->Nsgeo*mesh->Nfp*mesh->Nfaces, 
+                                mesh->Nsgeo*mesh->NfpTotal, 
                                 sizeof(dfloat));
 
   mesh->cubsgeo = (dfloat*) calloc((mesh->Nelements+mesh->totalHaloPairs)*
@@ -3038,7 +3515,7 @@ void meshSurfaceGeometricFactorsHex3D(mesh3D *mesh){
         sJ *= J;
         
         /* output index */
-        dlong base = mesh->Nsgeo*(mesh->Nfaces*mesh->Nfp*e + mesh->Nfp*f + i);
+        dlong base = mesh->Nsgeo*(mesh->NfpTotal*e + mesh->Nfp*f + i);
 
         /* store normal, surface Jacobian, and reciprocal of volume Jacobian */
         mesh->sgeo[base+NXID] = nx;
@@ -3119,8 +3596,8 @@ void meshSurfaceGeometricFactorsHex3D(mesh3D *mesh){
   }
 
   for(dlong e=0;e<mesh->Nelements;++e){ /* for each non-halo element */
-    for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
-      dlong baseM = e*mesh->Nfp*mesh->Nfaces + n;
+    for(int n=0;n<mesh->NfpTotal;++n){
+      dlong baseM = e*mesh->NfpTotal + n;
       dlong baseP = mesh->mapP[baseM];
       // rescaling - missing factor of 2 ? (only impacts penalty and thus stiffness)
       dfloat hinvM = mesh->sgeo[baseM*mesh->Nsgeo + SJID]*mesh->sgeo[baseM*mesh->Nsgeo + IJID];
@@ -3561,8 +4038,8 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
 
     // compare trace nodes
     for(dlong e=0;e<mesh->Nelements;++e){
-      for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
-        dlong id  = e*mesh->Nfp*mesh->Nfaces + n;
+      for(int n=0;n<mesh->NfpTotal;++n){
+        dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
         hlong gidM = localNodes[idM].baseId;
@@ -3641,8 +4118,8 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
 
     // look for nodes that have not been numbered yet
     for(dlong e=0;e<mesh->Nelements;++e){
-      for(int n=0;n<mesh->Nfp*mesh->Nfaces;++n){
-        dlong id  = e*mesh->Nfp*mesh->Nfaces + n;
+      for(int n=0;n<mesh->NfpTotal;++n){
+        dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
 

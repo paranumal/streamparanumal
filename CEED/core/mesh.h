@@ -103,6 +103,10 @@ typedef struct {
   dfloat *Dr, *Ds, *Dt; // collocation differentiation matrices
   dfloat *Dmatrices;
   dfloat *filterMatrix; // C0 basis filter matrix
+
+  int Np2D, Nq1D;
+  dfloat *r2D, *s2D, *t1D; // specialized coordinates for prism
+  dfloat *Dr2D, *Ds2D, *Dt1D;
   
   dfloat *MM, *invMM;           // reference mass matrix
   dfloat *Smatrices;
@@ -126,6 +130,7 @@ typedef struct {
 
   // face node info
   int Nfp;        // number of nodes per face
+  int NfpTotal;   // total number of face nodes
   int *faceNodes; // list of element reference interpolation nodes on element faces
   dlong *vmapM;     // list of volume nodes that are face nodes
   dlong *vmapP;     // list of volume nodes that are paired with face nodes
@@ -143,6 +148,13 @@ typedef struct {
   dfloat *cubInterp3D; // interpolate from W&B to cubature nodes
   dfloat *cubD;       // 1D differentiation matrix
   dfloat *cubDr,*cubDs,*cubDt;       // 3D differentiation matrices
+
+  // prism specific cubature
+  int cubNp2D, cubNq1D;
+
+  dfloat *cubr2D, *cubs2D, *cubt1D, *cubw2D, *cubw1D;
+  dfloat *cubInterp1D;
+  dfloat *cubInterp2D;
   
   dfloat *cubvgeo;  //volume geometric data at cubature points
   dfloat *cubsgeo;  //surface geometric data at cubature points
@@ -363,6 +375,7 @@ void meshSurfaceGeometricFactorsTet3D(mesh3D *mesh);
 
 void meshPhysicalNodesHex3D(mesh3D *mesh);
 void meshPhysicalNodesTet3D(mesh3D *mesh);
+void meshPhysicalNodesPrism3D(mesh3D *mesh);
 
 void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN);
 void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN);
@@ -423,6 +436,7 @@ void meshMRABWeightedPartition3D(mesh3D *mesh, dfloat *weights,
 
 void meshInterpolateHex3D(dfloat *Inter, dfloat *x, int N, dfloat *Ix, int M);
 void meshInterpolateTet3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M);
+void meshInterpolatePrism3D(dfloat *I2D, dfloat *I1D, dfloat *x, int N2D, int N1D, dfloat *Ix, int M2D, int M1D);
 
 #define norm3(a,b,c) ( sqrt((a)*(a)+(b)*(b)+(c)*(c)) )
 
@@ -433,6 +447,7 @@ mesh3D *meshSetupBoxTet3D(int N, int cubN, setupAide &options);
 void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dfloat zper);
 
 
+int meshWarpBlendNodesTri2D(int N, dfloat **r, dfloat **s);
 int meshWarpBlendNodesTet3D(int N, dfloat **r, dfloat **s, dfloat **t);
 
 #define TRIANGLES 3

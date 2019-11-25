@@ -346,6 +346,43 @@ void meshOrthonormalBasisHex3D(dfloat a, dfloat b, dfloat c, int i, int j, int k
 }
 
 // ------------------------------------------------------------------------
+// 2D (UNSTRUCTURED) INTERPOLATION NODES
+// ------------------------------------------------------------------------
+
+#include "meshNodesTri2D.h"
+
+int meshWarpBlendNodesTri2D(int N, dfloat **r, dfloat **s){
+
+  int Np = (N+1)*(N+2)/2;
+
+  *r = (dfloat*) calloc(Np, sizeof(dfloat));
+  *s = (dfloat*) calloc(Np, sizeof(dfloat));
+
+  for(int n=0;n<Np;++n){
+    dfloat *rsn;
+
+    switch(N){
+    case 1: rsn = rs_N01[n]; break;
+    case 2: rsn = rs_N02[n]; break;
+    case 3: rsn = rs_N03[n]; break;
+    case 4: rsn = rs_N04[n]; break;
+    case 5: rsn = rs_N05[n]; break;
+    case 6: rsn = rs_N06[n]; break;
+    case 7: rsn = rs_N07[n]; break;
+    case 8: rsn = rs_N08[n]; break;
+    case 9: rsn = rs_N09[n]; break;
+    case 10:rsn = rs_N10[n]; break;
+    }
+
+    r[0][n] = rsn[0];
+    s[0][n] = rsn[1];
+  }
+  
+}
+
+
+
+// ------------------------------------------------------------------------
 // 3D (UNSTRUCTURED) INTERPOLATION NODES
 // ------------------------------------------------------------------------
 
@@ -1392,6 +1429,36 @@ void meshInterpolateHex3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
   free(Ix2);
   
 }
+
+void meshInterpolatePrism3D(dfloat *I2D, dfloat *I1D, dfloat *x, int N2D, int N1D, dfloat *Ix, int M2D, int M1D){
+
+  dfloat *Ix1 = (dfloat*) calloc(M2D*N1D, sizeof(dfloat));
+
+  for(int k=0;k<N1D;++k){
+    for(int m=0;m<M2D;++m){
+      dfloat tmp = 0;
+      for(int n=0;n<N2D;++n){
+	tmp += I2D[m*N2D + n]*x[n + k*N2D];
+      }
+      Ix1[m + k*M2D] = tmp;
+    }
+  }
+
+  for(int c=0;c<M1D;++c){
+    for(int m=0;m<M2D;++m){
+      dfloat tmp = 0;
+      for(int k=0;k<N1D;++k){
+	tmp += I1D[c*N1D + k]*Ix1[m + k*M2D];
+      }
+      
+      Ix[c*M2D + m] = tmp;
+    }
+  }
+
+  free(Ix1);
+  
+}
+
 
 void meshInterpolateTet3D(dfloat *I, dfloat *x, int N, dfloat *Ix, int M){
 
