@@ -443,6 +443,7 @@ void meshInterpolatePrism3D(dfloat *I2D, dfloat *I1D, dfloat *x, int N2D, int N1
 
 mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options);
 mesh3D *meshSetupBoxTet3D(int N, int cubN, setupAide &options);
+mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options);
 
 void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dfloat zper);
 
@@ -453,6 +454,7 @@ int meshWarpBlendNodesTet3D(int N, dfloat **r, dfloat **s, dfloat **t);
 #define TRIANGLES 3
 #define QUADRILATERALS 4
 #define TETRAHEDRA 6
+#define PRISMS     9
 #define HEXAHEDRA 12
 
 #endif

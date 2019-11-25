@@ -3198,7 +3198,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
 
     ex0[0] = xa; ex0[1] = xb; ex0[2] = xd; ex0[3] = xe; ex0[4] = xf; ex0[5] = xh;
     ex1[0] = xb; ex1[1] = xc; ex1[2] = xd; ex1[3] = xf; ex1[4] = xg; ex1[5] = xh;
-    
+
     ey0[0] = ya; ey0[1] = yb; ey0[2] = yd; ey0[3] = ye; ey0[4] = yf; ey0[5] = yh;
     ey1[0] = yb; ey1[1] = yc; ey1[2] = yd; ey1[3] = yf; ey1[4] = yg; ey1[5] = yh;
     
