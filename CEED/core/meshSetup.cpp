@@ -1424,7 +1424,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
       mesh->faceNodes[1*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
-    if(fabs(mesh->r[n]+mesh->s[n])<NODETOL)
+    if(fabs(mesh->r[n]+mesh->s[n]+mesh->t[n]+1)<NODETOL)
       mesh->faceNodes[2*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
@@ -2191,10 +2191,13 @@ void meshConnect(mesh_t *mesh){
         sizeof(face_t),
         compareVertices);
 
+#if 0
   for(cnt=0;cnt<mesh->Nelements*mesh->Nfaces;++cnt){
     printf("cnt: %d v[%d,%d,%d,%d] \n", cnt,
 	   faces[cnt].v[0], faces[cnt].v[1],faces[cnt].v[2], faces[cnt].v[3]);
   }
+#endif
+  
   /* scan through sorted face lists looking for adjacent
      faces that have the same vertex ids */
   for(cnt=0;cnt<mesh->Nelements*mesh->Nfaces-1;++cnt){
