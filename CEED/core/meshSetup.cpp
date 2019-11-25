@@ -2190,7 +2190,11 @@ void meshConnect(mesh_t *mesh){
         mesh->Nelements*mesh->Nfaces,
         sizeof(face_t),
         compareVertices);
-  
+
+  for(cnt=0;cnt<mesh->Nelements*mesh->Nfaces;++cnt){
+    printf("cnt: %d v[%d,%d,%d,%d] \n", cnt,
+	   faces[cnt].v[0], faces[cnt].v[1],faces[cnt].v[2], faces[cnt].v[3]);
+  }
   /* scan through sorted face lists looking for adjacent
      faces that have the same vertex ids */
   for(cnt=0;cnt<mesh->Nelements*mesh->Nfaces-1;++cnt){
@@ -3123,7 +3127,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   
   // vertices on each face
   int faceVertices[5][4] =
-    {{0,1,2,-1},{0,1,4,3},{1,2,5,4},{0,4,5,3},{3,4,5,-1}}; // check
+    {{0,1,2,-1},{0,1,4,3},{1,2,5,4},{0,2,5,3},{3,4,5,-1}}; // check
      
   mesh->faceVertices =
     (int*) calloc(mesh->NfaceVertices*mesh->Nfaces, sizeof(int));
