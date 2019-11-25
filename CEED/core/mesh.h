@@ -105,7 +105,7 @@ typedef struct {
   dfloat *filterMatrix; // C0 basis filter matrix
 
   int Np2D, Nq1D;
-  dfloat *r2D, *s2D, *t1D; // specialized coordinates for prism
+  dfloat *r2D, *s2D, *t1D, *w1D; // specialized coordinates for prism
   dfloat *Dr2D, *Ds2D, *Dt1D;
   
   dfloat *MM, *invMM;           // reference mass matrix
@@ -155,6 +155,7 @@ typedef struct {
   dfloat *cubr2D, *cubs2D, *cubt1D, *cubw2D, *cubw1D;
   dfloat *cubInterp1D;
   dfloat *cubInterp2D;
+  dfloat *cubDt1D;
   
   dfloat *cubvgeo;  //volume geometric data at cubature points
   dfloat *cubsgeo;  //surface geometric data at cubature points

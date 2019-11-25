@@ -1439,6 +1439,10 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
 
 void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
 
+  int Nrows, Ncols;
+
+  // node data
+  
   dfloat deps = 1.;
   while((1.+deps)>1.)
     deps *= 0.5;
@@ -1446,52 +1450,60 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   dfloat NODETOL = 1000.*deps;
 
   int Np = ((N+1)*(N+2)*(N+1))/2;
-  int Nfp = (N+1)*(N+2)/2;
+  int Nfp = (N+1)*(N+1); // max count
   
   mesh->N = N;
   mesh->Np = Np;
   mesh->Nfp = Nfp;
   mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
   mesh->Nq = N+1;
+  mesh->Np2D = (N+1)*(N+2)/2;
+  mesh->Nq1D = N+1;
   
-  int Nrows, Ncols;
+  meshWarpBlendNodesTri2D(N, &(mesh->r2D), &(mesh->s2D));
+  meshJacobiGL(0, 0, N, &(mesh->t1D), &(mesh->w1D));
 
-  // node data
-  dfloat *r2D, *s2D, *t1D;
-  dfloat *Dr2D, *Ds2D, *Dt1D;
-  dfloat *cubt1D, *cubw1D, *cubDt1D;
-
-  dfloat *cubr2D, *cubs2D, *cubw2D;
+  mesh->r = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  mesh->s = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  mesh->t = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
+  for(int k=0;k<mesh->Nq;++k){
+    for(int n=0;n<mesh->Np2D;++n){
+      int id = n + k*mesh->Np2D;
+      mesh->r[id] = mesh->r2D[n];
+      mesh->s[id] = mesh->s2D[n];
+      mesh->t[id] = mesh->t1D[k];
+    }
+  }
   
-  meshWarpBlendNodesTri2D(N, &r2D, &s2D);
-
-  meshJacobiGQ(0, 0, N, &cubt1D, &cubw1D);
+  meshJacobiGQ(0, 0, N, &(mesh->cubt1D), &(mesh->cubw1D));
   
   if(2*cubN<=20){ // ?
     printf("LOADING GIMBUTAS CUBATURE: %d\n", 2*cubN);
     int GimbutasXiaoCubatureTri2D(int cubN, dfloat **cubr, dfloat **cubs, dfloat **cubw);
-    int cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &cubr2D, &cubs2D, &cubw2D);
+    int cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &(mesh->cubr2D), &(mesh->cubs2D), &(mesh->cubw2D));
   }else{
     printf("cubN*2=%d not available\n", 2*cubN);
     exit(-1);
   }
   
   // collocation differentiation matrices
-  meshDmatricesTri2D(N, Np, r2D, s2D, &Dr2D, &Ds2D);
-  meshDmatrix1D(N, mesh->Nq, t1D, &Dt1D);
-  meshDmatrix1D(cubN, mesh->cubNq, cubt1D, &cubDt1D);
+  meshDmatricesTri2D(N, Np, mesh->r2D, mesh->s2D, &(mesh->Dr2D), &(mesh->Ds2D));
+  meshDmatrix1D(N, mesh->Nq, mesh->t1D, &(mesh->Dt1D));
+  meshDmatrix1D(cubN, mesh->cubNq, mesh->cubt1D, &(mesh->cubDt1D));
 
   dfloat *V, *Vr, *Vs, *Vt;
   dfloat *cubV, *cubVr, *cubVs, *cubVt;
 
+#if 0
+  LATER
   // Vandermonde matrices
-  meshVandermondeTet3D(N, mesh->cubNp, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
-  meshVandermondeTet3D(N,    mesh->Np, mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
+  meshVandermondePrism3D(N, mesh->cubNp2D, mesh->cubNq1D, mesh->cubr, mesh->cubs, mesh->cubt, &(cubV), &(cubVr), &(cubVs), &(cubVt));
+  meshVandermondePrism3D(N,    mesh->Np2D, mesh->Nq1D,    mesh->r,    mesh->s,    mesh->t,    &(V),    &(Vr),    &(Vs),    &(Vt));
 
   // interpolation matrix to cubature
   mesh->cubInterp3D = (dfloat*) calloc(mesh->cubNp*mesh->Np, sizeof(dfloat));
   matrixRightSolve(mesh->cubNp, mesh->Np, cubV, mesh->Np, mesh->Np, V, mesh->cubInterp3D);
-
+  
 #if 0
   printf("cubInterp3D:\n");
   for(int n=0;n<mesh->cubNp;++n){
@@ -1520,6 +1532,7 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   matrixRightSolve(mesh->cubNp, Np, cubVr, Np, Np, V, mesh->cubDr);
   matrixRightSolve(mesh->cubNp, Np, cubVs, Np, Np, V, mesh->cubDs);
   matrixRightSolve(mesh->cubNp, Np, cubVt, Np, Np, V, mesh->cubDt);
+#endif
 #endif
   
   mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
@@ -3156,7 +3169,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
     int j = (n/NX)%NY; // [0, NY)
     int k = n/(NX*NY); // [0, NZ)
 
-    hlong eo = 6*(n-start);
+    hlong eo = 2*(n-start);
   
     int ip = (i+1)%NX;
     int jp = (j+1)%NY;

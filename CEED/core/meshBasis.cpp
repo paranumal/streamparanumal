@@ -329,6 +329,7 @@ void meshOrthonormalBasisTet3D(dfloat a, dfloat b, dfloat c, int i, int j, int k
 
 }
 
+
 void meshOrthonormalBasisHex3D(dfloat a, dfloat b, dfloat c, int i, int j, int k, dfloat *P, dfloat *Pr, dfloat *Ps, dfloat *Pt){
   // 
   dfloat p1 = meshJacobiP(a,0,0,i);
@@ -586,6 +587,57 @@ int meshVandermondeTet3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t,
 
   return Np;
 }
+
+
+// not fixed 
+int meshVandermondePrism3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **V, dfloat **Vr, dfloat **Vs, dfloat **Vt){
+
+  int Np = (N+1)*((N+1)*(N+2)/2);
+  int Np2D = (N+1)*(N+2)/2;
+
+  *V  = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Vr = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Vs = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+  *Vt = (dfloat *) calloc(Npoints*Np, sizeof(dfloat));
+
+  for(int n=0; n<Npoints; n++){
+
+    // First convert to abc coordinates
+    dfloat a, b, c;
+    
+    if(fabs(1-s[n])>1e-8)
+      a = 2.0*(1.+r[n])/(1-s[n])-1.0;
+    else
+      a = -1.0; 
+    
+    b = s[n];
+    c = t[n];
+    
+    int sk = 0;
+    for(int k=0; k<=N; k++){
+      for(int j=0;j<=N;++j){
+	for(int i=0;i<=N-j;++i){
+	  int id = n*Np+sk;
+
+	  dfloat phi1D, phit1D;
+	  dfloat phi2D, phir2D, phis2D;
+	  meshOrthonormalBasis1D   (c,    k,    &phi1D, &phit1D);
+	  meshOrthonormalBasisTri2D(a, b, i, j, &phi2D, &phir2D, &phis2D);
+	  V[0][id]  = phi2D*phi1D;
+	  Vr[0][id] = phir2D*phi1D;
+	  Vs[0][id] = phis2D*phi1D;
+	  Vt[0][id] = phi2D*phit1D;
+
+	  ++id;
+	}
+      }
+    }
+  }
+
+  return Np;
+}
+
+
 
 int meshVandermondeHex3D(int N, int Npoints, dfloat *r, dfloat *s, dfloat *t, dfloat **V, dfloat **Vr, dfloat **Vs, dfloat **Vt){
 
