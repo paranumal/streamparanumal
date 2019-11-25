@@ -96,6 +96,8 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
       /* for each node on this face find the neighbor node */
       for(int n=0;n<mesh->Nfp;++n){
 	int fidM = mesh->faceNodes[f*mesh->Nfp+n];
+	dlong id = mesh->NfpTotal*e + f*mesh->Nfp + n;
+
 	if(fidM!=-1){
 	  dlong  idM = fidM+ e*mesh->Np;
 	  dfloat xM = mesh->x[idM];
@@ -111,10 +113,13 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
 					   mesh->y+eP*mesh->Np,
 					   mesh->z+eP*mesh->Np, &nP);
 	  
-	  dlong id = mesh->NfpTotal*e + f*mesh->Nfp + n;
 	  mesh->vmapM[id] = idM;
 	  mesh->vmapP[id] = idP + eP*mesh->Np;
 	  mesh->mapP[id] = eP*mesh->NfpTotal + fP*mesh->Nfp + nP;
+	}else{
+	  mesh->vmapM[id] = -1;
+	  mesh->vmapP[id] = -1;
+	  mesh->mapP[id] = -1;
 	}
       }
     }
@@ -1051,7 +1056,8 @@ void meshHaloSetup(mesh_t *mesh){
     int fM = haloElements[i].face;
     int fP = haloElements[i].faceN;
     for(int n=0;n<mesh->Nfp;++n){
-      mesh->haloGetNodeIds[cnt] = eM*mesh->Np + mesh->faceNodes[fM*mesh->Nfp+n];
+      int fid = mesh->faceNodes[fM*mesh->Nfp+n];
+      mesh->haloGetNodeIds[cnt] = (fid!=-1) ? (eM*mesh->Np + fid):-1;
       ++cnt;
     }
   }
@@ -1067,7 +1073,8 @@ void meshHaloSetup(mesh_t *mesh){
 	  mesh->EToE[ef] = cnt;
 	  int fP = mesh->EToF[ef];
 	  for(int n=0;n<mesh->Nfp;++n){
-	    mesh->haloPutNodeIds[ncnt] = cnt*mesh->Np + mesh->faceNodes[fP*mesh->Nfp+n];
+	    int fid = mesh->faceNodes[fP*mesh->Nfp+n];
+	    mesh->haloPutNodeIds[ncnt] = (fid!=-1) ? cnt*mesh->Np + fid:-1;
 	    ++ncnt;
 	  }
 	  ++cnt; // next halo element
@@ -1417,7 +1424,7 @@ void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
       mesh->faceNodes[1*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
-    if(fabs(mesh->r[n]+mesh->s[n]+mesh->t[n]+1.)<NODETOL)
+    if(fabs(mesh->r[n]+mesh->s[n])<NODETOL)
       mesh->faceNodes[2*mesh->Nfp+(cnt++)] = n;
   cnt = 0;
   for(int n=0;n<mesh->Np;++n)
@@ -1578,14 +1585,19 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   // find node indices of vertex nodes
   mesh->vertexNodes = (int*) calloc(mesh->Nverts, sizeof(int));
   for(int n=0;n<mesh->Np;++n){
-    if( fabs(mesh->r[n]+mesh->s[n]+mesh->t[n]+3)<NODETOL)
+    if( fabs(mesh->r[n]+1)+fabs(mesh->s[n]+1)+fabs(mesh->t[n]+1)<NODETOL)
       mesh->vertexNodes[0] = n;
-    if( fabs(mesh->r[n]-1)<NODETOL)
+    if( fabs(mesh->r[n]-1)+fabs(mesh->t[n]+1)<NODETOL)
       mesh->vertexNodes[1] = n;
-    if( fabs(mesh->s[n]-1)<NODETOL)
+    if( fabs(mesh->s[n]-1)+fabs(mesh->t[n]+1)<NODETOL)
       mesh->vertexNodes[2] = n;
-    if( fabs(mesh->t[n]-1)<NODETOL)
+    if( fabs(mesh->r[n]+1)+fabs(mesh->s[n]+1)+fabs(mesh->t[n]-1)<NODETOL)
       mesh->vertexNodes[3] = n;
+    if( fabs(mesh->r[n]-1)+fabs(mesh->t[n]-1)<NODETOL)
+      mesh->vertexNodes[4] = n;
+    if( fabs(mesh->s[n]-1)+fabs(mesh->t[n]-1)<NODETOL)
+      mesh->vertexNodes[5] = n;
+
   }
 }
 
@@ -2020,13 +2032,15 @@ void meshParallelConnectNodes(mesh_t *mesh){
       localNodes[id].baseId = 1 + id + mesh->Nnodes + gatherNodeStart;
 
     }
-
+#if 0
     // use vertex ids for vertex nodes to reduce iterations
     for(int v=0;v<mesh->Nverts;++v){
-      dlong id = e*mesh->Np + mesh->vertexNodes[v];
+      int vid = mesh->vertexNodes[v];
+      dlong id = e*mesh->Np + vid;
       hlong gid = mesh->EToV[e*mesh->Nverts+v] + 1;
-      localNodes[id].baseId = gid; 
+      localNodes[id].baseId = gid;
     }
+#endif
   }
 
   dlong localChange = 0, gatherChange = 1;
@@ -2047,6 +2061,7 @@ void meshParallelConnectNodes(mesh_t *mesh){
     // compare trace nodes
     for(dlong e=0;e<mesh->Nelements;++e){
       for(int n=0;n<mesh->NfpTotal;++n){
+	if(mesh->faceNodes[n]!=-1){
         dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
@@ -2055,23 +2070,26 @@ void meshParallelConnectNodes(mesh_t *mesh){
 
         int baseRankM = localNodes[idM].baseRank;
         int baseRankP = localNodes[idP].baseRank;
-        
-        if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
-          ++localChange;
-          localNodes[idP].baseRank    = localNodes[idM].baseRank;
-          localNodes[idP].baseId      = localNodes[idM].baseId;
-        }
-        
-        if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
-          ++localChange;
-          localNodes[idM].baseRank    = localNodes[idP].baseRank;
-          localNodes[idM].baseId      = localNodes[idP].baseId;
-        }
+
+	if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
+	  ++localChange;
+	  localNodes[idP].baseRank    = localNodes[idM].baseRank;
+	  localNodes[idP].baseId      = localNodes[idM].baseId;
+	}
+	
+	if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
+	  ++localChange;
+	  localNodes[idM].baseRank    = localNodes[idP].baseRank;
+	  localNodes[idM].baseId      = localNodes[idP].baseId;
+	}
+	}
       }
     }
 
     // sum up changes
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_DLONG, MPI_SUM, mesh->comm);
+
+    printf("gatherChange=%d\n", gatherChange);
   }
 
   //make a locally-ordered version
@@ -2289,7 +2307,7 @@ void meshParallelConnect(mesh_t *mesh){
         hlong maxv = 0;
         for(int n=0;n<mesh->NfaceVertices;++n){
           int nid = mesh->faceVertices[f*mesh->NfaceVertices+n];
-          dlong id = mesh->EToV[e*mesh->Nverts + nid];
+          dlong id = (nid!=-1) ? mesh->EToV[e*mesh->Nverts + nid]: -1;
           maxv = mymax(maxv, id);
         }
         int destRank = (int) (maxv%size);
@@ -3241,16 +3259,6 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   // connect elements using parallel sort
   meshParallelConnect(mesh);
 
-  for(int e=0;e<mesh->Nelements;++e){
-    for(int f=0;f<mesh->Nfaces;++f){
-      printf("%d,%d => %d,%d,%d\n",
-	     e,f,
-	     mesh->EToE[e*mesh->Nfaces+f],
-	     mesh->EToF[e*mesh->Nfaces+f],
-	     mesh->EToP[e*mesh->Nfaces+f]);
-    }
-  }
-  
   printf("PRISM: parallel connected\n");
   
   // print out connectivity statistics
@@ -3280,6 +3288,18 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   
   // global nodes
   meshParallelConnectNodes(mesh); 
+
+  for(int e=0;e<mesh->Nelements;++e){
+    for(int f=0;f<mesh->Nfaces;++f){
+      printf("%d,%d => %d,%d,%d\n",
+	     e,f,
+	     mesh->EToE[e*mesh->Nfaces+f],
+	     mesh->EToF[e*mesh->Nfaces+f],
+	     mesh->EToP[e*mesh->Nfaces+f]);
+    }
+  }
+  
+
   
   // localized numbering (contiguous on node)
   meshLocalizedConnectNodes(mesh);
@@ -4079,6 +4099,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
     // compare trace nodes
     for(dlong e=0;e<mesh->Nelements;++e){
       for(int n=0;n<mesh->NfpTotal;++n){
+	if(mesh->faceNodes[n]!=-1){
         dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
@@ -4099,6 +4120,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
           localNodes[idM].baseRank    = localNodes[idP].baseRank;
           localNodes[idM].baseId      = localNodes[idP].baseId;
         }
+	}
       }
     }
 
@@ -4118,7 +4140,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
       }
     }
   }
-
+  
   hlong cnt = gatherNodeStart;
   for(dlong e=0;e<mesh->Nelements;++e){
     for(int n=0;n<mesh->Np;++n){
@@ -4159,6 +4181,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
     // look for nodes that have not been numbered yet
     for(dlong e=0;e<mesh->Nelements;++e){
       for(int n=0;n<mesh->NfpTotal;++n){
+	if(mesh->faceNodes[n]!=-1){
         dlong id  = e*mesh->NfpTotal + n;
         dlong idM = mesh->vmapM[id];
         dlong idP = mesh->vmapP[id];
@@ -4177,7 +4200,8 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
         }
       }
     }
-
+    }
+    
     // sum up changes
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_DLONG, MPI_SUM, mesh->comm);
   }
