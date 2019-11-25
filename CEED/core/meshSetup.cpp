@@ -1075,6 +1075,8 @@ void meshHaloSetup(mesh_t *mesh){
       }
     }
   }
+
+  printf("total halo pairs: %d\n", mesh->totalHaloPairs);
   
   // create halo extension for x,y arrays
   dlong totalHaloNodes = mesh->totalHaloPairs*mesh->Np;
@@ -1285,7 +1287,7 @@ void meshHaloExchange(mesh_t *mesh,
     free(recvRequests);
     free(sendRequests);
   }
-}      
+}
 
 void meshLoadReferenceNodesTet3D(mesh3D *mesh, int N, int cubN){
 
@@ -2145,9 +2147,9 @@ void meshConnect(mesh_t *mesh){
     for(int f=0;f<mesh->Nfaces;++f){
       
       for(int n=0;n<mesh->NfaceVertices;++n){
-
-        dlong vid = e*mesh->Nverts + mesh->faceVertices[f*mesh->NfaceVertices+n];
-        faces[cnt].v[n] = mesh->EToV[vid];
+	int fid = mesh->faceVertices[f*mesh->NfaceVertices+n];
+        dlong vid = e*mesh->Nverts + fid;
+	faces[cnt].v[n] = (fid!=-1) ? mesh->EToV[vid]: -1;
       }
       
       mysort(faces[cnt].v, mesh->NfaceVertices, "descending");
@@ -3226,14 +3228,30 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
     mesh->elementInfo[e] = 1; // ?
     
   }
+
+  printf("PRISM: built mesh\n");
   
   // partition elements using Morton ordering & parallel sort
   meshGeometricPartition3D(mesh);
-     
+
+  printf("PRISM: partitioned\n");
+  
   mesh->EToB = (int*) calloc(mesh->Nelements*mesh->Nfaces, sizeof(int)); 
   
   // connect elements using parallel sort
   meshParallelConnect(mesh);
+
+  for(int e=0;e<mesh->Nelements;++e){
+    for(int f=0;f<mesh->Nfaces;++f){
+      printf("%d,%d => %d,%d,%d\n",
+	     e,f,
+	     mesh->EToE[e*mesh->Nfaces+f],
+	     mesh->EToF[e*mesh->Nfaces+f],
+	     mesh->EToP[e*mesh->Nfaces+f]);
+    }
+  }
+  
+  printf("PRISM: parallel connected\n");
   
   // print out connectivity statistics
   meshPartitionStatistics(mesh);
@@ -3247,9 +3265,13 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   // compute geometric factors
   meshGeometricFactorsPrism3D(mesh); 
 
+  printf("PRISM: computed geometric factors\n");
+  
   // set up halo exchange info for MPI (do before connect face nodes)
   meshHaloSetup(mesh);
 
+  printf("PRISM: set up halo\n");
+  
   // connect face nodes (find trace indices)
   meshConnectPeriodicFaceNodes3D(mesh,XMAX-XMIN,YMAX-YMIN,ZMAX-ZMIN); // needs to fix this !
      
