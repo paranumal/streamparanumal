@@ -1526,7 +1526,7 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   }
   fclose(fp);
   
-  mesh->cubNq1D = meshJacobiGQ(0, 0, cubN, &(mesh->cubt1D), &(mesh->cubw1D)); // HACK +1
+  mesh->cubNq1D = meshJacobiGL(0, 0, cubN, &(mesh->cubt1D), &(mesh->cubw1D)); // HACK +1
   mesh->cubNq = mesh->cubNq1D;
 
   if(2*cubN<=20){ // ?
