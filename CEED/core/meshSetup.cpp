@@ -124,6 +124,32 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
       }
     }
   }
+
+#if 0
+  for(int n=0;n<mesh->NfpTotal;++n){
+    printf("mesh->faceNodes[%d]=%d\n", n, mesh->faceNodes[n]);
+  }
+  
+  for(dlong e=0;e<mesh->Nelements;++e){
+    for(int n=0;n<mesh->NfpTotal;++n){
+      int id = e*mesh->NfpTotal+n;
+      dlong vidM = mesh->vmapM[id];
+      dlong vidP = mesh->vmapP[id];
+      if(mesh->faceNodes[n]!=-1){
+	if(vidM==vidP)
+	  printf("WARNING: found unconnected nodes\n");
+
+	dfloat xM = mesh->x[vidM], yM = mesh->y[vidM], zM = mesh->z[vidM];
+	dfloat xP = mesh->x[vidP], yP = mesh->y[vidP], zP = mesh->z[vidP];
+
+	if(fabs(xM-xP) + fabs(yM-yP) + fabs(zM-zP)>1e-8){
+	  printf("vidM:%d  XM=(%e,%e,%e) => vidP:%d XP=(%e,%e,%e)\n",
+		 vidM, xM, yM, zM, vidP, xP, yP, zP);
+	}
+      }
+    }
+  }
+#endif
 }
 
 void meshGeometricFactorsTet3D(mesh3D *mesh){
@@ -2095,7 +2121,7 @@ void meshParallelConnectNodes(mesh_t *mesh){
       localNodes[id].baseId = 1 + id + mesh->Nnodes + gatherNodeStart;
 
     }
-#if 1
+#if 0
     // use vertex ids for vertex nodes to reduce iterations
     for(int v=0;v<mesh->Nverts;++v){
       int vid = mesh->vertexNodes[v];
@@ -2125,26 +2151,26 @@ void meshParallelConnectNodes(mesh_t *mesh){
     for(dlong e=0;e<mesh->Nelements;++e){
       for(int n=0;n<mesh->NfpTotal;++n){
 	if(mesh->faceNodes[n]!=-1){
-        dlong id  = e*mesh->NfpTotal + n;
-        dlong idM = mesh->vmapM[id];
-        dlong idP = mesh->vmapP[id];
-        hlong gidM = localNodes[idM].baseId;
-        hlong gidP = localNodes[idP].baseId;
-
-        int baseRankM = localNodes[idM].baseRank;
-        int baseRankP = localNodes[idP].baseRank;
-
-	if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
-	  ++localChange;
-	  localNodes[idP].baseRank    = localNodes[idM].baseRank;
-	  localNodes[idP].baseId      = localNodes[idM].baseId;
-	}
-	
-	if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
-	  ++localChange;
-	  localNodes[idM].baseRank    = localNodes[idP].baseRank;
-	  localNodes[idM].baseId      = localNodes[idP].baseId;
-	}
+	  dlong id  = e*mesh->NfpTotal + n;
+	  dlong idM = mesh->vmapM[id];
+	  dlong idP = mesh->vmapP[id];
+	  hlong gidM = localNodes[idM].baseId;
+	  hlong gidP = localNodes[idP].baseId;
+	  
+	  int baseRankM = localNodes[idM].baseRank;
+	  int baseRankP = localNodes[idP].baseRank;
+	  
+	  if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
+	    ++localChange;
+	    localNodes[idP].baseRank    = localNodes[idM].baseRank;
+	    localNodes[idP].baseId      = localNodes[idM].baseId;
+	  }
+	  
+	  if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
+	    ++localChange;
+	    localNodes[idM].baseRank    = localNodes[idP].baseRank;
+	    localNodes[idM].baseId      = localNodes[idP].baseId;
+	  }
 	}
       }
     }
@@ -2930,7 +2956,7 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
   }
   
   // partition elements using Morton ordering & parallel sort
-  meshGeometricPartition3D(mesh);
+  //  meshGeometricPartition3D(mesh);
 
   mesh->EToB = (int*) calloc(mesh->Nelements*mesh->Nfaces, sizeof(int)); 
 
@@ -4253,24 +4279,24 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
     for(dlong e=0;e<mesh->Nelements;++e){
       for(int n=0;n<mesh->NfpTotal;++n){
 	if(mesh->faceNodes[n]!=-1){
-        dlong id  = e*mesh->NfpTotal + n;
-        dlong idM = mesh->vmapM[id];
-        dlong idP = mesh->vmapP[id];
-
-	int localizedIdM = localNodes[idM].localizedId;
-	int localizedIdP = localNodes[idP].localizedId;
-	
-        if(localizedIdM==0){ // not numbered yet
-          ++localChange;
-	  localNodes[idM].localizedId = localNodes[idP].localizedId;
-        }
-
-        if(localizedIdP==0){ // not numbered yet
-          ++localChange;
-	  localNodes[idP].localizedId = localNodes[idM].localizedId;
-        }
+	  dlong id  = e*mesh->NfpTotal + n;
+	  dlong idM = mesh->vmapM[id];
+	  dlong idP = mesh->vmapP[id];
+	  
+	  int localizedIdM = localNodes[idM].localizedId;
+	  int localizedIdP = localNodes[idP].localizedId;
+	  
+	  if(localizedIdM==0){ // not numbered yet
+	    ++localChange;
+	    localNodes[idM].localizedId = localNodes[idP].localizedId;
+	  }
+	  
+	  if(localizedIdP==0){ // not numbered yet
+	    ++localChange;
+	    localNodes[idP].localizedId = localNodes[idM].localizedId;
+	  }
+	}
       }
-    }
     }
     
     // sum up changes
