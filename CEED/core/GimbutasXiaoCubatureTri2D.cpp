@@ -269,6 +269,7 @@ int GimbutasXiaoCubatureTri2D(int cubTriN, dfloat **cubTrir, dfloat **cubTris, d
     cubTrir[0][n] = cubTriR[n];
     cubTris[0][n] = cubTriS[n];
     cubTriw[0][n] = cubTriW[n];
+    //    printf("cub = % e,% e,% e\n", cubTrir[0][n], cubTris[0][n], cubTriw[0][n]);
   }
 
  return cubTriNp;

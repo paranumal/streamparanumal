@@ -344,7 +344,7 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
     meshInterpolatePrism3D(mesh->cubInterp2D, mesh->cubInterp1D, zte, mesh->Np2D, mesh->Nq1D, cubzte, mesh->cubNp2D, mesh->cubNq1D);
     
     //geometric data for quadrature
-    for(int k=0;k<mesh->cubNq;++k){
+    for(int k=0;k<mesh->cubNq1D;++k){
       for(int n=0;n<mesh->cubNp2D;++n){
 	
 	int m = k*mesh->cubNp2D + n;
@@ -364,7 +364,12 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
 	dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
         
 	dfloat JW = J*mesh->cubw2D[n]*mesh->cubw1D[k];
-        
+
+#if 0
+        printf("JW = %e, J=%e, w2D=%e, w1D=%e\n",
+	       JW, J, mesh->cubw2D[n], mesh->cubw1D[k]);
+#endif
+	
 	/* store geometric factors */
 	dlong base = mesh->Nvgeo*mesh->cubNp*e + n;
 	mesh->cubvgeo[base + mesh->cubNp*RXID] = rx;
@@ -385,7 +390,7 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
 	
 	
 	/* store second order geometric factors */
-	base = mesh->Nggeo*mesh->cubNp*e + n;
+	base = mesh->Nggeo*mesh->cubNp*e + m;
 	mesh->cubggeo[base + mesh->cubNp*G00ID] = JW*(rx*rx + ry*ry + rz*rz);
 	mesh->cubggeo[base + mesh->cubNp*G01ID] = JW*(rx*sx + ry*sy + rz*sz);
 	mesh->cubggeo[base + mesh->cubNp*G02ID] = JW*(rx*tx + ry*ty + rz*tz);
@@ -3346,6 +3351,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
   // global nodes
   meshParallelConnectNodes(mesh); 
 
+#if 0
   for(int e=0;e<mesh->Nelements;++e){
     for(int f=0;f<mesh->Nfaces;++f){
       printf("%d,%d => %d,%d,%d\n",
@@ -3355,7 +3361,7 @@ mesh3D *meshSetupBoxPrism3D(int N, int cubN, setupAide &options){
 	     mesh->EToP[e*mesh->Nfaces+f]);
     }
   }
-  
+#endif
 
   
   // localized numbering (contiguous on node)
