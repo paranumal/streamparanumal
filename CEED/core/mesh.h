@@ -106,7 +106,8 @@ typedef struct {
 
   int Np2D, Nq1D;
   dfloat *r2D, *s2D, *t1D, *w1D; // specialized coordinates for prism
-  dfloat *Dr2D, *Ds2D, *Dt1D;
+  dfloat *Dr2D, *Ds2D, *I2D;
+  dfloat *Dt1D, *I1D;
   
   dfloat *MM, *invMM;           // reference mass matrix
   dfloat *Smatrices;
@@ -153,8 +154,8 @@ typedef struct {
   int cubNp2D, cubNq1D;
 
   dfloat *cubr2D, *cubs2D, *cubt1D, *cubw2D, *cubw1D;
-  dfloat *cubInterp1D;
-  dfloat *cubInterp2D;
+  dfloat *cubInterpD1D, *cubInterp1D;
+  dfloat *cubInterpDr2D, *cubInterpDs2D, *cubInterp2D;
   dfloat *cubDt1D;
   
   dfloat *cubvgeo;  //volume geometric data at cubature points
@@ -173,6 +174,9 @@ typedef struct {
   occa::memory o_cubInterp;
   occa::memory o_cubInterp3D;
   occa::memory o_cubD3D;
+
+  occa::memory o_cubInterp1D, o_cubInterp2D; // prism versions (interp nodes to cubature col major)
+  occa::memory o_cubInterpD1D, o_cubInterpD2D; // prism versions
   
   occa::memory o_filterMatrix; // tensor product filter matrix (for hexes)
   

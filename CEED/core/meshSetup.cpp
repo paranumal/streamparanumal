@@ -1513,39 +1513,26 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   meshDmatrix1D(   N, mesh->Nq1D,    mesh->t1D, &(mesh->Dt1D));
   meshDmatrix1D(cubN, mesh->cubNq1D, mesh->cubt1D, &(mesh->cubDt1D));
 
-#if 0
-  printf("Dr2D=[\n");
-  for(int n=0;n<mesh->Np2D;++n){
-    for(int m=0;m<mesh->Np2D;++m){
-      printf("%e ", mesh->Dr2D[n*mesh->Np2D+m]);
-    }
-    printf("\n");
-  }
-  printf("]\n");
-
-  printf("Ds2D=[\n");
-  for(int n=0;n<mesh->Np2D;++n){
-    for(int m=0;m<mesh->Np2D;++m){
-      printf("%e ", mesh->Ds2D[n*mesh->Np2D+m]);
-    }
-    printf("\n");
-  }
-  printf("]\n");
-#endif
-
-  
   dfloat *V, *Vr, *Vs, *Vt;
   dfloat *cubV, *cubVr, *cubVs, *cubVt;
 
   meshVandermondeTri2D(N, mesh->Np2D,    mesh->r2D, mesh->s2D, &V, &Vr, &Vs);
   meshVandermondeTri2D(N, mesh->cubNp2D, mesh->cubr2D, mesh->cubs2D, &cubV, &cubVr, &cubVs);
-  mesh->cubInterp2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
+  mesh->cubInterp2D   = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
+  mesh->cubInterpDr2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
+  mesh->cubInterpDs2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubV, mesh->Np2D, mesh->Np2D, V, mesh->cubInterp2D);
-
+  matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVr, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDr2D);
+  matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVs, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDs2D);
+  
   meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V, &Vr);
   meshVandermonde1D(N, mesh->cubNq1D, mesh->cubt1D, &cubV, &cubVr);
+
   mesh->cubInterp1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
+  mesh->cubInterpD1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
+
   matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubV, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterp1D);
+  matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubVr, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterpD1D);
   
   mesh->faceNodes = (int*) calloc(mesh->NfpTotal, sizeof(int));
   for(int n=0;n<mesh->NfpTotal;++n){
@@ -1779,6 +1766,62 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     
 
   }
+
+  if(mesh->elementType==PRISMS){
+  
+    mesh->o_cubInterpD1D = mesh->device.malloc(mesh->cubNq1D*mesh->Nq*sizeof(dfloat), mesh->cubDt1D);
+    mesh->o_cubInterp1D  = mesh->device.malloc(mesh->cubNq1D*mesh->Nq*sizeof(dfloat), mesh->cubInterp1D);
+
+    // need to stack Dr,Ds cub interp matrices here
+    // col major then row major
+    dfloat *cubInterp2D  = (dfloat*) calloc(2*mesh->cubNp2D*mesh->Np2D,sizeof(dfloat));
+    dfloat *cubInterpD2D = (dfloat*) calloc(4*mesh->cubNp2D*mesh->Np2D,sizeof(dfloat));
+    for(int n=0;n<mesh->cubNp2D;++n){
+      for(int m=0;m<mesh->Np2D;++m){
+	int idcolmajor = n + m*mesh->cubNp2D;
+	int idrowmajor = n*mesh->Np2D + m;
+	int offset = mesh->Np2D*mesh->cubNp2D;
+	cubInterpD2D[idcolmajor + 0*offset] = mesh->cubInterpDr2D[idrowmajor];
+	cubInterpD2D[idcolmajor + 1*offset] = mesh->cubInterpDs2D[idrowmajor];
+	cubInterpD2D[idrowmajor + 2*offset] = mesh->cubInterpDr2D[idrowmajor];
+	cubInterpD2D[idrowmajor + 3*offset] = mesh->cubInterpDs2D[idrowmajor];
+	cubInterp2D[idcolmajor + 0*offset] = mesh->cubInterp2D[idrowmajor];
+	cubInterp2D[idrowmajor + 1*offset] = mesh->cubInterp2D[idrowmajor];
+      }
+    }
+    mesh->o_cubInterp2D = mesh->device.malloc(2*mesh->cubNp2D*mesh->Np2D*sizeof(dfloat),
+					      cubInterp2D);
+    mesh->o_cubInterpD2D = mesh->device.malloc(4*mesh->cubNp2D*mesh->Np2D*sizeof(dfloat),
+					       cubInterpD2D);
+
+    free(cubInterp2D);
+    free(cubInterpD2D);
+    
+    mesh->o_vgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nvgeo*sizeof(dfloat),
+			  mesh->vgeo);
+    
+    mesh->o_sgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->NfpTotal*mesh->Nsgeo*sizeof(dfloat),
+			  mesh->sgeo);
+    
+    mesh->o_ggeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nggeo*sizeof(dfloat),
+			  mesh->ggeo);
+
+    mesh->o_cubvgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nvgeo*mesh->cubNp*sizeof(dfloat),
+			  mesh->cubvgeo);
+
+#if 0
+    mesh->o_cubsgeo =
+      mesh->device.malloc(mesh->Nelements*mesh->Nfaces*mesh->cubNfp*mesh->Nsgeo*sizeof(dfloat),
+			  mesh->cubsgeo);
+#endif
+
+  }
+
+
   
   if(mesh->elementType==TETRAHEDRA){
 
@@ -1893,6 +1936,13 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
   kernelInfo["defines/" "p_Nsgeo"]= mesh->Nsgeo;
   kernelInfo["defines/" "p_Nggeo"]= mesh->Nggeo;
 
+  if(mesh->elementType==PRISMS){
+    kernelInfo["defines/" "p_Nq1D"]= mesh->Nq1D;
+    kernelInfo["defines/" "p_Np2D"]= mesh->Np2D;
+    kernelInfo["defines/" "p_cubNq1D"]= mesh->cubNq1D;
+    kernelInfo["defines/" "p_cubNp2D"]= mesh->cubNp2D;
+  }
+  
   kernelInfo["defines/" "p_NXID"]= NXID;
   kernelInfo["defines/" "p_NYID"]= NYID;
   kernelInfo["defines/" "p_NZID"]= NZID;
