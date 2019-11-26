@@ -371,7 +371,7 @@ void meshGeometricFactorsPrism3D(mesh3D *mesh){
 #endif
 	
 	/* store geometric factors */
-	dlong base = mesh->Nvgeo*mesh->cubNp*e + n;
+	dlong base = mesh->Nvgeo*mesh->cubNp*e + m;
 	mesh->cubvgeo[base + mesh->cubNp*RXID] = rx;
 	mesh->cubvgeo[base + mesh->cubNp*RYID] = ry;
 	mesh->cubvgeo[base + mesh->cubNp*RZID] = rz;
@@ -1478,18 +1478,18 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   mesh->Np = Np;
   mesh->Nfp = Nfp;
   mesh->NfpTotal = mesh->Nfaces*mesh->Nfp;
-  mesh->Nq = N+1;
   mesh->Np2D = ((N+1)*(N+2))/2;
-  
+
   meshWarpBlendNodesTri2D(N, &(mesh->r2D), &(mesh->s2D));
   mesh->Nq1D = meshJacobiGL(0, 0, N, &(mesh->t1D), &(mesh->w1D));
-
+  mesh->Nq = mesh->Nq1D;
+  
   mesh->r = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
   mesh->s = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
   mesh->t = (dfloat*) calloc(mesh->Np, sizeof(dfloat));
 
   FILE *fp = fopen("prismNodes.dat", "w");
-  for(int k=0;k<mesh->Nq;++k){
+  for(int k=0;k<mesh->Nq1D;++k){
     for(int n=0;n<mesh->Np2D;++n){
       int id = n + k*mesh->Np2D;
       mesh->r[id] = mesh->r2D[n];
@@ -1500,18 +1500,22 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   }
   fclose(fp);
   
-  mesh->cubNq1D = meshJacobiGQ(0, 0, N, &(mesh->cubt1D), &(mesh->cubw1D));
-  
+  mesh->cubNq1D = meshJacobiGQ(0, 0, cubN, &(mesh->cubt1D), &(mesh->cubw1D)); // HACK +1
+  mesh->cubNq = mesh->cubNq1D;
+
   if(2*cubN<=20){ // ?
     printf("LOADING GIMBUTAS CUBATURE: %d\n", 2*cubN);
     int GimbutasXiaoCubatureTri2D(int cubN, dfloat **cubr, dfloat **cubs, dfloat **cubw);
     mesh->cubNp2D = GimbutasXiaoCubatureTri2D(cubN*2, &(mesh->cubr2D), &(mesh->cubs2D), &(mesh->cubw2D));
+    
   }else{
     printf("cubN*2=%d not available\n", 2*cubN);
     exit(-1);
   }
 
   mesh->cubNp = mesh->cubNq1D*mesh->cubNp2D;
+
+  printf("mesh->cubNq1D = %d, mesh->cubNp2D = %d\n", mesh->cubNq1D, mesh->cubNp2D);
   
   // collocation differentiation matrices
   meshDmatricesTri2D(N, mesh->Np2D, mesh->r2D, mesh->s2D, &(mesh->Dr2D), &(mesh->Ds2D));
@@ -1521,19 +1525,21 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   dfloat *V, *Vr, *Vs, *Vt;
   dfloat *cubV, *cubVr, *cubVs, *cubVt;
 
-  meshVandermondeTri2D(N, mesh->Np2D,    mesh->r2D, mesh->s2D, &V, &Vr, &Vs);
-  meshVandermondeTri2D(N, mesh->cubNp2D, mesh->cubr2D, mesh->cubs2D, &cubV, &cubVr, &cubVs);
   mesh->cubInterp2D   = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
   mesh->cubInterpDr2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
   mesh->cubInterpDs2D = (dfloat*) calloc(mesh->cubNp2D*mesh->Np2D, sizeof(dfloat));
+
+  meshVandermondeTri2D(N, mesh->Np2D,    mesh->r2D, mesh->s2D, &V, &Vr, &Vs);
+  meshVandermondeTri2D(N, mesh->cubNp2D, mesh->cubr2D, mesh->cubs2D, &cubV, &cubVr, &cubVs);
+
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubV, mesh->Np2D, mesh->Np2D, V, mesh->cubInterp2D);
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVr, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDr2D);
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVs, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDs2D);
   
-  meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V, &Vr);
+  meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V,    &Vr);
   meshVandermonde1D(N, mesh->cubNq1D, mesh->cubt1D, &cubV, &cubVr);
 
-  mesh->cubInterp1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
+  mesh->cubInterp1D  = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
   mesh->cubInterpD1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
 
   matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubV, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterp1D);
@@ -1774,8 +1780,8 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
 
   if(mesh->elementType==PRISMS){
   
-    mesh->o_cubInterpD1D = mesh->device.malloc(mesh->cubNq1D*mesh->Nq*sizeof(dfloat), mesh->cubDt1D);
-    mesh->o_cubInterp1D  = mesh->device.malloc(mesh->cubNq1D*mesh->Nq*sizeof(dfloat), mesh->cubInterp1D);
+    mesh->o_cubInterpD1D = mesh->device.malloc(mesh->cubNq1D*mesh->Nq1D*sizeof(dfloat), mesh->cubDt1D);
+    mesh->o_cubInterp1D  = mesh->device.malloc(mesh->cubNq1D*mesh->Nq1D*sizeof(dfloat), mesh->cubInterp1D);
 
     // need to stack Dr,Ds cub interp matrices here
     // col major then row major
@@ -1805,10 +1811,12 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     mesh->o_vgeo =
       mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nvgeo*sizeof(dfloat),
 			  mesh->vgeo);
-    
+
+#if 0
     mesh->o_sgeo =
       mesh->device.malloc(mesh->Nelements*mesh->NfpTotal*mesh->Nsgeo*sizeof(dfloat),
 			  mesh->sgeo);
+#endif
     
     mesh->o_ggeo =
       mesh->device.malloc(mesh->Nelements*mesh->Np*mesh->Nggeo*sizeof(dfloat),
@@ -2087,7 +2095,7 @@ void meshParallelConnectNodes(mesh_t *mesh){
       localNodes[id].baseId = 1 + id + mesh->Nnodes + gatherNodeStart;
 
     }
-#if 0
+#if 1
     // use vertex ids for vertex nodes to reduce iterations
     for(int v=0;v<mesh->Nverts;++v){
       int vid = mesh->vertexNodes[v];

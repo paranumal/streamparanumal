@@ -265,13 +265,17 @@ int GimbutasXiaoCubatureTri2D(int cubTriN, dfloat **cubTrir, dfloat **cubTris, d
     default: exit(-1); 
   }
 
+  dfloat int1 = 0;
   for(int n=0;n<cubTriNp;++n){
     cubTrir[0][n] = cubTriR[n];
     cubTris[0][n] = cubTriS[n];
     cubTriw[0][n] = cubTriW[n];
+    int1 += cubTriW[n];
     //    printf("cub = % e,% e,% e\n", cubTrir[0][n], cubTris[0][n], cubTriw[0][n]);
   }
 
+  printf("XG CUBATURE: %d nodes, integrates to %g\n", cubTriNp, int1);
+  
  return cubTriNp;
 }
 
