@@ -1526,7 +1526,7 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   }
   fclose(fp);
   
-  mesh->cubNq1D = meshJacobiGL(0, 0, cubN, &(mesh->cubt1D), &(mesh->cubw1D)); // HACK +1
+  mesh->cubNq1D = meshJacobiGQ(0, 0, cubN, &(mesh->cubt1D), &(mesh->cubw1D)); // HACK +1
   mesh->cubNq = mesh->cubNq1D;
 
   if(2*cubN<=20){ // ?
@@ -1561,12 +1561,13 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubV, mesh->Np2D, mesh->Np2D, V, mesh->cubInterp2D);
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVr, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDr2D);
   matrixRightSolve(mesh->cubNp2D, mesh->Np2D, cubVs, mesh->Np2D, mesh->Np2D, V, mesh->cubInterpDs2D);
-  
-  meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V,    &Vr);
-  meshVandermonde1D(N, mesh->cubNq1D, mesh->cubt1D, &cubV, &cubVr);
+
 
   mesh->cubInterp1D  = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
   mesh->cubInterpD1D = (dfloat*) calloc(mesh->cubNq1D*mesh->Nq1D, sizeof(dfloat));
+  
+  meshVandermonde1D(N, mesh->Nq1D,    mesh->t1D,    &V,    &Vr);
+  meshVandermonde1D(N, mesh->cubNq1D, mesh->cubt1D, &cubV, &cubVr);
 
   matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubV, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterp1D);
   matrixRightSolve(mesh->cubNq1D, mesh->Nq1D, cubVr, mesh->Nq1D, mesh->Nq1D, V, mesh->cubInterpD1D);
@@ -1575,7 +1576,16 @@ void meshLoadReferenceNodesPrism3D(mesh3D *mesh, int N, int cubN){
   for(int n=0;n<mesh->NfpTotal;++n){
     mesh->faceNodes[n] = -1;
   }
- 
+
+  printf("cubInterp1D=[\n");
+  for(int n=0;n<mesh->cubNq1D;++n){
+    for(int m=0;m<mesh->Nq1D;++m){
+      printf("% e ", mesh->cubInterp1D[n*mesh->Nq1D+m]);
+    }
+    printf("\n");
+  }
+  printf("]\n");
+  
   int cnt = 0;
   for(int n=0;n<mesh->Np;++n)
     if(fabs(mesh->t[n]+1)<NODETOL)
@@ -1806,7 +1816,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
 
   if(mesh->elementType==PRISMS){
   
-    mesh->o_cubInterpD1D = mesh->device.malloc(mesh->cubNq1D*mesh->Nq1D*sizeof(dfloat), mesh->cubDt1D);
+    mesh->o_cubInterpD1D = mesh->device.malloc(mesh->cubNq1D*mesh->Nq1D*sizeof(dfloat), mesh->cubInterpD1D);
     mesh->o_cubInterp1D  = mesh->device.malloc(mesh->cubNq1D*mesh->Nq1D*sizeof(dfloat), mesh->cubInterp1D);
 
     // need to stack Dr,Ds cub interp matrices here
