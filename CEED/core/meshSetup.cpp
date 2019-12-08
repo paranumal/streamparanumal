@@ -2999,6 +2999,9 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
 
   // localized numbering (contiguous on node)
   meshLocalizedConnectNodes(mesh);
+
+  // WIP: create local red green lists to avoid atomics
+  meshCreateLocalRedGreenLists(mesh);
   
   return mesh;
 }
@@ -4333,4 +4336,60 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
   free(sendBuffer);
   free(localizedIds);
   
+}
+
+// locally red-green lists of non overlapping elements
+void meshCreateLocalRedGreenLists(mesh_t *mesh){
+
+  // PROBLEM - RED-GREEN will create small partitions
+  
+  int *nodeLabels = (int*) calloc(mesh->Nlocalized+1, sizeof(int));
+  int *elementLabels = (int*) calloc(mesh->Nelements, sizeof(int));
+
+  hlong NelementsLabeled = 0;
+
+  int currentLevel = 0;
+
+#if 1
+  while(NelementsLabeled<mesh->Nelements){
+    int Nel = 0;
+    // increment current level marker
+    ++currentLevel;
+    if(mesh->rank==0)
+      printf("starting level %d with %d elements marked\n",
+	     currentLevel, NelementsLabeled);
+    
+    memset(nodeLabels, 0, mesh->Nlocalized*sizeof(int));
+    for(hlong e=0;e<mesh->Nelements;++e){
+      if(elementLabels[e]==0){ // unlabeled
+	int maxNodeLabel = 0;
+	// find maximum global node label
+	for(int n=0;n<mesh->Np;++n){
+	  int id = mesh->localizedIds[e*mesh->Np+n];
+	  maxNodeLabel = mymax(maxNodeLabel, nodeLabels[id]);
+	}
+	// are nodes not labeled in this element this round ?
+	if(maxNodeLabel==0){
+	  ++Nel;
+	  // give this element a label
+	  elementLabels[e] = currentLevel;
+
+	  // mark nodes
+	  for(int n=0;n<mesh->Np;++n){
+	    int id = mesh->localizedIds[e*mesh->Np+n];
+	    nodeLabels[id] = 1;
+	  }
+	  // incremenent total number of elements that are labeled
+	  ++NelementsLabeled;
+	}
+      }
+    }
+    if(mesh->rank==0)
+      printf("ending level %d with %d elements marked in this level\n",
+	     currentLevel, Nel);
+  }
+#endif
+
+  if(mesh->rank==0)
+    printf("FOUND %d red-green local levels\n", currentLevel);
 }

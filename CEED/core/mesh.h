@@ -456,6 +456,8 @@ void meshConnectPeriodicFaceNodes3D(mesh3D *mesh, dfloat xper, dfloat yper, dflo
 int meshWarpBlendNodesTri2D(int N, dfloat **r, dfloat **s);
 int meshWarpBlendNodesTet3D(int N, dfloat **r, dfloat **s, dfloat **t);
 
+void meshCreateLocalRedGreenLists(mesh_t *mesh);
+
 #define TRIANGLES 3
 #define QUADRILATERALS 4
 #define TETRAHEDRA 6
