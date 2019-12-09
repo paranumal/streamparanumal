@@ -2028,6 +2028,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     kernelInfo["defines/" "dlong"]="long long int";
   }
 
+#if 1
   if(mesh->device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
     kernelInfo["compiler_flags"] += " --ftz=true ";
     kernelInfo["compiler_flags"] += " --prec-div=false ";
@@ -2036,14 +2037,16 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     kernelInfo["compiler_flags"] += " --fmad=true "; // compiler option for cuda
   }
 
-  if(mesh->device.mode()=="OPENCL"){ // add backend compiler optimization for OPENCL
+  if(mesh->device.mode()=="OpenCL"){ // add backend compiler optimization for OPENCL
+    printf("HELLO from OpenCL compiler opts\n");
     kernelInfo["compiler_flags"] += " -cl-strict-aliasing ";
     kernelInfo["compiler_flags"] += " -cl-mad-enable ";
     kernelInfo["compiler_flags"] += " -cl-no-signed-zeros ";
     kernelInfo["compiler_flags"] += " -cl-unsafe-math-optimizations ";
     kernelInfo["compiler_flags"] += " -cl-fast-relaxed-math ";
   }
-
+#endif
+  
   kernelInfo["defines/" "p_G00ID"]= G00ID;
   kernelInfo["defines/" "p_G01ID"]= G01ID;
   kernelInfo["defines/" "p_G02ID"]= G02ID;
