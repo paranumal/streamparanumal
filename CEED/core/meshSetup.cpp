@@ -2028,7 +2028,7 @@ void meshOccaPopulateDevice3D(mesh3D *mesh, setupAide &newOptions, occa::propert
     kernelInfo["defines/" "dlong"]="long long int";
   }
 
-#if 1
+#if 0
   if(mesh->device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
     kernelInfo["compiler_flags"] += " --ftz=true ";
     kernelInfo["compiler_flags"] += " --prec-div=false ";
@@ -3965,8 +3965,8 @@ void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa
   
   h_mem =  device.malloc(size, props);
   
-  void *ptr = h_mem.ptr();
-  
+  //  void *ptr = h_mem.ptr();
+  void *ptr = h_mem.ptr(props);
 #endif
   
   return ptr;
