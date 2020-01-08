@@ -3012,7 +3012,7 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
   meshLocalizedConnectNodes(mesh);
 
   // WIP: create local red green lists to avoid atomics
-  meshCreateLocalRedGreenLists(mesh);
+  //  meshCreateLocalRedGreenLists(mesh);
   
   return mesh;
 }

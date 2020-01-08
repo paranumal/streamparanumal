@@ -24,20 +24,6 @@ SOFTWARE.
 
 */
 
-
-//float data type
-#if 0
-#define dfloat float
-#define MPI_DFLOAT MPI_FLOAT
-#define dfloatFormat "%f"
-#define dfloatString "float"
-#else
-#define dfloat double
-#define MPI_DFLOAT MPI_DOUBLE
-#define dfloatFormat "%lf"
-#define dfloatString "double"
-#endif
-
 //host index data type
 #if 1
 #define hlong int
@@ -49,6 +35,19 @@ SOFTWARE.
 #define MPI_HLONG MPI_LONG_LONG_INT
 #define hlongFormat "%lld"
 #define hlongString "long long int"
+#endif
+
+//float data type
+#if 0
+//#define dfloat float
+#define MPI_DFLOAT MPI_FLOAT
+#define dfloatFormat "%f"
+//#define dfloatString "float"
+#else
+//#define dfloat double
+#define MPI_DFLOAT MPI_DOUBLE
+#define dfloatFormat "%lf"
+//#define dfloatString "double"
 #endif
 
 //device index data type
@@ -63,3 +62,4 @@ SOFTWARE.
 #define dlongFormat "%lld"
 #define dlongString "long long int"
 #endif
+
