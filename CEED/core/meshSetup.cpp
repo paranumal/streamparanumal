@@ -1658,7 +1658,7 @@ void meshLoadReferenceNodesHex3D(mesh3D *mesh, int N, int cubN){
   meshDmatrix1D(N, mesh->Nq, mesh->gllz, &(mesh->D));
 
   // GLL top C0 mode filter matrix
-  meshContinuousFilterMatrix1D(N, N-1, mesh->gllz, &(mesh->filterMatrix));
+  //  meshContinuousFilterMatrix1D(N, N-1, mesh->gllz, &(mesh->filterMatrix));
   
   // quadrature
   mesh->cubNq = cubN +1;
