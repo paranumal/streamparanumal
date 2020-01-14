@@ -1114,8 +1114,6 @@ void meshHaloSetup(mesh_t *mesh){
     }
   }
 
-  printf("total halo pairs: %d\n", mesh->totalHaloPairs);
-  
   // create halo extension for x,y arrays
   dlong totalHaloNodes = mesh->totalHaloPairs*mesh->Np;
   dlong localNodes     = mesh->Nelements*mesh->Np;
@@ -2198,8 +2196,6 @@ void meshParallelConnectNodes(mesh_t *mesh){
 
     // sum up changes
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_DLONG, MPI_SUM, mesh->comm);
-
-    printf("gatherChange=%d\n", gatherChange);
   }
 
   //make a locally-ordered version
@@ -2917,8 +2913,6 @@ mesh3D *meshSetupBoxHex3D(int N, int cubN, setupAide &options){
   mesh->Nelements = end-start;
   mesh->NboundaryFaces = 0;
 
-  printf("Rank %d initially has %d elements\n", mesh->rank, mesh->Nelements);
-  
   mesh->EToV = (hlong*) calloc(mesh->Nelements*mesh->Nverts, sizeof(hlong));
 
   mesh->EX = (dfloat*) calloc(mesh->Nelements*mesh->Nverts, sizeof(dfloat));
@@ -3856,10 +3850,6 @@ void occaDeviceConfig(mesh_t *mesh, setupAide &options){
 
   if (size==1) options.getArgs("DEVICE NUMBER" ,device_id);
 
-  printf("device_id = %d\n", device_id);
-  
-  //  device_id = device_id%2;
-
   occa::properties deviceProps;
   
   // read thread model/device/platform from options
@@ -4209,7 +4199,7 @@ void meshLocalizedConnectNodes(mesh_t *mesh){
 
   // keep comparing numbers on positive and negative traces until convergence
   while(gatherChange>0){
-    printf("localChange=%d\n", localChange);
+
     // reset change counter
     localChange = 0;
 
