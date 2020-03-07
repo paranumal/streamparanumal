@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "types.h"
 
 int cubNps[15] = {1, 4, 6, 11, 14, 23, 31, 44, 57, 74, 95, 122, 146, 177, 214};
 

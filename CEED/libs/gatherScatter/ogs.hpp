@@ -117,7 +117,7 @@ SOFTWARE.
 #include <occa.hpp>
 
 #include "mpi.h"
-#include "types.h"
+#include "../../core/types.h"
 
 #define ogsFloat  "float"
 #define ogsDouble "double"

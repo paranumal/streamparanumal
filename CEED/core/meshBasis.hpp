@@ -28,6 +28,7 @@ SOFTWARE.
 #include <stdlib.h>
 #include <math.h>
 #include "params.h"
+#include "types.h"
 
 extern "C"
 {

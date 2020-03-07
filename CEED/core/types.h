@@ -44,10 +44,10 @@ SOFTWARE.
 #define dfloatFormat "%f"
 //#define dfloatString "float"
 #else
-//#define dfloat double
+#define dfloat double
 #define MPI_DFLOAT MPI_DOUBLE
 #define dfloatFormat "%lf"
-//#define dfloatString "double"
+#define dfloatString "double"
 #endif
 
 //device index data type
