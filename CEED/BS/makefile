@@ -196,7 +196,7 @@ else
 endif
 
 #cleanup
-clean: clean-BS1 clean-BS2 clean-BS3 clean-BS4 clean-BS5 clean-BS6
+clean: clean-BS1 clean-BS2 clean-BS3 clean-BS4 clean-BS5 clean-BS6 clean-BS7 clean-BS8
 
 clean-BS1:
 	${MAKE} -C BS1 clean
@@ -217,10 +217,10 @@ clean-BS6:
 	${MAKE} -C BS6 clean
 
 clean-BS7:
-	${MAKE} -C BS6 clean
+	${MAKE} -C BS7 clean
 
 clean-BS8:
-	${MAKE} -C BS6 clean
+	${MAKE} -C BS8 clean
 
 clean-libs: clean
 	${MAKE} -C ${MESH_DIR} clean
