@@ -33,7 +33,7 @@ fi
 # Build the code
 
 if [ ! -d "../occa" ]; then
-  cd ../../
+  cd ../
   git clone https://github.com/libocca/occa
   cd occa; make -j `nproc`
   cd ../CEED
