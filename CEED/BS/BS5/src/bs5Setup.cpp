@@ -34,11 +34,13 @@ bs5_t& bs5_t::Setup(occa::device& device, MPI_Comm& comm,
   // OCCA build stuff
   occa::properties kernelInfo = bs5->props; //copy base occa properties
 
-  bs5->blockSize = 192;
-
+  bs5->blockSize = 512;
+  bs5->Nv = 2;
+  
   kernelInfo["defines/" "p_blockSize"] = bs5->blockSize;
+  kernelInfo["defines/" "p_Nv"] = bs5->Nv;
 
-  bs5->kernel1 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_3", kernelInfo, comm);
+  bs5->kernel1 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_4", kernelInfo, comm);
   bs5->kernel2 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_2", kernelInfo, comm);
 
   return *bs5;

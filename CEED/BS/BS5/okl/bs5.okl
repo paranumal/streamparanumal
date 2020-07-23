@@ -238,3 +238,84 @@
 #endif
   }
 }
+
+
+// remove barriers
+@kernel void bs5_4(const dlong Nblocks,
+                   const dlong N,
+                   @restrict const dfloat *p,
+                   @restrict const dfloat *Ap,
+                   const dfloat alpha,
+                   @restrict dfloat *x,
+                   @restrict dfloat *r,
+                   @restrict dfloat *rdotr){
+
+
+
+  for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){
+    
+    x[n] += alpha*p[n];
+
+  }
+  
+  for(dlong b=0;b<Nblocks;++b;@outer(0)){
+
+    @exclusive dfloat r_res;
+    
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      dlong base = t + b*p_blockSize;
+      
+      r_res = 0;
+
+      for(int v=0;v<p_Nv;++v){
+	dlong id = base +  p_blockSize*Nblocks*v;
+	
+	if(id<N){
+	  r[id] -= alpha*Ap[id];
+	  r_res += r[id]*r[id]; // cached
+	}
+
+      }
+    }
+    
+
+    @shared volatile dfloat s_dot[p_blockSize];
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      s_dot[t] = r_res;
+    }
+    
+    @barrier("local");
+    
+#if p_blockSize>512
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512 && t+512<p_blockSize) s_dot[t] += s_dot[t+512];
+    @barrier("local");
+#endif
+
+#if p_blockSize>256
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256 && t+256<p_blockSize) s_dot[t] += s_dot[t+256];
+    @barrier("local");
+#endif
+
+#if p_blockSize>128
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128 && t+128<p_blockSize) s_dot[t] += s_dot[t+128];
+    @barrier("local");
+#endif
+
+#if p_blockSize>64
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64 && t+64<p_blockSize) s_dot[t] += s_dot[t+ 64];
+#endif
+
+    @barrier("local");
+    
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      if(t< 32 && t+32<p_blockSize) s_dot[t] += s_dot[t+ 32];
+      if(t< 16 && t+16<p_blockSize) s_dot[t] += s_dot[t+ 16];
+      if(t<  8 && t+ 8<p_blockSize) s_dot[t] += s_dot[t+  8];
+      if(t<  4 && t+ 4<p_blockSize) s_dot[t] += s_dot[t+  4];
+      if(t<  2 && t+ 2<p_blockSize) s_dot[t] += s_dot[t+  2];
+      if(t<  1 && t+ 1<p_blockSize) rdotr[b] = s_dot[0] + s_dot[1];
+    }
+  }
+
+}

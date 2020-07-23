@@ -33,25 +33,25 @@ void bs5_t::Run(){
   int N = 0;
   settings.getSetting("BYTES", N);
   N /= sizeof(dfloat);
+
   occa::memory o_p  = device.malloc(N*sizeof(dfloat));
   occa::memory o_Ap = device.malloc(N*sizeof(dfloat));
   occa::memory o_x  = device.malloc(N*sizeof(dfloat));
   occa::memory o_r  = device.malloc(N*sizeof(dfloat));
-  occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
+
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
-  int Nv = 1;
-  int Nblock = (N+blockSize-1)/blockSize;
-  Nblock = mymax(1,(Nblock+Nv-1)/Nv);
+  int Nblock = (N+Nv*blockSize-1)/(Nv*blockSize);
   printf("Nblock=%d, Nv=%d\n", Nblock, Nv);
-  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
-
+  //  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
+  
   const dfloat alpha = 1.0;
 
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
     kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    //    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
 
@@ -61,19 +61,23 @@ void bs5_t::Run(){
   // make sure kernels  have loaded and give the poor GPU a rest
   usleep(1000);
 
+  device.finish();
   
   /* CGupdate Test */
-  occa::streamTag start = device.tagStream();
+  //  occa::streamTag start = device.tagStream();
+  dfloat tic = MPI_Wtime();
 
   for(int n=0;n<Ntests;++n){
     kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    //    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
-  occa::streamTag end = device.tagStream();
+  //  occa::streamTag end = device.tagStream();
   device.finish();
+  dfloat toc = MPI_Wtime();
 
-  double elapsedTime = device.timeBetween(start, end)/Ntests;
+  //  double elapsedTime = device.timeBetween(start, end)/Ntests;
+  double elapsedTime = (toc-tic)/Ntests;
 
   size_t bytesIn  = 4*N*sizeof(dfloat);
   size_t bytesOut = 2*N*sizeof(dfloat);
