@@ -1,29 +1,30 @@
 /*
 
-The MIT License (MIT)
+  The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+  Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
 */
 
+#include <unistd.h>
 #include "bs5.hpp"
 
 void bs5_t::Run(){
@@ -39,18 +40,28 @@ void bs5_t::Run(){
   occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
+  int Nv = 1;
   int Nblock = (N+blockSize-1)/blockSize;
+  Nblock = mymax(1,(Nblock+Nv-1)/Nv);
+  printf("Nblock=%d, Nv=%d\n", Nblock, Nv);
   Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
 
   const dfloat alpha = 1.0;
 
-  int Ntests = 50;
-
-  for(int n=0;n<5;++n){ //warmup
+  int Nwarm = 5;
+  for(int n=0;n<Nwarm;++n){ //warmup
     kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
     kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
+
+  int Ntests = 10;
+  device.finish();
+  
+  // make sure kernels  have loaded and give the poor GPU a rest
+  usleep(1000);
+
+  
   /* CGupdate Test */
   occa::streamTag start = device.tagStream();
 
