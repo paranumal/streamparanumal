@@ -30,10 +30,32 @@
 void bs5_t::Run(){
 
   //create arrays buffers
+#if 0
   int N = 0;
   settings.getSetting("BYTES", N);
   N /= sizeof(dfloat);
-
+#endif
+  
+  int N = 0;
+  int Nmin = 0, Nmax = 0, Nstep = 0;
+  int B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
+  settings.getSetting("BYTES", B);
+  if(B){
+    Bmin = B;
+    Bmax = B;
+    Bstep = sizeof(dfloat);
+  }
+  else{
+    settings.getSetting("BMIN", Bmin);
+    settings.getSetting("BMAX", Bmax);
+    settings.getSetting("BSTEP", Bstep);
+  }
+  
+  N = Bmax/sizeof(dfloat);
+  Nmax = Bmax/sizeof(dfloat);
+  Nmin = Bmin/sizeof(dfloat);
+  Nstep = Bstep/sizeof(dfloat);
+  
   occa::memory o_p  = device.malloc(N*sizeof(dfloat));
   occa::memory o_Ap = device.malloc(N*sizeof(dfloat));
   occa::memory o_x  = device.malloc(N*sizeof(dfloat));
@@ -41,10 +63,7 @@ void bs5_t::Run(){
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
-  int Nmin = 1024;
-  int Nmax = N;
-  int Nstep = 102400;
-
+  
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
     // let GPU rest
     device.finish();
