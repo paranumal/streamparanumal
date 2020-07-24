@@ -45,6 +45,7 @@ public:
   occa::properties& props;
 
   int blockSize;
+  int Nv;
 
   occa::kernel kernel1, kernel2;
 
