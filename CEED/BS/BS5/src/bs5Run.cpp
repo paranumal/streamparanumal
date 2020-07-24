@@ -41,55 +41,66 @@ void bs5_t::Run(){
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
-  int Nblock = (N+blockSize-1)/(blockSize);
-  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  int Nmin = 1024;
+  int Nmax = N;
+  int Nstep = 102400;
+
+  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+    // let GPU rest
+    device.finish();
+    usleep(10000);
     
-  occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
-  
-  const dfloat alpha = 1.0;
+    int Nblock = (Nrun+blockSize-1)/(blockSize);
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+    
+    occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
+    
+    const dfloat alpha = 1.0;
+    
+    int Nwarm = 5;
+    for(int n=0;n<Nwarm;++n){ //warmup
+      kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+      kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    }
+    
 
-  int Nwarm = 5;
-  for(int n=0;n<Nwarm;++n){ //warmup
-    kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    int Ntests = 10;
+    device.finish();
+    
+    // make sure kernels  have loaded and give the poor GPU a rest
+    usleep(1000);
+    
+    device.finish();
+    
+    /* CGupdate Test */
+    //  occa::streamTag start = device.tagStream();
+    dfloat tic = MPI_Wtime();
+    
+    for(int n=0;n<Ntests;++n){
+      kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+      kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    }
+    
+    //  occa::streamTag end = device.tagStream();
+    device.finish();
+    dfloat toc = MPI_Wtime();
+    
+    //  double elapsedTime = device.timeBetween(start, end)/Ntests;
+    double elapsedTime = (toc-tic)/Ntests;
+    
+    size_t bytesIn  = 4*Nrun*sizeof(dfloat);
+    size_t bytesOut = 2*Nrun*sizeof(dfloat);
+    size_t bytes = bytesIn + bytesOut;
+    
+    printf("BS5: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
+	   Nrun, elapsedTime, elapsedTime/N, ((dfloat) N)/elapsedTime, bytes/(1e9*elapsedTime));
+    
+    o_tmp.free();
   }
-
-
-  int Ntests = 10;
-  device.finish();
   
-  // make sure kernels  have loaded and give the poor GPU a rest
-  usleep(1000);
-
-  device.finish();
-  
-  /* CGupdate Test */
-  //  occa::streamTag start = device.tagStream();
-  dfloat tic = MPI_Wtime();
-
-  for(int n=0;n<Ntests;++n){
-    kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
-  }
-
-  //  occa::streamTag end = device.tagStream();
-  device.finish();
-  dfloat toc = MPI_Wtime();
-
-  //  double elapsedTime = device.timeBetween(start, end)/Ntests;
-  double elapsedTime = (toc-tic)/Ntests;
-
-  size_t bytesIn  = 4*N*sizeof(dfloat);
-  size_t bytesOut = 2*N*sizeof(dfloat);
-  size_t bytes = bytesIn + bytesOut;
-
-  printf("BS5: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
-         N, elapsedTime, elapsedTime/N, ((dfloat) N)/elapsedTime, bytes/(1e9*elapsedTime));
-
   o_p.free();
   o_Ap.free();
   o_r.free();
   o_x.free();
-  o_tmp.free();
   o_rdotr.free();
 }
