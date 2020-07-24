@@ -27,6 +27,8 @@ SOFTWARE.
 #ifndef CORE_HPP
 #define CORE_HPP
 
+#include <unistd.h>
+
 #include <occa.h>
 #include <string>
 #include "types.h"

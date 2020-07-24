@@ -29,37 +29,68 @@ SOFTWARE.
 void bs1_t::Run(){
 
   //create arrays buffers
+#if 0
   int N = 0;
   settings.getSetting("BYTES", N);
   N /= sizeof(dfloat);
+#else
+  int N = 0;
+  int Nmin = 0, Nmax = 0, Nstep = 0;
+  int B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
+  settings.getSetting("BYTES", B);
+  if(B){
+    Bmin = B;
+    Bmax = B;
+    Bstep = sizeof(dfloat);
+  }
+  else{
+    settings.getSetting("BMIN", Bmin);
+    settings.getSetting("BMAX", Bmax);
+    settings.getSetting("BSTEP", Bstep);
+  }
+  // should scale down by #reads + #writes per entry
+  N = Bmax/sizeof(dfloat);
+  Nmax = Bmax/sizeof(dfloat);
+  Nmin = Bmin/sizeof(dfloat);
+  Nstep = Bstep/sizeof(dfloat);
+  printf("N=%d, Nmax=%d, Nmin=%d, Nstep=%d\n", N, Nmax, Nmin, Nstep);
+#endif
+  
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
 
-  int Ntests = 50;
+  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+  
+    int Ntests = 50;
+    int Nwarm = 5;
+    for(int n=0;n<Nwarm;++n){ //warmup
+      kernel(Nrun, o_a, o_b); //b = a
+    }
 
-  for(int n=0;n<5;++n){ //warmup
-    kernel(N, o_a, o_b); //b = a
+    // let GPU rest
+    device.finish();
+    usleep(1000);
+    
+    /* COPY Test */
+    occa::streamTag start = device.tagStream();
+
+    for(int n=0;n<Ntests;++n){
+      kernel(Nrun, o_a, o_b); //b = a
+    }
+    
+    occa::streamTag end = device.tagStream();
+    device.finish();
+    
+    double elapsedTime = device.timeBetween(start, end)/Ntests;
+    
+    size_t bytesIn  = Nrun*sizeof(dfloat);
+    size_t bytesOut = Nrun*sizeof(dfloat);
+    size_t bytes = bytesIn + bytesOut;
+    
+    printf("BS1: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
+	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
   }
-
-  /* COPY Test */
-  occa::streamTag start = device.tagStream();
-
-  for(int n=0;n<Ntests;++n){
-    kernel(N, o_a, o_b); //b = a
-  }
-
-  occa::streamTag end = device.tagStream();
-  device.finish();
-
-  double elapsedTime = device.timeBetween(start, end)/Ntests;
-
-  size_t bytesIn  = N*sizeof(dfloat);
-  size_t bytesOut = N*sizeof(dfloat);
-  size_t bytes = bytesIn + bytesOut;
-
-  printf("BS1: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
-         N, elapsedTime, elapsedTime/N, ((dfloat) N)/elapsedTime, bytes/(1e9*elapsedTime));
-
+  
   o_a.free();
   o_b.free();
 }

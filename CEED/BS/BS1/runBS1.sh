@@ -45,7 +45,8 @@ make -j `nproc`
 
 echo "Running BS1..."
 
-./BS1 -m $mode -b 1073741824
+#./BS1 -m $mode -b 1073741824
+./BS1 -m $mode -bmin 1024 -bmax 1073741824  -bstep 819200
 
 #
 # Noel Chalmers
