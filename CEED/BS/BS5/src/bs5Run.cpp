@@ -41,11 +41,9 @@ void bs5_t::Run(){
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
-  int Nblock = (N+Nv*blockSize-1)/(Nv*blockSize);
+  int Nblock = (N+blockSize-1)/(blockSize);
   Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
     
-  printf("Nblock=%d, Nv=%d\n", Nblock, Nv);
-
   occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
   
   const dfloat alpha = 1.0;
@@ -53,7 +51,7 @@ void bs5_t::Run(){
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
     kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    //    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
 
@@ -71,7 +69,7 @@ void bs5_t::Run(){
 
   for(int n=0;n<Ntests;++n){
     kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-    //    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
   //  occa::streamTag end = device.tagStream();

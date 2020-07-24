@@ -24,545 +24,7 @@
 
 */
 
-@kernel void bs5_1(const dlong Nblocks,
-                   const dlong N,
-                   @restrict const dfloat *p,
-                   @restrict const dfloat *Ap,
-                   const dfloat alpha,
-                   @restrict dfloat *x,
-                   @restrict dfloat *r,
-                   @restrict dfloat *rdotr){
-
-
-  for(dlong b=0;b<Nblocks;++b;@outer(0)){
-
-    @shared volatile dfloat s_dot[p_blockSize];
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-      s_dot[t] = 0.0;
-      while (id<N) {
-        dfloat rn = r[id];
-
-        x[id] += alpha*p[id];
-        rn -= alpha*Ap[id];
-
-        s_dot[t] += rn*rn;
-
-        r[id] = rn;
-        id += p_blockSize*Nblocks;
-      }
-    }
-
-    @barrier("local");
-
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
-    @barrier("local");
-#endif
-
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
-    @barrier("local");
-#endif
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) rdotr[b] = s_dot[0] + s_dot[1];
-  }
-}
-
-@kernel void bs5_2(const dlong Nblocks,
-                   @restrict const  dfloat *a,
-                   @restrict        dfloat *rdotr){
-
-
-  for(dlong b=0;b<1;++b;@outer(0)){
-
-    @shared volatile dfloat s_dot[p_blockSize];
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-      s_dot[t] = 0.0;
-      while (id<Nblocks) {
-        s_dot[t] += a[id];
-        id += p_blockSize*Nblocks;
-      }
-    }
-
-    @barrier("local");
-
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
-    @barrier("local");
-#endif
-
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
-    @barrier("local");
-#endif
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
-    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
-    //    @barrier("local");
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) rdotr[b] = s_dot[0] + s_dot[1];
-  }
-}
-
-// remove barriers
-@kernel void bs5_3(const dlong Nblocks,
-                   const dlong N,
-                   @restrict const dfloat *p,
-                   @restrict const dfloat *Ap,
-                   const dfloat alpha,
-                   @restrict dfloat *x,
-                   @restrict dfloat *r,
-                   @restrict dfloat *rdotr){
-
-
-#if 0
-  for(dlong b=0;b<Nblocks;++b;@outer(0)){
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-
-      while (id<N) {
-      }
-    }
-  }
-#endif
-  
-  for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){
-    
-    x[n] += alpha*p[n];
-
-  }
-  
-  
-  for(dlong b=0;b<Nblocks;++b;@outer(0)){
-
-    @shared volatile dfloat s_dot[p_blockSize];
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-      // s_dot[t] = 0.0;
-      dfloat res = 0;
-
-      while (id<N) {
-
-	dfloat rn = r[id];
-
-	const dfloat Apn = Ap[id];
-
-	rn -= alpha*Apn;
-
-        r[id] = rn;
-
-	res += rn*rn;
-
-        id += p_blockSize*Nblocks;
-      }
-
-      s_dot[t] = res;
-    }
-    
-#if 1
-    @barrier("local");
-
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512 && t+512<p_blockSize) s_dot[t] += s_dot[t+512];
-    @barrier("local");
-#endif
-
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256 && t+256<p_blockSize) s_dot[t] += s_dot[t+256];
-    @barrier("local");
-#endif
-
-#if p_blockSize>128
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128 && t+128<p_blockSize) s_dot[t] += s_dot[t+128];
-    @barrier("local");
-#endif
-
-#if p_blockSize>64
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64 && t+64<p_blockSize) s_dot[t] += s_dot[t+ 64];
-#endif
-
-    @barrier("local");
-    
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      if(t< 32 && t+32<p_blockSize) s_dot[t] += s_dot[t+ 32];
-      if(t< 16 && t+16<p_blockSize) s_dot[t] += s_dot[t+ 16];
-      if(t<  8 && t+ 8<p_blockSize) s_dot[t] += s_dot[t+  8];
-      if(t<  4 && t+ 4<p_blockSize) s_dot[t] += s_dot[t+  4];
-      if(t<  2 && t+ 2<p_blockSize) s_dot[t] += s_dot[t+  2];
-      if(t<  1 && t+ 1<p_blockSize) rdotr[b] = s_dot[0] + s_dot[1];
-    }
-#endif
-  }
-}
-
-
-// remove barriers
-@kernel void bs5_4(const dlong Nblocks,
-                   const dlong N,
-                   @restrict const dfloat *p,
-                   @restrict const dfloat *Ap,
-                   const dfloat alpha,
-                   @restrict dfloat *x,
-                   @restrict dfloat *r,
-                   @restrict dfloat *rdotr){
-
-
-
-  for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){
-    
-    x[n] += alpha*p[n];
-
-  }
-  
-  for(dlong b=0;b<Nblocks;++b;@outer(0)){
-
-    @exclusive dfloat r_res;
-    
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong base = t + b*p_blockSize;
-      
-      r_res = 0;
-
-      for(int v=0;v<p_Nv;++v){
-	dlong id = base +  p_blockSize*Nblocks*v;
-	
-	if(id<N){
-	  r[id] -= alpha*Ap[id];
-	  r_res += r[id]*r[id]; // cached
-	}
-
-      }
-    }
-    
-
-    @shared volatile dfloat s_dot[p_blockSize];
-
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      s_dot[t] = r_res;
-    }
-    
-    @barrier("local");
-    
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512 && t+512<p_blockSize) s_dot[t] += s_dot[t+512];
-    @barrier("local");
-#endif
-
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256 && t+256<p_blockSize) s_dot[t] += s_dot[t+256];
-    @barrier("local");
-#endif
-
-#if p_blockSize>128
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128 && t+128<p_blockSize) s_dot[t] += s_dot[t+128];
-    @barrier("local");
-#endif
-
-#if p_blockSize>64
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64 && t+64<p_blockSize) s_dot[t] += s_dot[t+ 64];
-#endif
-
-    @barrier("local");
-    
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      if(t< 32 && t+32<p_blockSize) s_dot[t] += s_dot[t+ 32];
-      if(t< 16 && t+16<p_blockSize) s_dot[t] += s_dot[t+ 16];
-      if(t<  8 && t+ 8<p_blockSize) s_dot[t] += s_dot[t+  8];
-      if(t<  4 && t+ 4<p_blockSize) s_dot[t] += s_dot[t+  4];
-      if(t<  2 && t+ 2<p_blockSize) s_dot[t] += s_dot[t+  2];
-      if(t<  1 && t+ 1<p_blockSize) rdotr[b] = s_dot[0] + s_dot[1];
-    }
-  }
-
-}
-
-
-@kernel void bs5_5(const int NB,
-		   const int N,
-		   @restrict const dfloat *p,
-		   @restrict const dfloat *Ap,
-		   const dfloat alpha,
-		   @restrict       dfloat *x,
-		   @restrict       dfloat *r,
-		   @restrict       dfloat *rdotr){
-
-  // hard coded for AMD
-#define p_SIMD 64
-#define p_NW (p_blockSize/p_SIMD)
-
-#if 1
-  for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){
-    
-    x[n] += alpha*p[n];
-    
-  }
-#endif
-  
-  for(int b=0;b<NB;++b;@outer(0)){
-    
-    @shared volatile dfloat s_a[p_NW][p_SIMD+1];
-    @shared volatile dfloat s_rdotr[p_NW];
-
-    // assume NT is a multiple of p_WARP
-    for(int w=0;w<p_NW;++w;@inner(1)){
-      for(int t=0;t<p_SIMD;++t;@inner(0)){
-	dfloat res = 0;
-	
-	int n = t + p_SIMD*w + b*p_blockSize;
-
-	r[n] -= alpha*Ap[n];
-	res += r[n]*r[n];
-	
-#if p_Nv>=2
-	n += p_blockSize*NB;
-	if(n<N){
-	  r[n] -= alpha*Ap[n];
-	  res += r[n]*r[n];
-	}
-#endif
-	
-#if p_Nv>=3
-	n += p_blockSize*NB;
-	if(n<N){
-	  r[n] -= alpha*Ap[n];
-	  res += r[n]*r[n];
-	}
-#endif
-	
-#if p_Nv>=4
-	n += p_blockSize*NB;
-	if(n<N){
-	  r[n] -= alpha*Ap[n];
-	  res += r[n]*r[n];
-	}
-#endif
-	
-	// always initialized
-	s_a[w][t] = res;
-	
-	if(t< (p_SIMD/2 )) s_a[w][t] += s_a[w][t+(p_SIMD/2 )];	// warp sync
-	if(t< (p_SIMD/4 )) s_a[w][t] += s_a[w][t+(p_SIMD/4 )];	// warp sync
-	if(t< (p_SIMD/8 )) s_a[w][t] += s_a[w][t+(p_SIMD/8 )];	// warp sync
-	if(t< (p_SIMD/16)) s_a[w][t] += s_a[w][t+(p_SIMD/16)];	// warp sync
-	
-#if (p_SIMD==32)
-	if(t< (p_SIMD/32)) s_rdotr[w] = s_a[w][0] + s_a[w][1];	// warp sync
-#endif
-	
-#if (p_SIMD==64)
-	if(t< (p_SIMD/32)) s_a[w][t] += s_a[w][t+(p_SIMD/32)];	// warp sync
-	if(t< (p_SIMD/64)) s_rdotr[w] = s_a[w][0] + s_a[w][1];	// warp sync
-#endif
-      }
-    }
-    
-    @barrier("local");
-
-    // assume p_NW<=p_SIMD
-    for(int w=0;w<p_NW;++w;@inner(1)){
-      for(int t=0;t<p_SIMD;++t;@inner(0)){
-
-#if 0
-	int n = t + p_SIMD*w + b*p_blockSize;
-	while(n<N){
-	  x[n] += alpha*p[n];
-	  n += p_blockSize*NB;
-	}
-#endif
-	
-	if(w==0 && t<p_NW){
-	  
-#if p_NW>8
-	  if(t<8 && (t+8)<p_NW) s_rdotr[t] += s_rdotr[t+8];
-#endif
-#if p_NW>4
-	  if(t<4 && (t+4)<p_NW) s_rdotr[t] += s_rdotr[t+4];
-#endif
-#if p_NW>2
-	  if(t<2 && (t+2)<p_NW) s_rdotr[t] += s_rdotr[t+2];
-#endif
-#if p_NW>1
-	  if(t<1 && (t+1)<p_NW) s_rdotr[t] += s_rdotr[t+1];
-#endif
-	  if(t==0)
-	    rdotr[b] = s_rdotr[0];
-	  
-	}
-      }
-    }
-  }
-}
-
-
-
-
-@kernel void bs5_6(const int NB,
-		   const int N,
-		   @restrict const dfloat *p,
-		   @restrict const dfloat *Ap,
-		   const dfloat alpha,
-		   @restrict       dfloat *x,
-		   @restrict       dfloat *r,
-		   @restrict       dfloat *rdotr){
-
-  // hard coded for AMD
-#define p_SIMD 64
-#define p_NW (p_blockSize/p_SIMD)
-
-#if 1
-  for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){
-    // 795 with axpy here
-    x[n] += alpha*p[n];
-  }
-#endif
-  
-  for(int b=0;b<NB;++b;@outer(0)){
-
-    @shared dfloat s_rdotr[p_NW];
-    
-    // assume NT is a multiple of p_WARP
-    for(int w=0;w<p_NW;++w;@inner(1)){
-      for(int t=0;t<p_SIMD;++t;@inner(0)){
-	dfloat res = 0;
-	int n0 =  t + p_SIMD*w + b*p_Nv*p_blockSize;
-
-	// this while seems ok
-	while(n0<N){
-#if p_Nv>1
-	  int n1 = n0 + p_blockSize;
-	  int n2 = n0 + 2*p_blockSize;
-	  int n3 = n0 + 3*p_blockSize;
-#endif
-
-#if 0
-	  // 746 with axpy here
-	  if(n0<N) x[n0] += alpha*p[n0];  
-	  if(n1<N) x[n1] += alpha*p[n1];  
-	  if(n2<N) x[n2] += alpha*p[n2];  
-	  if(n3<N) x[n3] += alpha*p[n3];
-#endif
-	  r[n0] -= alpha*Ap[n0];
-	  res += r[n0]*r[n0];
-	
-#if p_Nv>=2
-	  if(n1<N){
-	    r[n1] -= alpha*Ap[n1];
-	    res += r[n1]*r[n1];
-	  }
-#endif
-	  
-#if p_Nv>=3
-	  if(n2<N){
-	    r[n2] -= alpha*Ap[n2];
-	    res += r[n2]*r[n2];
-	  }
-#endif
-	  
-#if p_Nv>=4
-	  if(n3<N){
-	    r[n3] -= alpha*Ap[n3];
-	    res += r[n3]*r[n3];
-	  }
-#endif
-	  n0 += p_Nv*p_blockSize*NB;
-	}
-	  
-#if p_SIMD==64
-	res += __shfl_down(res, 32, p_SIMD);
-#endif
-	
-	res += __shfl_down(res, 16, p_SIMD);
-	res += __shfl_down(res,  8, p_SIMD);
-	res += __shfl_down(res,  4, p_SIMD);
-	res += __shfl_down(res,  2, p_SIMD);
-	res += __shfl_down(res,  1, p_SIMD);
-
-	if(t==0)
-	  s_rdotr[w] = res;
-      }
-    }
-
-
-    @barrier("local");
-
-    // assume p_NW<=p_SIMD
-    for(int w=0;w<p_NW;++w;@inner(1)){
-      for(int t=0;t<p_SIMD;++t;@inner(0)){
-
-#if 1
-	// 795 GB/s with this
-	if(w==0){
-	  dfloat res = s_rdotr[t];
-	  // assume p_NW = 4
-	  res += __shfl_down(res,  2, p_SIMD);
-	  res += __shfl_down(res,  1, p_SIMD);
-	  if(t==0)
-	    rdotr[b] = res;
-	}
-#else
-	// 785 GB/s with this
-	if(w==0 && t==0){
-	  dfloat res = 0;
-	  for(int n=0;n<p_NW;++n){
-	    res += s_rdotr[n];
-	  }
-	  rdotr[b] = res;
-	}
-#endif
-      }
-    }
-  }
-}
-
-
-
-
-
-@kernel void bs5_7(const int NB,
+@kernel void bs5_1(const int NB,
 		   const int N,
 		   @restrict const dfloat *p,
 		   @restrict const dfloat *Ap,
@@ -636,4 +98,62 @@
 }
 
 
+
+
+
+
+@kernel void bs5_2(const dlong Nblocks,
+                   @restrict const  dfloat *a,
+                   @restrict        dfloat *rdotr){
+
+
+  for(dlong b=0;b<1;++b;@outer(0)){
+
+    @shared volatile dfloat s_dot[p_blockSize];
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      dlong id = t + b*p_blockSize;
+      s_dot[t] = 0.0;
+      while (id<Nblocks) {
+        s_dot[t] += a[id];
+        id += p_blockSize*Nblocks;
+      }
+    }
+
+    @barrier("local");
+
+#if p_blockSize>512
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
+    @barrier("local");
+#endif
+
+#if p_blockSize>256
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
+    @barrier("local");
+#endif
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
+    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
+    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
+    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
+    //    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
+    //    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
+    //    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
+    //    @barrier("local");
+
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) rdotr[b] = s_dot[0] + s_dot[1];
+  }
+}
 
