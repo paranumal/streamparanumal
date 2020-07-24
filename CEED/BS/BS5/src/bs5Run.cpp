@@ -42,8 +42,10 @@ void bs5_t::Run(){
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
   int Nblock = (N+Nv*blockSize-1)/(Nv*blockSize);
+  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+    
   printf("Nblock=%d, Nv=%d\n", Nblock, Nv);
-  //  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+
   occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
   
   const dfloat alpha = 1.0;
