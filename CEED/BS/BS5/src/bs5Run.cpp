@@ -24,7 +24,6 @@
 
 */
 
-#include <unistd.h>
 #include "bs5.hpp"
 
 void bs5_t::Run(){
@@ -62,12 +61,11 @@ void bs5_t::Run(){
   occa::memory o_r  = device.malloc(N*sizeof(dfloat));
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
-
   
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+    
     // let GPU rest
     device.finish();
-    usleep(10000);
     
     int Nblock = (Nrun+blockSize-1)/(blockSize);
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
@@ -85,9 +83,6 @@ void bs5_t::Run(){
 
     int Ntests = 10;
     device.finish();
-    
-    // make sure kernels  have loaded and give the poor GPU a rest
-    usleep(1000);
     
     device.finish();
     
@@ -112,7 +107,7 @@ void bs5_t::Run(){
     size_t bytes = bytesIn + bytesOut;
     
     printf("BS5: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
-	   Nrun, elapsedTime, elapsedTime/N, ((dfloat) N)/elapsedTime, bytes/(1e9*elapsedTime));
+	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
     
     o_tmp.free();
   }

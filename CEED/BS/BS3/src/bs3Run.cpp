@@ -71,6 +71,9 @@ void bs3_t::Run(){
       kernel2(Nblock, o_tmp, o_norm); //finish reduction
     }
     
+    // let GPU rest
+    device.finish();
+    
     /* NORM Test */
     occa::streamTag start = device.tagStream();
     

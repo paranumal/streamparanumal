@@ -53,7 +53,6 @@ void bs1_t::Run(){
   Nmax = Bmax/sizeof(dfloat);
   Nmin = Bmin/sizeof(dfloat);
   Nstep = Bstep/sizeof(dfloat);
-  printf("N=%d, Nmax=%d, Nmin=%d, Nstep=%d\n", N, Nmax, Nmin, Nstep);
 #endif
   
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
@@ -69,7 +68,6 @@ void bs1_t::Run(){
 
     // let GPU rest
     device.finish();
-    usleep(1000);
     
     /* COPY Test */
     occa::streamTag start = device.tagStream();

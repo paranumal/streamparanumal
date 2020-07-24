@@ -35,11 +35,15 @@ void bs8_t::Run(){
   occa::memory o_gq = mesh.device.malloc(Ngather*sizeof(dfloat));
 
   /* Scatter test */
-  for(int n=0;n<5;++n){
+  int Nwarm = 5;
+  for(int n=0;n<Nwarm;++n){
     mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans); //dry run
   }
 
-  int Ntests = 50;
+  mesh.device.finish();
+  usleep(1000);
+
+  int Ntests = 10;
 
   occa::streamTag start = mesh.device.tagStream();
 

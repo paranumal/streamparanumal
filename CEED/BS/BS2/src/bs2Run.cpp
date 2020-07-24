@@ -69,7 +69,6 @@ void bs2_t::Run(){
     
     // let GPU rest
     device.finish();
-    usleep(1000);
 
     /* ADD Test */
     occa::streamTag start = device.tagStream();
