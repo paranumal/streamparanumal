@@ -34,7 +34,7 @@ bs2Settings_t::bs2Settings_t(const int argc, char** argv, MPI_Comm &_comm):
 
   newSetting("-b", "--bytes",
              "BYTES",
-             "1073741824",
+             "0", // "1073741824",
              "Array size in bytes");
 
   newSetting("-v", "--verbose",
@@ -43,6 +43,22 @@ bs2Settings_t::bs2Settings_t(const int argc, char** argv, MPI_Comm &_comm):
              "Enable verbose output",
              {"TRUE", "FALSE"});
 
+  newSetting("-bmin", "--bmin",
+             "BMIN",
+             "1024",
+             "Minimum array size in bytes");
+
+  newSetting("-bmax", "--bmax",
+             "BMAX",
+             "1073741824",
+             "Maximum array size in bytes");
+
+  newSetting("-bstep", "--bstep",
+             "BSTEP",
+             "819200",
+             "Array step size in bytes");
+
+  
   parseSettings(argc, argv);
 }
 
