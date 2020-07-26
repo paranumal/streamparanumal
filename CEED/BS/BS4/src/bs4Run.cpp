@@ -70,10 +70,10 @@ void bs4_t::Run(){
     }
   }
 
-  for(int test=0;test<1000000;++test){
-    int Nrun = Nmax;
+  //  for(int test=0;test<1000000;++test){
+  //    int Nrun = Nmax;
 
-    //  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
 
     // rest gpu (do here to avoid clock drop after warm up)
     device.finish();
