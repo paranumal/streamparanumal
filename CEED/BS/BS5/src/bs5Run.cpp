@@ -61,36 +61,42 @@ void bs5_t::Run(){
   occa::memory o_r  = device.malloc(N*sizeof(dfloat));
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
+
+  int maxNblock = (N+blockSize-1)/(blockSize);
+  occa::memory o_tmp = device.malloc(maxNblock*sizeof(dfloat));
+    
+  const dfloat alpha = 1.0;
+
+  // warm up
+  {
+    int Nwarm = 5;
+    int Nblock = (N+blockSize-1)/(blockSize);
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+    
+    for(int n=0;n<Nwarm;++n){ //warmup
+      kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+      kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+    }
+  } 
   
+
+  //  for(int test=0;test<1000000;++test){
+  //    int Nrun = Nmax;
+    
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
 
     // rest gpu (do here to avoid clock drop after warm up)
-    usleep(1000);
     device.finish();
+    usleep(1e6);
     
     int Nblock = (Nrun+blockSize-1)/(blockSize);
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
     
-    occa::memory o_tmp = device.malloc(Nblock*sizeof(dfloat));
-    
-    const dfloat alpha = 1.0;
-    
-    int Nwarm = 5;
-    for(int n=0;n<Nwarm;++n){ //warmup
-      kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-      kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
-    }
-    
-
-    int Ntests = 50;
     device.finish();
-    
-    device.finish();
-    
-    /* CGupdate Test */
-    //  occa::streamTag start = device.tagStream();
     dfloat tic = MPI_Wtime();
-    
+
+    /* CGupdate Test */
+    int Ntests = 50;
     for(int n=0;n<Ntests;++n){
       kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
@@ -99,8 +105,6 @@ void bs5_t::Run(){
     //  occa::streamTag end = device.tagStream();
     device.finish();
     dfloat toc = MPI_Wtime();
-    
-    //  double elapsedTime = device.timeBetween(start, end)/Ntests;
     double elapsedTime = (toc-tic)/Ntests;
     
     size_t bytesIn  = 4*Nrun*sizeof(dfloat);
@@ -109,10 +113,11 @@ void bs5_t::Run(){
     
     printf("BS5: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
+    fflush(stdout);
     
-    o_tmp.free();
   }
-  
+
+  o_tmp.free();
   o_p.free();
   o_Ap.free();
   o_r.free();
