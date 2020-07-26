@@ -60,33 +60,41 @@ void bs4_t::Run(){
   occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
   occa::memory o_dot = device.malloc(1*sizeof(dfloat));
 
-  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
-    int Nblock = (Nrun+blockSize-1)/blockSize;
-    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
-    
-    int Ntests = 10;
+  {
     int Nwarm = 5;
-    
+    int Nblock = (N+blockSize-1)/blockSize;
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries 
     for(int n=0;n<Nwarm;++n){ //warmup
-      kernel1(Nblock, Nrun, o_a, o_b, o_tmp); //partial reduction
+      kernel1(Nblock, N, o_a, o_b, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_dot); //finish reduction
     }
+  }
 
-    // let GPU rest
+  for(int test=0;test<1000000;++test){
+    int Nrun = Nmax;
+
+    //  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+
+    // rest gpu (do here to avoid clock drop after warm up)
     device.finish();
+    usleep(1e5);
+    
+    int Nblock = (Nrun+blockSize-1)/blockSize;
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+
+    device.finish();
+    dfloat tic = MPI_Wtime();
     
     /* DOT Test */
-    occa::streamTag start = device.tagStream();
-    
+    int Ntests = 40;
     for(int n=0;n<Ntests;++n){
       kernel1(Nblock, Nrun, o_a, o_b, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_dot); //finish reduction
     }
-    
-    occa::streamTag end = device.tagStream();
+
     device.finish();
-    
-    double elapsedTime = device.timeBetween(start, end)/Ntests;
+    dfloat toc = MPI_Wtime();
+    double elapsedTime = (toc-tic)/Ntests;
     
     size_t bytesIn  = 2*Nrun*sizeof(dfloat);
     size_t bytesOut = 0;

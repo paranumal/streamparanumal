@@ -63,8 +63,9 @@ void bs5_t::Run(){
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
   
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
-    
-    // let GPU rest
+
+    // rest gpu (do here to avoid clock drop after warm up)
+    usleep(1000);
     device.finish();
     
     int Nblock = (Nrun+blockSize-1)/(blockSize);
@@ -81,7 +82,7 @@ void bs5_t::Run(){
     }
     
 
-    int Ntests = 10;
+    int Ntests = 50;
     device.finish();
     
     device.finish();

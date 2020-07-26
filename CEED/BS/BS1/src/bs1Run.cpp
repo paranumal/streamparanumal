@@ -58,28 +58,34 @@ void bs1_t::Run(){
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
 
-  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
-  
-    int Ntests = 50;
-    int Nwarm = 5;
-    for(int n=0;n<Nwarm;++n){ //warmup
-      kernel(Nrun, o_a, o_b); //b = a
-    }
+  int Nwarm = 5;
+  for(int n=0;n<Nwarm;++n){ //warmup
+    kernel(N, o_a, o_b); //b = a
+  }
 
-    // let GPU rest
+  for(int test=0;test<1000000;++test){
+    int Nrun = Nmax;
+
+    //  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+    
+    // rest gpu (do here to avoid clock drop after warm up)
     device.finish();
+    usleep(1e5);
+
+    // tic
+    device.finish();
+    dfloat tic = MPI_Wtime();
     
     /* COPY Test */
-    occa::streamTag start = device.tagStream();
-
+    int Ntests = 40;
     for(int n=0;n<Ntests;++n){
       kernel(Nrun, o_a, o_b); //b = a
     }
     
-    occa::streamTag end = device.tagStream();
+    //    occa::streamTag end = device.tagStream();
     device.finish();
-    
-    double elapsedTime = device.timeBetween(start, end)/Ntests;
+    dfloat toc = MPI_Wtime();
+    double elapsedTime = (toc-tic)/Ntests;
     
     size_t bytesIn  = Nrun*sizeof(dfloat);
     size_t bytesOut = Nrun*sizeof(dfloat);
