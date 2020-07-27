@@ -64,6 +64,8 @@ void bs2_t::Run(){
     kernel(N, o_a, o_b, o_c); //c = a + b
   }
 
+  printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n");
+  
   //  for(int test=0;test<1000000;++test){
   //    int Nrun = Nmax;
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
@@ -89,7 +91,7 @@ void bs2_t::Run(){
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
 
-    printf("BS2: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
+    printf("2, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
   }
 
