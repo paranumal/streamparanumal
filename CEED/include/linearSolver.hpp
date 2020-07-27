@@ -57,8 +57,7 @@ public:
 
   static linearSolver_t* Setup(solver_t& solver);
 
-  virtual void Init(int _weighted, occa::memory& o_weight,
-                    dlong _N, dlong Nhalo)=0;
+  virtual void Init(dlong _N, dlong Nhalo)=0;
   virtual int Solve(solver_t& solver,
                     occa::memory& o_x, occa::memory& o_rhs,
                     const dfloat tol, const int MAXIT, const int verbose)=0;
@@ -69,13 +68,11 @@ public:
 //Conjugate Gradient
 class cg: public linearSolver_t {
 private:
-  occa::memory o_p, o_Ap, o_Ax, o_w;
+  occa::memory o_p, o_Ap;
 
   dfloat* tmprdotr;
   occa::memory h_tmprdotr;
   occa::memory o_tmprdotr;
-
-  int weighted;
 
   occa::kernel updateCGKernel;
 
@@ -85,8 +82,7 @@ public:
   cg(solver_t& solver);
   ~cg();
 
-  void Init(int _weighted, occa::memory& o_weight,
-                    dlong _N, dlong Nhalo);
+  void Init(dlong _N, dlong Nhalo);
   int Solve(solver_t& solver,
             occa::memory& o_x, occa::memory& o_rhs,
             const dfloat tol, const int MAXIT, const int verbose);

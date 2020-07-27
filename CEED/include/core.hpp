@@ -49,4 +49,11 @@ void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa
 occa::kernel buildKernel(occa::device& device, std::string fileName, std::string kernelName,
                          occa::properties& kernelInfo, MPI_Comm& comm);
 
+// sort entries in an array in parallel
+void parallelSort(int size, int rank, MPI_Comm comm,
+      int N, void *vv, size_t sz,
+      int (*compare)(const void *, const void *),
+      void (*match)(void *, void *)
+      );
+
 #endif

@@ -255,6 +255,9 @@ public:
   occa::memory o_haloBuf;
   occa::memory h_haloBuf;
 
+  dlong *GlobalToLocal;
+  occa::memory o_GlobalToLocal;
+
   ogs_t(MPI_Comm& _comm, occa::device& _device):
     comm(_comm), device(_device) {};
 
@@ -357,6 +360,14 @@ public:
   void ScatterManyFinish(occa::memory&  o_v, occa::memory&  o_gv, const int k,
                          const dlong stride, const dlong gstride,
                          const ogs_type type, const ogs_op op, const ogs_transpose trans);
+
+  void GatheredHaloExchangeSetup();
+  void GatheredHaloExchangeStart(occa::memory& o_v,
+                                 const int k,
+                                 const ogs_type type);
+  void GatheredHaloExchangeFinish(occa::memory& o_v,
+                                 const int k,
+                                 const ogs_type type);
 
   void reallocHostBuffer(size_t Nbytes);
   void reallocOccaBuffer(size_t Nbytes);

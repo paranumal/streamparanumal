@@ -320,6 +320,9 @@ public:
   // build element-boundary connectivity
   void ConnectBoundary();
 
+  // repartition elements in parallel
+  virtual void GeometricPartition() = 0;
+
   virtual void ReferenceNodes(int N) = 0;
 
   /* compute x,y,z coordinates of each node */
@@ -349,7 +352,7 @@ public:
 
   virtual void CubatureSetup()=0;
 
-  void BoundarySetup();
+  void BoundarySetup(int Nfields);
 
   // print out parallel partition i
   void PrintPartitionStatistics();
