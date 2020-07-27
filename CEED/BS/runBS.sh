@@ -43,14 +43,14 @@ export OCCA_DIR=${PWD}/../../occa
 
 make -j `nproc`
 
-cd BS1; ./runBS1.sh -m $mode; cd ..
-cd BS2; ./runBS2.sh -m $mode; cd ..
-cd BS3; ./runBS3.sh -m $mode; cd ..
-cd BS4; ./runBS4.sh -m $mode; cd ..
-cd BS5; ./runBS5.sh -m $mode; cd ..
-cd BS6; ./runBS6.sh -m $mode; cd ..
-cd BS7; ./runBS7.sh -m $mode; cd ..
-cd BS8; ./runBS8.sh -m $mode; cd ..
+cd BS1; ./runBS1.sh -m $mode > ../results/BS1MI60Corona.out; cd ..; sleep 30
+cd BS2; ./runBS2.sh -m $mode > ../results/BS2MI60Corona.out; cd ..; sleep 30
+cd BS3; ./runBS3.sh -m $mode > ../results/BS3MI60Corona.out; cd ..; sleep 30
+cd BS4; ./runBS4.sh -m $mode > ../results/BS4MI60Corona.out; cd ..; sleep 30
+cd BS5; ./runBS5.sh -m $mode > ../results/BS5MI60Corona.out; cd ..; sleep 30
+cd BS6; ./runBS6.sh -m $mode > ../results/BS6MI60Corona.out; cd ..; sleep 30
+cd BS7; ./runBS7.sh -m $mode > ../results/BS7MI60Corona.out; cd ..; sleep 30
+cd BS8; ./runBS8.sh -m $mode > ../results/BS8MI60Corona.out; cd ..; sleep 30
 
 #
 # Noel Chalmers

@@ -70,7 +70,7 @@ void bs1_t::Run(){
     
     // rest gpu (do here to avoid clock drop after warm up)
     device.finish();
-    usleep(1e5);
+    usleep(1e6);
 
     // tic
     device.finish();
@@ -93,6 +93,7 @@ void bs1_t::Run(){
     
     printf("1, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
+    fflush(stdout);
   }
   
   o_a.free();
