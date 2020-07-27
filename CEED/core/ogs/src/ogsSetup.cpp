@@ -232,17 +232,7 @@ ogs_t *ogs_t::Setup(dlong N, hlong *ids, MPI_Comm &comm,
   ogs->localGather.o_colIds  = device.malloc((ogs->localGather.nnz+1)*sizeof(dlong), ogs->localGather.colIds);
   ogs->localScatter.o_colIds = device.malloc((ogs->localScatter.nnz+1)*sizeof(dlong), ogs->localScatter.colIds);
 
-  // create flat scatter map
-  ogs->localScatter.flatMap = (dlong*) calloc(N,sizeof(dlong)); //extra entry so the occa buffer will actually exist
-  for (dlong i=0;i<N;i++) {
-    ogs->localScatter.flatMap[i]   = -999; // no write
-  }
   
-  for (dlong i=0;i<ogs->Nlocal;i++) {
-    ogs->localScatter.flatMap[localNodes[i].localId] = localNodes[i].newId;
-  }
-  ogs->localScatter.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
-  ogs->localGather.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
 #if 0
   for (dlong i=0;i<N;i++) {
     printf("flatMap[%d] = %d\n", i, ogs->localScatter.flatMap[i]);
@@ -476,6 +466,7 @@ ogs_t *ogs_t::Setup(dlong N, hlong *ids, MPI_Comm &comm,
   ogs->gsh    = ogs::gsSetup(comm, ogs->Nhalo, haloIds, 0,0);
   ogs->gshSym = ogs::gsSetup(comm, ogs->Nhalo, haloIdsSym, 0,0);
 
+  
   free(haloIds);
   free(haloIdsSym);
 
@@ -490,6 +481,35 @@ ogs_t *ogs_t::Setup(dlong N, hlong *ids, MPI_Comm &comm,
   ogs->hostBuf = nullptr;
   ogs->haloBuf = nullptr;
   ogs->hostBufSize = 0;
+
+#if 1
+  // borrow the flat map from the gathered halo exchange
+  ogs->GatheredHaloExchangeSetup();
+  ogs->localScatter.o_flatMap = device.malloc(N*sizeof(dlong), ogs->GlobalToLocal);
+  ogs->localGather.o_flatMap = device.malloc(N*sizeof(dlong), ogs->GlobalToLocal);
+#else
+  ogs->Nhalo = 0;
+  ogs->GatheredHaloExchangeSetup();
+  
+  // create flat scatter map
+  ogs->localScatter.flatMap = (dlong*) calloc(N,sizeof(dlong)); //extra entry so the occa buffer will actually exist
+  for (dlong i=0;i<N;i++) {
+    ogs->localScatter.flatMap[i]   = -999; // no write
+  }
+  
+  for (dlong i=0;i<ogs->Nlocal;i++) {
+    ogs->localScatter.flatMap[localNodes[i].localId] = localNodes[i].newId;
+  }
+
+  for (dlong i=0;i<ogs->Nlocal;i++) {
+    printf("map[%d]=%d, GL[%d]=%d\n", i, ogs->localScatter.flatMap[i], i, ogs->GlobalToLocal[i]);
+  }
+  ogs->localScatter.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
+  ogs->localGather.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
+#endif
+
+
+
 
   return ogs;
 }
