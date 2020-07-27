@@ -70,11 +70,11 @@ void meshHex3D::CubatureSetup(){
   // free(cubProjectT);
   // free(cubInterpT);
 
-  cubvgeo = (dfloat*) calloc(Nelements*Nvgeo*cubNp, sizeof(dfloat));
+  // cubvgeo = (dfloat*) calloc(Nelements*Nvgeo*cubNp, sizeof(dfloat));
   cubggeo = (dfloat*) calloc(Nelements*Nggeo*cubNp, sizeof(dfloat));
 
-  cubsgeo = (dfloat*) calloc(Nelements*Nsgeo*cubNq*cubNq*Nfaces,
-                                sizeof(dfloat));
+  // cubsgeo = (dfloat*) calloc(Nelements*Nsgeo*cubNq*cubNq*Nfaces,
+  //                               sizeof(dfloat));
 
   //temp arrays
   dfloat *xre = (dfloat*) calloc(Np, sizeof(dfloat));
@@ -231,21 +231,21 @@ void meshHex3D::CubatureSetup(){
 
           /* store geometric factors */
           dlong base = Nvgeo*cubNp*e + i + j*cubNq + k*cubNq*cubNq;
-          cubvgeo[base + cubNp*RXID] = rx;
-          cubvgeo[base + cubNp*RYID] = ry;
-          cubvgeo[base + cubNp*RZID] = rz;
+          // cubvgeo[base + cubNp*RXID] = rx;
+          // cubvgeo[base + cubNp*RYID] = ry;
+          // cubvgeo[base + cubNp*RZID] = rz;
 
-          cubvgeo[base + cubNp*SXID] = sx;
-          cubvgeo[base + cubNp*SYID] = sy;
-          cubvgeo[base + cubNp*SZID] = sz;
+          // cubvgeo[base + cubNp*SXID] = sx;
+          // cubvgeo[base + cubNp*SYID] = sy;
+          // cubvgeo[base + cubNp*SZID] = sz;
 
-          cubvgeo[base + cubNp*TXID] = tx;
-          cubvgeo[base + cubNp*TYID] = ty;
-          cubvgeo[base + cubNp*TZID] = tz;
+          // cubvgeo[base + cubNp*TXID] = tx;
+          // cubvgeo[base + cubNp*TYID] = ty;
+          // cubvgeo[base + cubNp*TZID] = tz;
 
-          cubvgeo[base + cubNp*JID]  = J;
-          cubvgeo[base + cubNp*JWID] = JW;
-          cubvgeo[base + cubNp*IJWID] = 1./JW;
+          // cubvgeo[base + cubNp*JID]  = J;
+          // cubvgeo[base + cubNp*JWID] = JW;
+          // cubvgeo[base + cubNp*IJWID] = 1./JW;
 
           /* store second order geometric factors */
           base = Nggeo*cubNp*e + i + j*cubNq + k*cubNq*cubNq;
@@ -261,101 +261,101 @@ void meshHex3D::CubatureSetup(){
     }
 
     //surface geometric data for quadrature
-    for(int f=0;f<Nfaces;++f){ // for each face
+    // for(int f=0;f<Nfaces;++f){ // for each face
 
-      for(int j=0;j<Nq;++j){
-        for(int i=0;i<cubNq;++i){
-          dlong id = j*cubNq+i;
-          //interpolate derivatives of physical coordinates
-          xr1[id] = 0.0; xs1[id] = 0.0; xt1[id] = 0.0;
-          yr1[id] = 0.0; ys1[id] = 0.0; yt1[id] = 0.0;
-          zr1[id] = 0.0; zs1[id] = 0.0; zt1[id] = 0.0;
-          for(int n=0;n<Nq;++n){  // for each node on face
-            /* volume index of face node */
-            int idn = faceNodes[f*Nfp+j*Nq+n];
-            xr1[id] += cubInterp[i*Nq + n]*xre[idn];
-            xs1[id] += cubInterp[i*Nq + n]*xse[idn];
-            xt1[id] += cubInterp[i*Nq + n]*xte[idn];
-            yr1[id] += cubInterp[i*Nq + n]*yre[idn];
-            ys1[id] += cubInterp[i*Nq + n]*yse[idn];
-            yt1[id] += cubInterp[i*Nq + n]*yte[idn];
-            zr1[id] += cubInterp[i*Nq + n]*zre[idn];
-            zs1[id] += cubInterp[i*Nq + n]*zse[idn];
-            zt1[id] += cubInterp[i*Nq + n]*zte[idn];
-          }
-        }
-      }
+    //   for(int j=0;j<Nq;++j){
+    //     for(int i=0;i<cubNq;++i){
+    //       dlong id = j*cubNq+i;
+    //       //interpolate derivatives of physical coordinates
+    //       xr1[id] = 0.0; xs1[id] = 0.0; xt1[id] = 0.0;
+    //       yr1[id] = 0.0; ys1[id] = 0.0; yt1[id] = 0.0;
+    //       zr1[id] = 0.0; zs1[id] = 0.0; zt1[id] = 0.0;
+    //       for(int n=0;n<Nq;++n){  // for each node on face
+    //         /* volume index of face node */
+    //         int idn = faceNodes[f*Nfp+j*Nq+n];
+    //         xr1[id] += cubInterp[i*Nq + n]*xre[idn];
+    //         xs1[id] += cubInterp[i*Nq + n]*xse[idn];
+    //         xt1[id] += cubInterp[i*Nq + n]*xte[idn];
+    //         yr1[id] += cubInterp[i*Nq + n]*yre[idn];
+    //         ys1[id] += cubInterp[i*Nq + n]*yse[idn];
+    //         yt1[id] += cubInterp[i*Nq + n]*yte[idn];
+    //         zr1[id] += cubInterp[i*Nq + n]*zre[idn];
+    //         zs1[id] += cubInterp[i*Nq + n]*zse[idn];
+    //         zt1[id] += cubInterp[i*Nq + n]*zte[idn];
+    //       }
+    //     }
+    //   }
 
-      for(int j=0;j<cubNq;++j){
-        for(int i=0;i<cubNq;++i){
-          //interpolate derivatives of physical coordinates
-          dfloat xr = 0.0, xs = 0.0, xt = 0.0;
-          dfloat yr = 0.0, ys = 0.0, yt = 0.0;
-          dfloat zr = 0.0, zs = 0.0, zt = 0.0;
-          for(int n=0;n<Nq;++n){  // for each node on face
-            /* volume index of face node */
-            xr += cubInterp[j*Nq + n]*xr1[n*cubNq+i];
-            xs += cubInterp[j*Nq + n]*xs1[n*cubNq+i];
-            xt += cubInterp[j*Nq + n]*xt1[n*cubNq+i];
-            yr += cubInterp[j*Nq + n]*yr1[n*cubNq+i];
-            ys += cubInterp[j*Nq + n]*ys1[n*cubNq+i];
-            yt += cubInterp[j*Nq + n]*yt1[n*cubNq+i];
-            zr += cubInterp[j*Nq + n]*zr1[n*cubNq+i];
-            zs += cubInterp[j*Nq + n]*zs1[n*cubNq+i];
-            zt += cubInterp[j*Nq + n]*zt1[n*cubNq+i];
-          }
+    //   for(int j=0;j<cubNq;++j){
+    //     for(int i=0;i<cubNq;++i){
+    //       //interpolate derivatives of physical coordinates
+    //       dfloat xr = 0.0, xs = 0.0, xt = 0.0;
+    //       dfloat yr = 0.0, ys = 0.0, yt = 0.0;
+    //       dfloat zr = 0.0, zs = 0.0, zt = 0.0;
+    //       for(int n=0;n<Nq;++n){  // for each node on face
+    //         /* volume index of face node */
+    //         xr += cubInterp[j*Nq + n]*xr1[n*cubNq+i];
+    //         xs += cubInterp[j*Nq + n]*xs1[n*cubNq+i];
+    //         xt += cubInterp[j*Nq + n]*xt1[n*cubNq+i];
+    //         yr += cubInterp[j*Nq + n]*yr1[n*cubNq+i];
+    //         ys += cubInterp[j*Nq + n]*ys1[n*cubNq+i];
+    //         yt += cubInterp[j*Nq + n]*yt1[n*cubNq+i];
+    //         zr += cubInterp[j*Nq + n]*zr1[n*cubNq+i];
+    //         zs += cubInterp[j*Nq + n]*zs1[n*cubNq+i];
+    //         zt += cubInterp[j*Nq + n]*zt1[n*cubNq+i];
+    //       }
 
 
-          /* compute geometric factors for affine coordinate transform*/
-          dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
+    //       /* compute geometric factors for affine coordinate transform*/
+    //       dfloat J = xr*(ys*zt-zs*yt) - yr*(xs*zt-zs*xt) + zr*(xs*yt-ys*xt);
 
-          dfloat rx =  (ys*zt - zs*yt)/J, ry = -(xs*zt - zs*xt)/J, rz =  (xs*yt - ys*xt)/J;
-          dfloat sx = -(yr*zt - zr*yt)/J, sy =  (xr*zt - zr*xt)/J, sz = -(xr*yt - yr*xt)/J;
-          dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
+    //       dfloat rx =  (ys*zt - zs*yt)/J, ry = -(xs*zt - zs*xt)/J, rz =  (xs*yt - ys*xt)/J;
+    //       dfloat sx = -(yr*zt - zr*yt)/J, sy =  (xr*zt - zr*xt)/J, sz = -(xr*yt - yr*xt)/J;
+    //       dfloat tx =  (yr*zs - zr*ys)/J, ty = -(xr*zs - zr*xs)/J, tz =  (xr*ys - yr*xs)/J;
 
-          /* face f normal and length */
-          dfloat nx=0.0, ny=0.0, nz=0.0;
-          switch(f){
-          case 0: nx = -tx; ny = -ty; nz = -tz; break;
-          case 1: nx = -sx; ny = -sy; nz = -sz; break;
-          case 2: nx = +rx; ny = +ry; nz = +rz; break;
-          case 3: nx = +sx; ny = +sy; nz = +sz; break;
-          case 4: nx = -rx; ny = -ry; nz = -rz; break;
-          case 5: nx = +tx; ny = +ty; nz = +tz; break;
-          }
-          dfloat sJ = sqrt(nx*nx+ny*ny+nz*nz);
-          nx /= sJ; ny /= sJ; nz /= sJ;
-          sJ *= J;
+    //       /* face f normal and length */
+    //       dfloat nx=0.0, ny=0.0, nz=0.0;
+    //       switch(f){
+    //       case 0: nx = -tx; ny = -ty; nz = -tz; break;
+    //       case 1: nx = -sx; ny = -sy; nz = -sz; break;
+    //       case 2: nx = +rx; ny = +ry; nz = +rz; break;
+    //       case 3: nx = +sx; ny = +sy; nz = +sz; break;
+    //       case 4: nx = -rx; ny = -ry; nz = -rz; break;
+    //       case 5: nx = +tx; ny = +ty; nz = +tz; break;
+    //       }
+    //       dfloat sJ = sqrt(nx*nx+ny*ny+nz*nz);
+    //       nx /= sJ; ny /= sJ; nz /= sJ;
+    //       sJ *= J;
 
-          /* output index */
-          dlong base = Nsgeo*(Nfaces*cubNq*cubNq*e + cubNq*cubNq*f + j*cubNq + i);
+    //       /* output index */
+    //       dlong base = Nsgeo*(Nfaces*cubNq*cubNq*e + cubNq*cubNq*f + j*cubNq + i);
 
-          /* store normal, surface Jacobian, and reciprocal of volume Jacobian */
-          cubsgeo[base+NXID] = nx;
-          cubsgeo[base+NYID] = ny;
-          cubsgeo[base+NZID] = nz;
-          cubsgeo[base+SJID] = sJ;
-          cubsgeo[base+IJID] = 1./J;
+    //       /* store normal, surface Jacobian, and reciprocal of volume Jacobian */
+    //       cubsgeo[base+NXID] = nx;
+    //       cubsgeo[base+NYID] = ny;
+    //       cubsgeo[base+NZID] = nz;
+    //       cubsgeo[base+SJID] = sJ;
+    //       cubsgeo[base+IJID] = 1./J;
 
-          cubsgeo[base+WIJID] = 1./(J*cubw[0]);
-          cubsgeo[base+WSJID] = sJ*cubw[i]*cubw[j];
-        }
-      }
-    }
+    //       cubsgeo[base+WIJID] = 1./(J*cubw[0]);
+    //       cubsgeo[base+WSJID] = sJ*cubw[i]*cubw[j];
+    //     }
+    //   }
+    // }
   }
 
 
-  o_cubvgeo =
-    device.malloc(Nelements*Nvgeo*cubNp*sizeof(dfloat),
-        cubvgeo);
+  // o_cubvgeo =
+  //   device.malloc(Nelements*Nvgeo*cubNp*sizeof(dfloat),
+  //       cubvgeo);
 
   o_cubggeo =
     device.malloc(Nelements*Nggeo*cubNp*sizeof(dfloat),
         cubggeo);
 
-  o_cubsgeo =
-    device.malloc(Nelements*Nfaces*cubNq*cubNq*Nsgeo*sizeof(dfloat),
-        cubsgeo);
+  // o_cubsgeo =
+  //   device.malloc(Nelements*Nfaces*cubNq*cubNq*Nsgeo*sizeof(dfloat),
+  //       cubsgeo);
 
   free(xre); free(xse); free(xte);
   free(yre); free(yse); free(yte);

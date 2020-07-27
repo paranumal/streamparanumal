@@ -31,7 +31,7 @@ void meshTri2D::GeometricFactors(){
 
   /* unified storage array for geometric factors */
   Nvgeo = 5;
-  vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo, sizeof(dfloat));
+  // vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo, sizeof(dfloat));
 
   /* number of second order geometric factors */
   Nggeo = 4;
@@ -65,11 +65,11 @@ void meshTri2D::GeometricFactors(){
     dfloat sy =  (0.5/J)*(xe2-xe1);
 
     /* store geometric factors */
-    vgeo[Nvgeo*e + RXID] = rx;
-    vgeo[Nvgeo*e + RYID] = ry;
-    vgeo[Nvgeo*e + SXID] = sx;
-    vgeo[Nvgeo*e + SYID] = sy;
-    vgeo[Nvgeo*e +  JID] = J;
+    // vgeo[Nvgeo*e + RXID] = rx;
+    // vgeo[Nvgeo*e + RYID] = ry;
+    // vgeo[Nvgeo*e + SXID] = sx;
+    // vgeo[Nvgeo*e + SYID] = sy;
+    // vgeo[Nvgeo*e +  JID] = J;
 
     /* store second order geometric factors */
     ggeo[Nggeo*e + G00ID] = J*(rx*rx + ry*ry);
@@ -78,5 +78,9 @@ void meshTri2D::GeometricFactors(){
     ggeo[Nggeo*e + GWJID]  = J;
   }
 
-  halo->Exchange(vgeo, Nvgeo, ogs_dfloat);
+  // halo->Exchange(vgeo, Nvgeo, ogs_dfloat);
+
+  o_ggeo =
+    device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
+      ggeo);
 }

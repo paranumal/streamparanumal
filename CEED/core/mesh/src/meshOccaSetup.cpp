@@ -43,11 +43,11 @@ void mesh_t::OccaSetup(){
     o_localGatherElementList =
       device.malloc(NlocalGatherElements*sizeof(dlong), localGatherElementList);
 
-  o_vmapM = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapM);
-  o_vmapP = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapP);
-  o_mapP  = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), mapP);
+  // o_vmapM = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapM);
+  // o_vmapP = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapP);
+  // o_mapP  = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), mapP);
 
-  o_EToB = device.malloc(Nelements*Nfaces*sizeof(int), EToB);
+  // o_EToB = device.malloc(Nelements*Nfaces*sizeof(int), EToB);
 
   defaultStream = device.getStream();
 
@@ -58,8 +58,8 @@ void mesh_t::OccaSetup(){
   props["defines/" "p_Nfp"]= Nfp;
   props["defines/" "p_Nfaces"]= Nfaces;
   props["defines/" "p_NfacesNfp"]= Nfp*Nfaces;
-  props["defines/" "p_Nvgeo"]= Nvgeo;
-  props["defines/" "p_Nsgeo"]= Nsgeo;
+  // props["defines/" "p_Nvgeo"]= Nvgeo;
+  // props["defines/" "p_Nsgeo"]= Nsgeo;
   props["defines/" "p_Nggeo"]= Nggeo;
 
   props["defines/" "p_cubNq"]= cubNq;

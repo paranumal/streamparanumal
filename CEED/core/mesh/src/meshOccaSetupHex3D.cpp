@@ -31,7 +31,7 @@ void meshHex3D::OccaSetup(){
 
   this->mesh3D::OccaSetup();
 
-  //lumped mass matrix
+  // lumped mass matrix
   MM = (dfloat *) calloc(Np*Np, sizeof(dfloat));
   for (int k=0;k<Nq;k++) {
     for (int j=0;j<Nq;j++) {
@@ -42,11 +42,11 @@ void meshHex3D::OccaSetup(){
     }
   }
 
-  //build inverse of mass matrix
-  invMM = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  for (int n=0;n<Np*Np;n++)
-    invMM[n] = MM[n];
-  matrixInverse(Np,invMM);
+  // //build inverse of mass matrix
+  // invMM = (dfloat *) calloc(Np*Np,sizeof(dfloat));
+  // for (int n=0;n<Np*Np;n++)
+  //   invMM[n] = MM[n];
+  // matrixInverse(Np,invMM);
 
   // build trilinear geometric factors for hexes
   // if(settings.compareSetting("ELEMENT MAP", "AFFINE")){
@@ -76,18 +76,18 @@ void meshHex3D::OccaSetup(){
   //   o_gllzw = device.malloc(2*Nq*sizeof(dfloat), gllzw);
   // }
 
-  ggeoNoJW = (dfloat*) calloc(Np*Nelements*6,sizeof(dfloat));
-  for(int e=0;e<Nelements;++e){
-    for(int n=0;n<Np;++n){
-      ggeoNoJW[e*Np*6 + n + 0*Np] = ggeo[e*Np*Nggeo + n + G00ID*Np];
-      ggeoNoJW[e*Np*6 + n + 1*Np] = ggeo[e*Np*Nggeo + n + G01ID*Np];
-      ggeoNoJW[e*Np*6 + n + 2*Np] = ggeo[e*Np*Nggeo + n + G02ID*Np];
-      ggeoNoJW[e*Np*6 + n + 3*Np] = ggeo[e*Np*Nggeo + n + G11ID*Np];
-      ggeoNoJW[e*Np*6 + n + 4*Np] = ggeo[e*Np*Nggeo + n + G12ID*Np];
-      ggeoNoJW[e*Np*6 + n + 5*Np] = ggeo[e*Np*Nggeo + n + G22ID*Np];
-    }
-  }
-  o_ggeoNoJW = device.malloc(Np*Nelements*6*sizeof(dfloat), ggeoNoJW);
+  // ggeoNoJW = (dfloat*) calloc(Np*Nelements*6,sizeof(dfloat));
+  // for(int e=0;e<Nelements;++e){
+  //   for(int n=0;n<Np;++n){
+  //     ggeoNoJW[e*Np*6 + n + 0*Np] = ggeo[e*Np*Nggeo + n + G00ID*Np];
+  //     ggeoNoJW[e*Np*6 + n + 1*Np] = ggeo[e*Np*Nggeo + n + G01ID*Np];
+  //     ggeoNoJW[e*Np*6 + n + 2*Np] = ggeo[e*Np*Nggeo + n + G02ID*Np];
+  //     ggeoNoJW[e*Np*6 + n + 3*Np] = ggeo[e*Np*Nggeo + n + G11ID*Np];
+  //     ggeoNoJW[e*Np*6 + n + 4*Np] = ggeo[e*Np*Nggeo + n + G12ID*Np];
+  //     ggeoNoJW[e*Np*6 + n + 5*Np] = ggeo[e*Np*Nggeo + n + G22ID*Np];
+  //   }
+  // }
+  // o_ggeoNoJW = device.malloc(Np*Nelements*6*sizeof(dfloat), ggeoNoJW);
 
 
   o_MM = device.malloc(Np*Np*sizeof(dfloat), MM);
@@ -100,15 +100,15 @@ void meshHex3D::OccaSetup(){
   o_sMT = device.malloc(1*sizeof(dfloat)); //dummy
   o_LIFTT = device.malloc(1*sizeof(dfloat)); // dummy
 
-  o_vgeo =
-    device.malloc((Nelements+totalHaloPairs)*Np*Nvgeo*sizeof(dfloat),
-                        vgeo);
+  // o_vgeo =
+  //   device.malloc((Nelements+totalHaloPairs)*Np*Nvgeo*sizeof(dfloat),
+  //                       vgeo);
 
-  o_sgeo =
-    device.malloc(Nelements*Nfaces*Nfp*Nsgeo*sizeof(dfloat),
-                        sgeo);
+  // o_sgeo =
+  //   device.malloc(Nelements*Nfaces*Nfp*Nsgeo*sizeof(dfloat),
+  //                       sgeo);
 
-  o_ggeo =
-    device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
-      ggeo);
+  // o_ggeo =
+  //   device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
+  //     ggeo);
 }

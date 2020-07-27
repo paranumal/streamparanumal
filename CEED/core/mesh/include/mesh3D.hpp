@@ -34,6 +34,9 @@ public:
   mesh3D(occa::device& _device, MPI_Comm& _comm,
          settings_t& _settings, occa::properties& _props);
 
+  // repartition elements in parallel
+  void GeometricPartition();
+
   // serial face-node to face-node connection
   void ConnectFaceNodes();
 

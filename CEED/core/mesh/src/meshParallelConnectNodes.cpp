@@ -53,15 +53,16 @@ void mesh_t::ParallelConnectNodes(){
       dlong id = e*Np+n;
 
       baseRank[id] = rank;
-      globalIds[id] = 1 + id + Nnodes + gatherNodeStart;
+      // globalIds[id] = 1 + id + Nnodes + gatherNodeStart;
+      globalIds[id] = 1 + id + gatherNodeStart;
     }
 
     // use vertex ids for vertex nodes to reduce iterations
-    for(int v=0;v<Nverts;++v){
-      dlong id = e*Np + vertexNodes[v];
-      hlong gid = EToV[e*Nverts+v] + 1;
-      globalIds[id] = gid;
-    }
+    // for(int v=0;v<Nverts;++v){
+    //   dlong id = e*Np + vertexNodes[v];
+    //   hlong gid = EToV[e*Nverts+v] + 1;
+    //   globalIds[id] = gid;
+    // }
   }
 
   dlong localChange = 0, gatherChange = 1;

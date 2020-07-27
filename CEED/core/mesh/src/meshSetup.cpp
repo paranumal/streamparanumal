@@ -59,6 +59,9 @@ mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
   //build a box mesh
   mesh->SetupBox();
 
+  // partition elements using Morton ordering & parallel sort
+  // mesh->GeometricPartition();
+
   // connect elements using parallel sort
   mesh->ParallelConnect();
 
@@ -79,13 +82,22 @@ mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
   mesh->PhysicalNodes();
 
   // compute geometric factors
-  mesh->GeometricFactors();
+  if (elementType == TRIANGLES) {
+    mesh->Nggeo=4;
+  } else if (elementType == QUADRILATERALS) {
+    mesh->Nggeo=4;
+  } else if (elementType == TETRAHEDRA) {
+    mesh->Nggeo=7;
+  } else if (elementType == HEXAHEDRA) {
+    mesh->Nggeo=7;
+  }
+  // mesh->GeometricFactors();
 
   // connect face nodes (find trace indices)
   mesh->ConnectFaceNodes();
 
   // compute surface geofacs
-  mesh->SurfaceGeometricFactors();
+  // mesh->SurfaceGeometricFactors();
 
   // make a global indexing
   mesh->ParallelConnectNodes();
@@ -94,8 +106,6 @@ mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
   mesh->ParallelGatherScatterSetup();
 
   mesh->OccaSetup();
-
-  mesh->BoundarySetup();
 
   return *mesh;
 }

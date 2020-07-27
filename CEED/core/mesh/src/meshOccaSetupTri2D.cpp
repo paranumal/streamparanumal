@@ -144,17 +144,17 @@ void meshTri2D::OccaSetup(){
     device.malloc(Np*Nfaces*Nfp*sizeof(dfloat),
         LIFTT);
 
-  o_vgeo =
-    device.malloc((Nelements+totalHaloPairs)*Nvgeo*sizeof(dfloat),
-        vgeo);
+  // o_vgeo =
+  //   device.malloc((Nelements+totalHaloPairs)*Nvgeo*sizeof(dfloat),
+  //       vgeo);
 
-  o_sgeo =
-    device.malloc(Nelements*Nfaces*Nsgeo*sizeof(dfloat),
-        sgeo);
+  // o_sgeo =
+  //   device.malloc(Nelements*Nfaces*Nsgeo*sizeof(dfloat),
+  //       sgeo);
 
-  o_ggeo =
-    device.malloc(Nelements*Nggeo*sizeof(dfloat),
-        ggeo);
+  // o_ggeo =
+  //   device.malloc(Nelements*Nggeo*sizeof(dfloat),
+  //       ggeo);
 
   o_SrrT = device.malloc(Np*Np*sizeof(dfloat), SrrT);
   o_SrsT = device.malloc(Np*Np*sizeof(dfloat), SrsT);

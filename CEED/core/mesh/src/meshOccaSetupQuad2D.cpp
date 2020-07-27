@@ -58,13 +58,13 @@ void meshQuad2D::OccaSetup(){
 
   o_LIFTT = device.malloc(1*sizeof(dfloat)); // dummy
 
-  o_vgeo =
-    device.malloc((Nelements+totalHaloPairs)*Nvgeo*Np*sizeof(dfloat),
-        vgeo);
-  o_sgeo =
-    device.malloc(Nelements*Nfaces*Nfp*Nsgeo*sizeof(dfloat),
-        sgeo);
-  o_ggeo =
-    device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
-        ggeo);
+  // o_vgeo =
+  //   device.malloc((Nelements+totalHaloPairs)*Nvgeo*Np*sizeof(dfloat),
+  //       vgeo);
+  // o_sgeo =
+  //   device.malloc(Nelements*Nfaces*Nfp*Nsgeo*sizeof(dfloat),
+  //       sgeo);
+  // o_ggeo =
+  //   device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
+  //       ggeo);
 }

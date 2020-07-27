@@ -105,28 +105,36 @@ SOFTWARE.
   for(dlong m=0;m<Nvectors;++m;@outer(2)){                                      \
     for(dlong k=0;k<Nentries;++k;@outer(1)){                                    \
       for(dlong b=0;b<Nblocks;++b;@outer(0)){                                   \
-        @exclusive dlong blockStart, blockEnd, start;                           \
+        @exclusive dlong rowStart, rowEnd;                                      \
         @shared T temp[p_gatherNodesPerBlock];                                  \
                                                                                 \
         for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          blockStart = blockStarts[b];                                          \
-          blockEnd   = blockStarts[b+1];                                        \
-          start = gatherStarts[blockStart];                                     \
+          rowStart = blockStarts[b];                                            \
+          rowEnd   = blockStarts[b+1];                                          \
                                                                                 \
-          for (dlong id=start+n;id<gatherStarts[blockEnd];id+=p_blockSize) {    \
-            temp[id-start] = q[k+gatherIds[id]*Nentries+m*stride];              \
+          const dlong row = gatherStarts[rowStart]+n;                           \
+          if (b!=Nblocks-1) {                                                   \
+            for (dlong i=0;i<p_gatherNodesPerBlock;i+=p_blockSize) {            \
+              temp[i+n] = q[k+gatherIds[i+row]*Nentries+m*stride];              \
+            }                                                                   \
+          } else {                                                              \
+            for (dlong i=0;row+i<gatherStarts[rowEnd];i+=p_blockSize) {         \
+              temp[i+n] = q[k+gatherIds[i+row]*Nentries+m*stride];              \
+            }                                                                   \
           }                                                                     \
         }                                                                       \
                                                                                 \
         for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {          \
-            const dlong rowStart = gatherStarts[row]  -start;                   \
-            const dlong rowEnd   = gatherStarts[row+1]-start;                   \
+          dlong row = n+rowStart;                                               \
+          while (row<rowEnd) {                                                  \
+            const dlong colStart = gatherStarts[row]  -gatherStarts[rowStart];  \
+            const dlong colEnd   = gatherStarts[row+1]-gatherStarts[rowStart];  \
             T gq = init_##T##_##OP;                                             \
-            for (dlong i=rowStart;i<rowEnd;i++) {                               \
+            for (dlong i=colStart;i<colEnd;i++) {                               \
               OGS_DO_##OP(gq,temp[i]);                                          \
             }                                                                   \
             gatherq[k+row*Nentries+m*gstride] = gq;                             \
+            row += p_blockSize;                                                 \
           }                                                                     \
         }                                                                       \
       }                                                                         \
@@ -153,26 +161,29 @@ SOFTWARE.
   for(dlong m=0;m<Nvectors;++m;@outer(2)){                                      \
     for(dlong k=0;k<Nentries;++k;@outer(1)){                                    \
       for(dlong b=0;b<Nblocks;++b;@outer(0)){                                   \
-        @exclusive dlong blockStart, blockEnd, start;                           \
+        @exclusive dlong rowStart, rowEnd;                                      \
         @shared T temp[p_gatherNodesPerBlock];                                  \
                                                                                 \
         for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          blockStart = blockStarts[b];                                          \
-          blockEnd   = blockStarts[b+1];                                        \
-          start = scatterStarts[blockStart];                                    \
-          for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {          \
-            const dlong rowStart = scatterStarts[row]  -start;                  \
-            const dlong rowEnd   = scatterStarts[row+1]-start;                  \
-            temp[rowStart] = gatherq[k+row*Nentries+m*gstride];                 \
-            for (dlong i=rowStart+1;i<rowEnd;i++) {                             \
-              temp[i] = temp[rowStart];                                         \
+          rowStart = blockStarts[b];                                            \
+          rowEnd   = blockStarts[b+1];                                          \
+                                                                                \
+          dlong row = n+rowStart;                                               \
+          while (row<rowEnd) {                                                  \
+            const dlong colStart = scatterStarts[row]  -scatterStarts[rowStart];\
+            const dlong colEnd   = scatterStarts[row+1]-scatterStarts[rowStart];\
+            temp[colStart] = gatherq[k+row*Nentries+m*gstride];                 \
+            for (dlong i=colStart;i<colEnd;i++) {                               \
+              temp[i] = temp[colStart];                                         \
             }                                                                   \
+            row += p_blockSize;                                                 \
           }                                                                     \
         }                                                                       \
                                                                                 \
         for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          for (dlong id=start+n;id<scatterStarts[blockEnd];id+=p_blockSize) {   \
-            q[k+scatterIds[id]*Nentries+m*stride] = temp[id-start];             \
+          const dlong row = scatterStarts[rowStart]+n;                          \
+          for (dlong i=0;row+i<scatterStarts[rowEnd];i+=p_blockSize) {          \
+            q[k+scatterIds[row+i]*Nentries+m*stride] = temp[i+n];               \
           }                                                                     \
         }                                                                       \
       }                                                                         \

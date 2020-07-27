@@ -33,7 +33,7 @@ void meshQuad2D::GeometricFactors(){
   Nvgeo = 7;
 
   /* note that we have volume geometric factors for each node */
-  vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo*Np, sizeof(dfloat));
+  // vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo*Np, sizeof(dfloat));
 
   /* number of second order geometric factors */
   Nggeo = 4;
@@ -75,13 +75,13 @@ void meshQuad2D::GeometricFactors(){
         dfloat JW = J*gllw[i]*gllw[j];
 
         /* store geometric factors */
-        vgeo[Nvgeo*Np*e + n + Np*RXID] = rx;
-        vgeo[Nvgeo*Np*e + n + Np*RYID] = ry;
-        vgeo[Nvgeo*Np*e + n + Np*SXID] = sx;
-        vgeo[Nvgeo*Np*e + n + Np*SYID] = sy;
-        vgeo[Nvgeo*Np*e + n + Np*JID]  = J;
-        vgeo[Nvgeo*Np*e + n + Np*JWID] = JW;
-        vgeo[Nvgeo*Np*e + n + Np*IJWID] = 1./JW;
+        // vgeo[Nvgeo*Np*e + n + Np*RXID] = rx;
+        // vgeo[Nvgeo*Np*e + n + Np*RYID] = ry;
+        // vgeo[Nvgeo*Np*e + n + Np*SXID] = sx;
+        // vgeo[Nvgeo*Np*e + n + Np*SYID] = sy;
+        // vgeo[Nvgeo*Np*e + n + Np*JID]  = J;
+        // vgeo[Nvgeo*Np*e + n + Np*JWID] = JW;
+        // vgeo[Nvgeo*Np*e + n + Np*IJWID] = 1./JW;
 
         /* store second order geometric factors */
         ggeo[Nggeo*Np*e + n + Np*G00ID] = JW*(rx*rx + ry*ry);
@@ -92,5 +92,9 @@ void meshQuad2D::GeometricFactors(){
     }
   }
 
-  halo->Exchange(vgeo, Nvgeo*Np, ogs_dfloat);
+  // halo->Exchange(vgeo, Nvgeo*Np, ogs_dfloat);
+
+  o_ggeo =
+    device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
+      ggeo);
 }

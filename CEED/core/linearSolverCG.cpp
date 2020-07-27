@@ -35,8 +35,7 @@ cg::~cg() {
   updateCGKernel.free();
 }
 
-void cg::Init(int _weighted, occa::memory& o_weight,
-             dlong _N, dlong Nhalo) {
+void cg::Init(dlong _N, dlong Nhalo) {
 
   N = _N;
   dlong Ntotal = N + Nhalo;
@@ -44,12 +43,8 @@ void cg::Init(int _weighted, occa::memory& o_weight,
   /*aux variables */
   dfloat *dummy = (dfloat *) calloc(Ntotal,sizeof(dfloat)); //need this to avoid uninitialized memory warnings
   o_p  = device.malloc(Ntotal*sizeof(dfloat),dummy);
-  o_Ax = device.malloc(Ntotal*sizeof(dfloat),dummy);
   o_Ap = device.malloc(Ntotal*sizeof(dfloat),dummy);
   free(dummy);
-
-  weighted = _weighted;
-  o_w = o_weight;
 
   //pinned tmp buffer for reductions
   occa::properties mprops;
@@ -83,15 +78,12 @@ int cg::Solve(solver_t& solver,
   dfloat rdotr = 0.0;
 
   // compute A*x
-  solver.Operator(o_x, o_Ax);
+  solver.Operator(o_x, o_Ap);
 
   // subtract r = r - A*x
-  linAlg.axpy(N, -1.f, o_Ax, 1.f, o_r);
+  linAlg.axpy(N, -1.f, o_Ap, 1.f, o_r);
 
-  if (weighted)
-    rdotr = linAlg.weightedNorm2(N, o_w, o_r, comm);
-  else
-    rdotr = linAlg.norm2(N, o_r, comm);
+  rdotr = linAlg.norm2(N, o_r, comm);
   rdotr = rdotr*rdotr;
 
   dfloat TOL = mymax(tol*tol*rdotr,tol*tol);
@@ -118,10 +110,7 @@ int cg::Solve(solver_t& solver,
     solver.Operator(o_p, o_Ap);
 
     // p.Ap
-    if (weighted)
-      pAp =  linAlg.weightedInnerProd(N, o_w, o_p, o_Ap, comm);
-    else
-      pAp =  linAlg.innerProd(N, o_p, o_Ap, comm);
+    pAp =  linAlg.innerProd(N, o_p, o_Ap, comm);
 
     alpha = rdotr1/pAp;
 
@@ -149,7 +138,7 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
   int Nblocks = (N+CG_BLOCKSIZE-1)/CG_BLOCKSIZE;
   Nblocks = (Nblocks>CG_BLOCKSIZE) ? CG_BLOCKSIZE : Nblocks; //limit to CG_BLOCKSIZE entries
 
-  updateCGKernel(N, Nblocks, weighted, o_w, o_p, o_Ap, alpha, o_x, o_r, o_tmprdotr);
+  updateCGKernel(N, Nblocks, o_p, o_Ap, alpha, o_x, o_r, o_tmprdotr);
 
   o_tmprdotr.copyTo(tmprdotr, Nblocks*sizeof(dfloat));
 

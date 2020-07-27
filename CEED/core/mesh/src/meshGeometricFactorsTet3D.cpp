@@ -31,7 +31,7 @@ void meshTet3D::GeometricFactors(){
 
   /* unified storage array for geometric factors */
   Nvgeo = 12;
-  vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo, sizeof(dfloat));
+  // vgeo = (dfloat*) calloc((Nelements+totalHaloPairs)*Nvgeo, sizeof(dfloat));
 
   /* number of second order geometric factors */
   Nggeo = 7;
@@ -71,16 +71,16 @@ void meshTet3D::GeometricFactors(){
     maxJ = mymax(maxJ,J);
 
     /* store geometric factors */
-    vgeo[Nvgeo*e + RXID] = rx;
-    vgeo[Nvgeo*e + RYID] = ry;
-    vgeo[Nvgeo*e + RZID] = rz;
-    vgeo[Nvgeo*e + SXID] = sx;
-    vgeo[Nvgeo*e + SYID] = sy;
-    vgeo[Nvgeo*e + SZID] = sz;
-    vgeo[Nvgeo*e + TXID] = tx;
-    vgeo[Nvgeo*e + TYID] = ty;
-    vgeo[Nvgeo*e + TZID] = tz;
-    vgeo[Nvgeo*e +  JID] = J;
+    // vgeo[Nvgeo*e + RXID] = rx;
+    // vgeo[Nvgeo*e + RYID] = ry;
+    // vgeo[Nvgeo*e + RZID] = rz;
+    // vgeo[Nvgeo*e + SXID] = sx;
+    // vgeo[Nvgeo*e + SYID] = sy;
+    // vgeo[Nvgeo*e + SZID] = sz;
+    // vgeo[Nvgeo*e + TXID] = tx;
+    // vgeo[Nvgeo*e + TYID] = ty;
+    // vgeo[Nvgeo*e + TZID] = tz;
+    // vgeo[Nvgeo*e +  JID] = J;
     //    printf("geo: %g,%g,%g - %g,%g,%g - %g,%g,%g\n",
     //     rx,ry,rz, sx,sy,sz, tx,ty,tz);
 
@@ -95,5 +95,9 @@ void meshTet3D::GeometricFactors(){
   }
 
   //printf("minJ = %g, maxJ = %g\n", minJ, maxJ);
-  halo->Exchange(vgeo, Nvgeo, ogs_dfloat);
+  // halo->Exchange(vgeo, Nvgeo, ogs_dfloat);
+
+  o_ggeo =
+    device.malloc(Nelements*Np*Nggeo*sizeof(dfloat),
+      ggeo);
 }
