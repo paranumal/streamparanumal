@@ -72,7 +72,7 @@ void bs4_t::Run(){
 
   //  for(int test=0;test<1000000;++test){
   //    int Nrun = Nmax;
-
+  printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n");
   for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
 
     // rest gpu (do here to avoid clock drop after warm up)
@@ -100,7 +100,7 @@ void bs4_t::Run(){
     size_t bytesOut = 0;
     size_t bytes = bytesIn + bytesOut;
     
-    printf("BS4: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
+    printf("4, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
   }
   

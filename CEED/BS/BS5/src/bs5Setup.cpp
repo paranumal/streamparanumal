@@ -38,6 +38,11 @@ bs5_t& bs5_t::Setup(occa::device& device, MPI_Comm& comm,
   
   kernelInfo["defines/" "p_blockSize"] = bs5->blockSize;
 
+  if(settings.compareSetting("THREAD MODEL", "HIP"))
+    kernelInfo["defines/" "USE_HIP"] = 1;
+  else
+    kernelInfo["defines/" "USE_HIP"] = 0;
+  
   bs5->kernel1 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_1", kernelInfo, comm);
   bs5->kernel2 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_2", kernelInfo, comm);
 
