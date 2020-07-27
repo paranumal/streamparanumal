@@ -39,38 +39,61 @@ void bs6_t::Run(){
 
   int Ntests = 50;
 
-  occa::streamTag start = mesh.device.tagStream();
+  mesh.device.finish();
+  MPI_Barrier(mesh.comm);
+  double startTime = MPI_Wtime();
 
   for(int n=0;n<Ntests;++n){
     mesh.ogsMasked->GatherScatter(o_q, ogs_dfloat, ogs_add, ogs_sym);
   }
 
-  occa::streamTag end = mesh.device.tagStream();
   mesh.device.finish();
+  MPI_Barrier(mesh.comm);
+  double endTime = MPI_Wtime();
+  double elapsedTime = (endTime - startTime)/Ntests;
 
-  double elapsedTime = mesh.device.timeBetween(start, end)/Ntests;
+  hlong Nblocks =    mesh.ogsMasked->symGatherScatter.NrowBlocks
+                  +2*mesh.ogsMasked->haloScatter.NrowBlocks;
+  hlong NblocksGlobal;
+  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+
+  hlong Ngather =    mesh.ogsMasked->symGatherScatter.Nrows
+                  +2*mesh.ogsMasked->haloScatter.Nrows;
+  hlong NgatherGlobal;
+  MPI_Allreduce(&Ngather, &NgatherGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+
+  hlong NLocal  =    mesh.ogsMasked->symGatherScatter.nnz
+                  +2*mesh.ogsMasked->haloScatter.nnz;
+  hlong NGlobal;
+  MPI_Allreduce(&NLocal, &NGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
   size_t bytesIn=0;
   size_t bytesOut=0;
-
-  dlong Nblocks = mesh.ogsMasked->symGatherScatter.NrowBlocks;
-  dlong Ngather = mesh.ogsMasked->symGatherScatter.Nrows;
-  dlong Nlocal  = mesh.ogsMasked->symGatherScatter.nnz;
-
-  bytesIn += (Nblocks+1)*sizeof(dlong); //block starts
-  bytesIn += (Ngather+1)*sizeof(dlong); //row starts
-  bytesIn += Nlocal*sizeof(dlong); //local Ids
-  bytesIn += Nlocal*sizeof(dfloat); //values
-  bytesOut+= Nlocal*sizeof(dfloat);
+  bytesIn += (NblocksGlobal+1)*sizeof(dlong); //block starts
+  bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
+  bytesIn += NGlobal*sizeof(dlong); //local Ids
+  bytesIn += NGlobal*sizeof(dfloat); //values
+  bytesOut+= NGlobal*sizeof(dfloat);
 
   size_t bytes = bytesIn + bytesOut;
 
-  printf("BS6: " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ; dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n",
-         mesh.Nelements*mesh.Np,
-         elapsedTime,
-         elapsedTime/(mesh.Np*mesh.Nelements),
-         mesh.Nelements*((dfloat) mesh.Np/elapsedTime),
-         bytes/(1e9*elapsedTime));
+  hlong Nflops =    mesh.ogsMasked->symGatherScatter.nnz
+                  + mesh.ogsMasked->haloScatter.nnz;
+  hlong NflopsGlobal;
+  MPI_Allreduce(&Nflops, &NflopsGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+
+  hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
+
+  if ((mesh.rank==0)){
+    printf("BS6 (gatherScatter): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+           mesh.N,
+           Ndofs,
+           elapsedTime,
+           elapsedTime/(Ndofs),
+           bytes/(1.0e9 * elapsedTime),
+           NflopsGlobal/(1.0e9 * elapsedTime),
+           Ndofs/(mesh.size*elapsedTime));
+  }
 
   o_q.free();
 }

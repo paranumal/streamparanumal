@@ -30,6 +30,10 @@ bs7_t& bs7_t::Setup(mesh_t& mesh){
 
   bs7_t* bs7 = new bs7_t(mesh);
 
+  //make masked ogs
+  int Nfields=1;
+  mesh.BoundarySetup(Nfields);
+
   return *bs7;
 }
 

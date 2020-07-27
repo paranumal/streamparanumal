@@ -45,14 +45,14 @@ make -j `nproc`
 
 echo "Running BS8..."
 
-./BS8 -m $mode -nx 160 -ny 80 -nz 80 -p 1
-./BS8 -m $mode -nx  80 -ny 80 -nz 40 -p 2
-./BS8 -m $mode -nx  80 -ny 40 -nz 40 -p 3
-./BS8 -m $mode -nx  40 -ny 40 -nz 40 -p 4
-./BS8 -m $mode -nx  40 -ny 40 -nz 20 -p 5
-./BS8 -m $mode -nx  40 -ny 20 -nz 20 -p 6
-./BS8 -m $mode -nx  30 -ny 20 -nz 20 -p 7
-./BS8 -m $mode -nx  20 -ny 20 -nz 20 -p 8
+mpirun -np 1 BS8 -m $mode -nx 159 -ny 159 -nz 159 -p 1
+mpirun -np 1 BS8 -m $mode -nx  80 -ny  80 -nz  80 -p 2
+mpirun -np 1 BS8 -m $mode -nx  53 -ny  53 -nz  53 -p 3
+mpirun -np 1 BS8 -m $mode -nx  40 -ny  40 -nz  40 -p 4
+mpirun -np 1 BS8 -m $mode -nx  32 -ny  32 -nz  32 -p 5
+mpirun -np 1 BS8 -m $mode -nx  27 -ny  27 -nz  27 -p 6
+mpirun -np 1 BS8 -m $mode -nx  23 -ny  23 -nz  23 -p 7
+mpirun -np 1 BS8 -m $mode -nx  20 -ny  20 -nz  20 -p 8
 
 #
 # Noel Chalmers
