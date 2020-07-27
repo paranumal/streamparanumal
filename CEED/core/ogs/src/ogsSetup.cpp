@@ -136,6 +136,8 @@ ogs_t *ogs_t::Setup(dlong N, hlong *ids, MPI_Comm &comm,
 
   //flag each set of ids by whether there is at least one positive id
   // and count how many local gather/scatter nodes we have
+  ogs->localGather.N = N;
+  ogs->localScatter.N = N;
   ogs->localGather.Nrows = 0;
   ogs->localScatter.Nrows = 0;
   if (ogs->Nlocal) {
@@ -230,6 +232,23 @@ ogs_t *ogs_t::Setup(dlong N, hlong *ids, MPI_Comm &comm,
   ogs->localGather.o_colIds  = device.malloc((ogs->localGather.nnz+1)*sizeof(dlong), ogs->localGather.colIds);
   ogs->localScatter.o_colIds = device.malloc((ogs->localScatter.nnz+1)*sizeof(dlong), ogs->localScatter.colIds);
 
+  // create flat scatter map
+  ogs->localScatter.flatMap = (dlong*) calloc(N,sizeof(dlong)); //extra entry so the occa buffer will actually exist
+  for (dlong i=0;i<N;i++) {
+    ogs->localScatter.flatMap[i]   = -999; // no write
+  }
+  
+  for (dlong i=0;i<ogs->Nlocal;i++) {
+    ogs->localScatter.flatMap[localNodes[i].localId] = localNodes[i].newId;
+  }
+  ogs->localScatter.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
+  ogs->localGather.o_flatMap = device.malloc(N*sizeof(dlong), ogs->localScatter.flatMap);
+#if 0
+  for (dlong i=0;i<N;i++) {
+    printf("flatMap[%d] = %d\n", i, ogs->localScatter.flatMap[i]);
+  }
+#endif	   
+  
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approxiamtely an equal amount of data
   setupRowBlocks(ogs->localGather, device);

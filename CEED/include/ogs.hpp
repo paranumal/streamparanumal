@@ -202,6 +202,7 @@ typedef enum { ogs_sym, ogs_notrans, ogs_trans } ogs_transpose;
 
 class ogsData_t {
 public:
+  dlong N=0; // original local store size
   dlong Nrows=0;
   dlong nnz=0;
   dlong NrowBlocks=0;
@@ -210,6 +211,10 @@ public:
   dlong *rowStarts=nullptr;
   dlong *colIds=nullptr;
 
+  /* TW Bits */
+  dlong *flatMap;
+  occa::memory o_flatMap;
+  
   occa::memory o_blockRowStarts;
   occa::memory o_rowStarts;
   occa::memory o_colIds;

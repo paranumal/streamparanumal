@@ -142,6 +142,7 @@ void occaScatterKernel(const ogsData_t &scatter,
                        occa::memory& o_gv,
                        occa::memory& o_v) {
 
+#if 0
 #define WITH_TYPE(T)                          \
   scatterKernel_##T(scatter.NrowBlocks,       \
                     scatter.Nrows,            \
@@ -154,7 +155,19 @@ void occaScatterKernel(const ogsData_t &scatter,
                     scatter.o_colIds,         \
                     o_gv,                     \
                     o_v);
-
+#else
+  //  printf("scatter.N = %d, Netnries=%d, Nvectors=%d, Nrows=%d, stride=%d, gstrid=%d\n",
+  //	 scatter.N, Nentries, Nvectors, scatter.Nrows, stride, gstride);
+#define WITH_TYPE(T)                          \
+  scatterKernel_##T(scatter.N,		      \
+                    Nentries,                 \
+                    Nvectors,                 \
+                    gstride,                  \
+                    stride,                   \
+                    scatter.o_flatMap,	      \
+                    o_gv,                     \
+                    o_v);
+#endif
   SWITCH_TYPE(type)
 
 #undef  WITH_TYPE

@@ -54,6 +54,7 @@ void bs8_t::Run(){
   double endTime = MPI_Wtime();
   double elapsedTime = (endTime - startTime)/Ntests;
 
+#if 0
   hlong Nblocks = mesh.ogs->localScatter.NrowBlocks+mesh.ogs->haloScatter.NrowBlocks;
   hlong NblocksGlobal;
   MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
@@ -66,21 +67,29 @@ void bs8_t::Run(){
 
   size_t bytesIn=0;
   size_t bytesOut=0;
+
   bytesIn += (NblocksGlobal+1)*sizeof(dlong); //block starts
   bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
   bytesIn += NunMaskedGlobal*sizeof(dlong); //local Ids
   bytesIn += NgatherGlobal*sizeof(dfloat); //values
   bytesOut+= NunMaskedGlobal*sizeof(dfloat);
-
+#else
+  hlong Ntotal = mesh.Nelements*mesh.Np;
+  hlong NtotalGlobal;
+  MPI_Allreduce(&Ntotal, &NtotalGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  size_t bytesIn  = NtotalGlobal*(sizeof(dlong)+sizeof(dfloat));
+  size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
+#endif
   size_t bytes = bytesIn + bytesOut;
 
   hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){
-    printf("BS8 (scatter): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS8 (scatter): %d, " hlongFormat "," hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, NlocalTotal, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
            mesh.N,
            Ndofs,
+	   NtotalGlobal,
            elapsedTime,
            elapsedTime/(Ndofs),
            bytes/(1.0e9 * elapsedTime),

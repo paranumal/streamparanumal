@@ -142,56 +142,83 @@ SOFTWARE.
   }                                                                             \
 }
 
+#if 0
 /*------------------------------------------------------------------------------
   The basic scatter kernel
 ------------------------------------------------------------------------------*/
-#define DEFINE_SCATTER(T)                                                       \
-@kernel void scatter_##T(const dlong Nblocks,                                   \
-                         const dlong N,                                         \
-                         const int   Nentries,                                  \
-                         const int   Nvectors,                                  \
-                         const dlong gstride,                                   \
-                         const dlong stride,                                    \
-                         @restrict const dlong *blockStarts,                    \
-                         @restrict const dlong *scatterStarts,                  \
-                         @restrict const dlong *scatterIds,                     \
-                         @restrict const     T *gatherq,                        \
-                         @restrict           T *q)                              \
-{                                                                               \
-  for(dlong m=0;m<Nvectors;++m;@outer(2)){                                      \
-    for(dlong k=0;k<Nentries;++k;@outer(1)){                                    \
-      for(dlong b=0;b<Nblocks;++b;@outer(0)){                                   \
-        @exclusive dlong rowStart, rowEnd;                                      \
-        @shared T temp[p_gatherNodesPerBlock];                                  \
-                                                                                \
-        for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          rowStart = blockStarts[b];                                            \
-          rowEnd   = blockStarts[b+1];                                          \
-                                                                                \
-          dlong row = n+rowStart;                                               \
-          while (row<rowEnd) {                                                  \
-            const dlong colStart = scatterStarts[row]  -scatterStarts[rowStart];\
-            const dlong colEnd   = scatterStarts[row+1]-scatterStarts[rowStart];\
-            temp[colStart] = gatherq[k+row*Nentries+m*gstride];                 \
-            for (dlong i=colStart;i<colEnd;i++) {                               \
-              temp[i] = temp[colStart];                                         \
-            }                                                                   \
-            row += p_blockSize;                                                 \
-          }                                                                     \
-        }                                                                       \
-                                                                                \
-        for(dlong n=0;n<p_blockSize;++n;@inner){                                \
-          const dlong row = scatterStarts[rowStart]+n;                          \
-          for (dlong i=0;row+i<scatterStarts[rowEnd];i+=p_blockSize) {          \
-            q[k+scatterIds[row+i]*Nentries+m*stride] = temp[i+n];               \
-          }                                                                     \
-        }                                                                       \
-      }                                                                         \
-    }                                                                           \
-  }                                                                             \
-}
+#define DEFINE_SCATTER(T)						\
+  @kernel void scatter_##T(const dlong Nblocks,				\
+			   const dlong N,				\
+			   const int   Nentries,			\
+			   const int   Nvectors,			\
+			   const dlong gstride,				\
+			   const dlong stride,				\
+			   @restrict const dlong *blockStarts,		\
+			   @restrict const dlong *scatterStarts,	\
+			   @restrict const dlong *scatterIds,		\
+			   @restrict const     T *gatherq,		\
+			   @restrict           T *q)			\
+  {									\
+    for(dlong m=0;m<Nvectors;++m;@outer(2)){				\
+      for(dlong k=0;k<Nentries;++k;@outer(1)){				\
+	for(dlong b=0;b<Nblocks;++b;@outer(0)){				\
+	  @exclusive dlong rowStart, rowEnd;				\
+	  @shared T temp[p_gatherNodesPerBlock];			\
+	  								\
+	  for(dlong n=0;n<p_blockSize;++n;@inner){			\
+	    rowStart = blockStarts[b];					\
+	    rowEnd   = blockStarts[b+1];				\
+	    dlong idStart = scatterStarts[rowStart];			\
+	    dlong row = n+rowStart;					\
+	    while (row<rowEnd) {					\
+	      const dlong colStart = scatterStarts[row]  -idStart;	\
+	      const dlong colEnd   = scatterStarts[row+1]-idStart;	\
+	      T foo = gatherq[k+row*Nentries+m*gstride];		\
+	      for (dlong i=colStart;i<colEnd;i++) {			\
+		temp[i] = foo;						\
+	      }								\
+	      row += p_blockSize;					\
+	    }								\
+	  }								\
+	  								\
+	  for(dlong n=0;n<p_blockSize;++n;@inner){			\
+	    const dlong row = scatterStarts[rowStart]+n;		\
+	    for (dlong i=0;row+i<scatterStarts[rowEnd];i+=p_blockSize) { \
+	      q[k+scatterIds[row+i]*Nentries+m*stride] = temp[i+n];	\
+	    }								\
+	  }								\
+	}								\
+      }									\
+    }									\
+  }
 
-#define DEFINE_PROCS(T) \
+#else
+/*------------------------------------------------------------------------------
+  The basic flat scatter kernel
+  ------------------------------------------------------------------------------*/
+#define DEFINE_SCATTER(T)						\
+  @kernel void scatter_##T(const dlong N,				\
+			   const int   Nentries,			\
+			   const int   Nvectors,			\
+			   const dlong gstride,				\
+			   const dlong stride,				\
+			   @restrict const dlong *map,			\
+			   @restrict const     T *gatherq,		\
+			   @restrict           T *q)			\
+  {									\
+    for(dlong n=0;n<N;++n;@tile(256, @outer(0), @inner(0))){		\
+      dlong id = map[n];						\
+      if(id>=0){							\
+	for(int v=0;v<Nvectors;++v){					\
+	  q[n+v*stride] = gatherq[id+v*gstride];			\
+	}								\
+      }									\
+    }									\
+  }
+#endif
+
+
+#define DEFINE_PROCS(T)			  \
   OGS_FOR_EACH_OP(T,DEFINE_GATHERSCATTER) \
   OGS_FOR_EACH_OP(T,DEFINE_GATHER) \
   DEFINE_SCATTER(T)
