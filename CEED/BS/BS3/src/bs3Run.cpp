@@ -108,7 +108,7 @@ void bs3_t::Run(){
     
     printf("3, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
-    fflush(stdout);
+    //    fflush(stdout);
   }
   
   o_a.free();
