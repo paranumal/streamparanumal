@@ -28,13 +28,6 @@ SOFTWARE.
 
 void bs3_t::Run(){
 
-#if 0
-  //create arrays buffers
-  int N = 0;
-  settings.getSetting("BYTES", N);
-  N /= sizeof(dfloat);
-#else
-
   int N = 0;
   int Nmin = 0, Nmax = 0, Nsamples = 1;
   int B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
@@ -50,14 +43,12 @@ void bs3_t::Run(){
     settings.getSetting("BMAX", Bmax);
     settings.getSetting("NSAMPLES", Nsamples);
   }
-
-  // should scale down by #reads + #writes per entry
-  N = Bmax/sizeof(dfloat);
-  Nmax = Bmax/sizeof(dfloat);
-  Nmin = Bmin/sizeof(dfloat);
-
-#endif
-
+  
+  int sc = 1*sizeof(dfloat);  // bytes moved per entry
+  Nmin = Bmin/sc;
+  Nmax = Bmax/sc;
+  N = Nmax;
+  
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
   occa::memory o_norm = device.malloc(1*sizeof(dfloat));
@@ -103,7 +94,7 @@ void bs3_t::Run(){
     size_t bytesOut = 0;
     size_t bytes = bytesIn + bytesOut;
     
-    printf("3, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
+    printf("3, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
     //    fflush(stdout);
   }

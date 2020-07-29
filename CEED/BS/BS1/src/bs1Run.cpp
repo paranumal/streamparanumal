@@ -29,14 +29,10 @@ SOFTWARE.
 void bs1_t::Run(){
 
   //create arrays buffers
-#if 0
-  int N = 0;
-  settings.getSetting("BYTES", N);
-  N /= sizeof(dfloat);
-#else
   int N = 0;
   int Nmin = 0, Nmax = 0, Nsamples = 1;
   int B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
+
   settings.getSetting("BYTES", B);
   if(B){
     Bmin = B;
@@ -48,11 +44,11 @@ void bs1_t::Run(){
     settings.getSetting("BMAX", Bmax);
     settings.getSetting("NSAMPLES", Nsamples);
   }
-  // should scale down by #reads + #writes per entry
-  N = Bmax/sizeof(dfloat);
-  Nmax = Bmax/sizeof(dfloat);
-  Nmin = Bmin/sizeof(dfloat);
-#endif
+
+  int sc = 2*sizeof(dfloat);  // bytes moved per entry
+  Nmin = Bmin/sc;
+  Nmax = Bmax/sc;
+  N = Nmax;
   
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
@@ -91,7 +87,7 @@ void bs1_t::Run(){
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
     
-    printf("1, " dlongFormat ", %4.4f, %1.2e, %1.2e, %4.1f ;\n",
+    printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5lef ;\n",
 	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
     //    fflush(stdout);
   }

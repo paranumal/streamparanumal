@@ -29,11 +29,6 @@
 void bs2_t::Run(){
 
   //create arrays buffers
-#if 0
-  int N = 0;
-  settings.getSetting("BYTES", N);
-  N /= sizeof(dfloat);
-#else
   int N = 0;
   int Nmin = 0, Nmax = 0, Nsamples = 1;
   int B = 0, Bmin = 0, Bmax = 0;
@@ -48,11 +43,11 @@ void bs2_t::Run(){
     settings.getSetting("BMAX", Bmax);
     settings.getSetting("NSAMPLES", Nsamples);
   }
-  // should scale down by #reads + #writes per entry
-  N = Bmax/sizeof(dfloat);
-  Nmax = Bmax/sizeof(dfloat);
-  Nmin = Bmin/sizeof(dfloat);
-#endif
+
+  int sc = 3*sizeof(dfloat);  // bytes moved per entry
+  Nmin = Bmin/sc;
+  Nmax = Bmax/sc;
+  N = Nmax;
   
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));

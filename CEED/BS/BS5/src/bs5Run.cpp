@@ -29,11 +29,6 @@
 void bs5_t::Run(){
 
   //create arrays buffers
-#if 0
-  int N = 0;
-  settings.getSetting("BYTES", N);
-  N /= sizeof(dfloat);
-#endif
   
   int N = 0;
   int Nmin = 0, Nmax = 0, Nsamples = 1;
@@ -50,9 +45,10 @@ void bs5_t::Run(){
     settings.getSetting("NSAMPLES", Nsamples);
   }
   
-  N = Bmax/sizeof(dfloat);
-  Nmax = Bmax/sizeof(dfloat);
-  Nmin = Bmin/sizeof(dfloat);
+  int sc = 6*sizeof(dfloat);  // bytes moved per entry
+  Nmin = Bmin/sc;
+  Nmax = Bmax/sc;
+  N = Nmax;
   
   occa::memory o_p  = device.malloc(N*sizeof(dfloat));
   occa::memory o_Ap = device.malloc(N*sizeof(dfloat));
