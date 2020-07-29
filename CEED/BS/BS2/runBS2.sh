@@ -46,7 +46,7 @@ make -j `nproc`
 echo "Running BS2..."
 
 #./BS2 -m $mode -b 1073741824
-./BS2 -m $mode -bmin 1024 -bmax 1073741824  -bstep 819200
+./BS2 -m $mode -bmin 1024 -bmax 1073741824  -nsamp 400
 #
 # Noel Chalmers
 # AMD Research

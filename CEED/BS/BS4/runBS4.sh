@@ -45,8 +45,8 @@ make -j `nproc`
 
 echo "Running BS4..."
 
-#./BS4 -m $mode -b 1073741824
-./BS4 -m $mode -bmin 1024 -bmax 1073741824  -bstep 819200
+#./BS4 -m $mode -b 1073741824 
+./BS4 -m $mode -bmin 1024 -bmax 1073741824  -nsamp 400
 
 #
 # Noel Chalmers

@@ -35,24 +35,24 @@ void bs4_t::Run(){
   N /= sizeof(dfloat);
 #else
     int N = 0;
-  int Nmin = 0, Nmax = 0, Nstep = 0;
-  int B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
+    int Nmin = 0, Nmax = 0, Nsamples = 1;
+    int B = 0, Bmin = 0, Bmax = 0;
   settings.getSetting("BYTES", B);
   if(B){
     Bmin = B;
     Bmax = B;
-    Bstep = sizeof(dfloat);
+    Nsamples = 1;
   }
   else{
     settings.getSetting("BMIN", Bmin);
     settings.getSetting("BMAX", Bmax);
-    settings.getSetting("BSTEP", Bstep);
+    settings.getSetting("NSAMPLES", Nsamples);
   }
   // should scale down by #reads + #writes per entry
   N = Bmax/sizeof(dfloat);
   Nmax = Bmax/sizeof(dfloat);
   Nmin = Bmin/sizeof(dfloat);
-  Nstep = Bstep/sizeof(dfloat);
+
 #endif
   
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
@@ -73,11 +73,12 @@ void bs4_t::Run(){
   //  for(int test=0;test<1000000;++test){
   //    int Nrun = Nmax;
   printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n");
-  for(int Nrun=Nmin;Nrun<=Nmax;Nrun+=Nstep){
+  for(int samp=1;samp<=Nsamples;++samp){
+    int Nrun = Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2)));
 
     // rest gpu (do here to avoid clock drop after warm up)
-    device.finish();
-    usleep(1e6);
+    //    device.finish();
+    //    usleep(1e6);
     
     int Nblock = (Nrun+blockSize-1)/blockSize;
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries

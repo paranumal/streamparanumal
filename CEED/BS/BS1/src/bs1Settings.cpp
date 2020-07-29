@@ -58,6 +58,11 @@ bs1Settings_t::bs1Settings_t(const int argc, char** argv, MPI_Comm &_comm):
              "819200",
              "Array step size in bytes");
 
+  newSetting("-nsamp", "--nsamp",
+             "NSAMPLES",
+             "1",
+             "Array step size in bytes");
+  
   parseSettings(argc, argv);
 }
 
