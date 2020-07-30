@@ -75,7 +75,7 @@ void bs2_t::Run(){
     /* AXPY Test */
     int Ntests = 40;
     for(int n=0;n<Ntests;++n){
-      kernel(N, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
+      kernel(Nrun, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
     }
 
     device.finish();
