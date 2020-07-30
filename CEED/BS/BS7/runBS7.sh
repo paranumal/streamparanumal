@@ -45,15 +45,52 @@ make -j `nproc`
 
 echo "Running BS7..."
 
-./BS7 -m $mode -nx 159 -ny 159 -nz 159 -p 1
-./BS7 -m $mode -nx  80 -ny  80 -nz  80 -p 2
-./BS7 -m $mode -nx  53 -ny  53 -nz  53 -p 3
-./BS7 -m $mode -nx  40 -ny  40 -nz  40 -p 4
-./BS7 -m $mode -nx  32 -ny  32 -nz  32 -p 5
-./BS7 -m $mode -nx  27 -ny  27 -nz  27 -p 6
-./BS7 -m $mode -nx  23 -ny  23 -nz  23 -p 7
-./BS7 -m $mode -nx  20 -ny  20 -nz  20 -p 8
+for n in `seq 8 2 120`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 1
+done
 
+for n in `seq 4 2 100`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 2
+done
+
+for n in `seq 2 2 80`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 3
+done
+
+for n in `seq 2 2 60`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 4
+done
+
+
+for n in `seq 2 2 50`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 5
+done
+
+
+for n in `seq 2 32`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 6
+done
+
+
+for n in `seq 4 24`
+do
+    ./BS7 -m $mode -nx $n -ny $n -nz $n -p 7
+done
+
+
+#mpirun -np 1 BS7 -m $mode -nx  80 -ny  80 -nz  80 -p 2
+#mpirun -np 1 BS7 -m $mode -nx  53 -ny  53 -nz  53 -p 3
+#mpirun -np 1 BS7 -m $mode -nx  40 -ny  40 -nz  40 -p 4
+#mpirun -np 1 BS7 -m $mode -nx  32 -ny  32 -nz  32 -p 5
+#mpirun -np 1 BS7 -m $mode -nx  27 -ny  27 -nz  27 -p 6
+#mpirun -np 1 BS7 -m $mode -nx  23 -ny  23 -nz  23 -p 7
+#mpirun -np 1 BS7 -m $mode -nx  20 -ny  20 -nz  20 -p 8
 
 #
 # Noel Chalmers
