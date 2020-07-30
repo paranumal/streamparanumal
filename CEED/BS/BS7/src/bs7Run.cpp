@@ -58,13 +58,13 @@ void bs7_t::Run(){
   hlong NtotalGlobal;
   MPI_Allreduce(&Ntotal, &NtotalGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
-#if 0
   hlong Nblocks = mesh.ogs->localScatter.NrowBlocks+mesh.ogs->haloScatter.NrowBlocks;
   hlong NblocksGlobal;
   MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
   hlong NgatherGlobal = mesh.ogsMasked->NgatherGlobal;
 
+#if 0
   hlong NunMasked = N - mesh.Nmasked;
   hlong NunMaskedGlobal;
   MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
@@ -77,7 +77,7 @@ void bs7_t::Run(){
   bytesIn += NgatherGlobal*sizeof(dfloat); //values
   bytesOut+= NunMaskedGlobal*sizeof(dfloat);
 #else
-  size_t bytesIn  = NtotalGlobal*(sizeof(dlong)+sizeof(dfloat));
+  size_t bytesIn  = NgatherGlobal*sizeof(dfloat)+NtotalGlobal*sizeof(dlong);
   size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
 #endif
   size_t bytes = bytesIn + bytesOut;
