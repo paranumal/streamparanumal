@@ -24,9 +24,9 @@ SOFTWARE.
 
 */
 
-#include "bs7.hpp"
+#include "bs6.hpp"
 
-void bs7_t::Run(){
+void bs6_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
@@ -78,7 +78,7 @@ void bs7_t::Run(){
   size_t Nflops = NunMaskedGlobal;
 
   if ((mesh.rank==0)){
-    printf("BS7 (gather): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS6 (gather): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
            mesh.N,
            Ndofs,
            elapsedTime,

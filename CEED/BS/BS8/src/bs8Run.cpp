@@ -24,9 +24,9 @@ SOFTWARE.
 
 */
 
-#include "bs6.hpp"
+#include "bs8.hpp"
 
-void bs6_t::Run(){
+void bs8_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
@@ -85,7 +85,7 @@ void bs6_t::Run(){
   hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
 
   if ((mesh.rank==0)){
-    printf("BS6 (gatherScatter): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS8 (gatherScatter): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
            mesh.N,
            Ndofs,
            elapsedTime,

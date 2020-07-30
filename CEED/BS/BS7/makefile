@@ -24,11 +24,11 @@
 #
 #####################################################################################
 
-define BS8_HELP_MSG
+define BS7_HELP_MSG
 
-Bakeoff Streaming 8 makefile targets:
+Bakeoff Streaming 7 makefile targets:
 
-   make BS8 (default)
+   make BS7 (default)
    make clean
    make clean-libs
    make clean-kernels
@@ -38,10 +38,10 @@ Bakeoff Streaming 8 makefile targets:
 
 Usage:
 
-make BS8
-   Build BS8 executable.
+make BS7
+   Build BS7 executable.
 make clean
-   Clean the BS8 executable and object files.
+   Clean the BS7 executable and object files.
 make clean-libs
    In addition to "make clean", also clean the mesh, ogs, and core libraries.
 make clean-kernels
@@ -57,10 +57,10 @@ Can use "make verbose=true" for verbose output.
 
 endef
 
-ifeq (,$(filter BS8 clean clean-libs clean-kernels \
+ifeq (,$(filter BS7 clean clean-libs clean-kernels \
                 realclean info help,$(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
-$(error ${BS8_HELP_MSG})
+$(error ${BS7_HELP_MSG})
 endif
 endif
 
@@ -90,7 +90,7 @@ DEFINES =${CEED_DEFINES} \
          -DCEED_DIR='"${CEED_DIR}"'
 
 #.cpp compilation flags
-BS8_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
+BS7_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
 LIBS=-L${CORE_DIR} -lmesh -logs -lcore \
@@ -100,7 +100,7 @@ LIBS=-L${CORE_DIR} -lmesh -logs -lcore \
      ${CEED_LIBS}
 
 #link flags
-LFLAGS=${BS8_CXXFLAGS} ${LIBS}
+LFLAGS=${BS7_CXXFLAGS} ${LIBS}
 
 #object dependancies
 DEPS=$(wildcard *.hpp) \
@@ -112,16 +112,16 @@ SRC =$(wildcard src/*.cpp)
 OBJS=$(SRC:.cpp=.o)
 
 .PHONY: all libcore libmesh libogs libgs libblas clean clean-libs \
-		clean-kernels realclean help info BS8
+		clean-kernels realclean help info BS7
 
-all: BS8
+all: BS7
 
-BS8:$(OBJS) bs8Main.o | libmesh
+BS7:$(OBJS) bs7Main.o | libmesh
 ifneq (,${verbose})
-	$(LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	$(LD) -o BS7 bs7Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	@$(LD) -o BS7 bs7Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 endif
 
 libmesh: libogs libgs libblas libcore
@@ -162,15 +162,15 @@ endif
 # rule for .cpp files
 %.o: %.cpp $(DEPS) | libmesh
 ifneq (,${verbose})
-	$(CXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
+	$(CXX) -o $*.o -c $*.cpp $(BS7_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
+	@$(CXX) -o $*.o -c $*.cpp $(BS7_CXXFLAGS)
 endif
 
 #cleanup
 clean:
-	rm -f src/*.o *.o BS8
+	rm -f src/*.o *.o BS7
 
 clean-libs: clean
 	${MAKE} -C ${OGS_DIR} clean
@@ -185,13 +185,13 @@ realclean: clean-libs
 	${MAKE} -C ${BLAS_DIR} clean
 
 help:
-	$(info $(value BS8_HELP_MSG))
+	$(info $(value BS7_HELP_MSG))
 	@true
 
 info:
 	$(info OCCA_DIR  = $(OCCA_DIR))
 	$(info CEED_DIR  = $(CEED_DIR))
 	$(info CEED_ARCH = $(CEED_ARCH))
-	$(info CXXFLAGS  = $(BS8_CXXFLAGS))
+	$(info CXXFLAGS  = $(BS7_CXXFLAGS))
 	$(info LIBS      = $(LIBS))
 	@true

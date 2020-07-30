@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function HELP {
-  echo "Usage: ./runBS6.sh -m MODE"
+  echo "Usage: ./runBS8.sh -m MODE"
   exit 1
 }
 
@@ -36,23 +36,23 @@ if [ ! -d "../../../occa" ]; then
   cd ../../../
   git clone https://github.com/libocca/occa
   cd occa; make -j `nproc`
-  cd ../CEED/BS/BS6
+  cd ../CEED/BS/BS8
 fi
 
 export OCCA_DIR=${PWD}/../../../occa
 
 make -j `nproc`
 
-echo "Running BS6..."
+echo "Running BS8..."
 
-mpirun -np 1 BS6 -m $mode -nx 159 -ny 159 -nz 159 -p 1
-mpirun -np 1 BS6 -m $mode -nx  80 -ny  80 -nz  80 -p 2
-mpirun -np 1 BS6 -m $mode -nx  53 -ny  53 -nz  53 -p 3
-mpirun -np 1 BS6 -m $mode -nx  40 -ny  40 -nz  40 -p 4
-mpirun -np 1 BS6 -m $mode -nx  32 -ny  32 -nz  32 -p 5
-mpirun -np 1 BS6 -m $mode -nx  27 -ny  27 -nz  27 -p 6
-mpirun -np 1 BS6 -m $mode -nx  23 -ny  23 -nz  23 -p 7
-mpirun -np 1 BS6 -m $mode -nx  20 -ny  20 -nz  20 -p 8
+mpirun -np 1 BS8 -m $mode -nx 159 -ny 159 -nz 159 -p 1
+mpirun -np 1 BS8 -m $mode -nx  80 -ny  80 -nz  80 -p 2
+mpirun -np 1 BS8 -m $mode -nx  53 -ny  53 -nz  53 -p 3
+mpirun -np 1 BS8 -m $mode -nx  40 -ny  40 -nz  40 -p 4
+mpirun -np 1 BS8 -m $mode -nx  32 -ny  32 -nz  32 -p 5
+mpirun -np 1 BS8 -m $mode -nx  27 -ny  27 -nz  27 -p 6
+mpirun -np 1 BS8 -m $mode -nx  23 -ny  23 -nz  23 -p 7
+mpirun -np 1 BS8 -m $mode -nx  20 -ny  20 -nz  20 -p 8
 
 #
 # Noel Chalmers

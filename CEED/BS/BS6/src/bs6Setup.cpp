@@ -24,17 +24,17 @@ SOFTWARE.
 
 */
 
-#include "bs7.hpp"
+#include "bs6.hpp"
 
-bs7_t& bs7_t::Setup(mesh_t& mesh){
+bs6_t& bs6_t::Setup(mesh_t& mesh){
 
-  bs7_t* bs7 = new bs7_t(mesh);
+  bs6_t* bs6 = new bs6_t(mesh);
 
   //make masked ogs
   int Nfields=1;
   mesh.BoundarySetup(Nfields);
 
-  return *bs7;
+  return *bs6;
 }
 
-bs7_t::~bs7_t() {}
+bs6_t::~bs6_t() {}

@@ -24,32 +24,32 @@ SOFTWARE.
 
 */
 
-#ifndef BS6_HPP
-#define BS6_HPP 1
+#ifndef BS8_HPP
+#define BS8_HPP 1
 
 #include "core.hpp"
 #include "mesh.hpp"
 
-#define DBS6 CEED_DIR"/BS/BS6/"
+#define DBS8 CEED_DIR"/BS/BS8/"
 
-class bs6Settings_t: public settings_t {
+class bs8Settings_t: public settings_t {
 public:
-  bs6Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs8Settings_t(const int argc, char** argv, MPI_Comm& _comm);
   void report();
 };
 
-class bs6_t {
+class bs8_t {
 public:
   mesh_t& mesh;
 
-  bs6_t() = delete;
-  bs6_t(mesh_t& _mesh):
+  bs8_t() = delete;
+  bs8_t(mesh_t& _mesh):
     mesh(_mesh) {}
 
-  ~bs6_t();
+  ~bs8_t();
 
   //setup
-  static bs6_t& Setup(mesh_t& mesh);
+  static bs8_t& Setup(mesh_t& mesh);
 
   void Run();
 };

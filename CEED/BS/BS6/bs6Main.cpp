@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#include "bs7.hpp"
+#include "bs6.hpp"
 
 int main(int argc, char **argv){
 
@@ -33,7 +33,7 @@ int main(int argc, char **argv){
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
-  bs7Settings_t settings(argc, argv, comm);
+  bs6Settings_t settings(argc, argv, comm);
   if (settings.compareSetting("VERBOSE", "TRUE"))
     settings.report();
 
@@ -46,7 +46,7 @@ int main(int argc, char **argv){
   mesh_t& mesh = mesh_t::Setup(device, comm, settings, props);
 
   // set up bs solver
-  bs7_t& bs = bs7_t::Setup(mesh);
+  bs6_t& bs = bs6_t::Setup(mesh);
 
   // run
   bs.Run();

@@ -24,9 +24,9 @@ SOFTWARE.
 
 */
 
-#include "bs8.hpp"
+#include "bs7.hpp"
 
-void bs8_t::Run(){
+void bs7_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
@@ -86,7 +86,7 @@ void bs8_t::Run(){
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){
-    printf("BS8 (scatter): %d, " hlongFormat "," hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, NlocalTotal, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS7 (scatter): %d, " hlongFormat "," hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, NlocalTotal, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
            mesh.N,
            Ndofs,
 	   NtotalGlobal,

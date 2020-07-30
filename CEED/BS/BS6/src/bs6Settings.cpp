@@ -24,10 +24,10 @@ SOFTWARE.
 
 */
 
-#include "bs7.hpp"
+#include "bs6.hpp"
 
-//settings for bs7 solver
-bs7Settings_t::bs7Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+//settings for bs6 solver
+bs6Settings_t::bs6Settings_t(const int argc, char** argv, MPI_Comm &_comm):
   settings_t(_comm) {
 
   occaAddSettings(*this);
@@ -42,7 +42,7 @@ bs7Settings_t::bs7Settings_t(const int argc, char** argv, MPI_Comm &_comm):
   parseSettings(argc, argv);
 }
 
-void bs7Settings_t::report() {
+void bs6Settings_t::report() {
 
   std::cout << "Settings:\n\n";
   occaReportSettings(*this);
