@@ -91,8 +91,6 @@ BS2_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
 LIBS=-L${CORE_DIR} -lcore \
-     -L${BLAS_DIR} -lBlasLapack \
-     -lgfortran \
      ${CEED_LIBS}
 
 #link flags

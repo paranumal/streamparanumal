@@ -52,7 +52,11 @@ export LD	= mpic++
 export CFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function
 export CXXFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
 
-export CEED_LIBS=-Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca $(links)
+export CEED_BLAS_DIR=/usr/lib/x86_64-linux-gnu/
+export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu/
+
+export CEED_LIBS= -L$(CEED_LAPACK_DIR)/lib -llapack -L$(CEED_BLAS_DIR)/lib -lblas \
+                  -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca $(links)
 
 export CEED_DEFINES=-DUSE_OCCA_MEM_BYTE_ALIGN=32
 

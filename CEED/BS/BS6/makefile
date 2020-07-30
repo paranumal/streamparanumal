@@ -95,8 +95,6 @@ BS6_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
 #link libraries
 LIBS=-L${CORE_DIR} -lmesh -logs -lcore \
      -L$(GS_DIR)/lib -lgs \
-     -L${BLAS_DIR} -lBlasLapack \
-     -lgfortran \
      ${CEED_LIBS}
 
 #link flags
