@@ -48,38 +48,40 @@ void bs2_t::Run(){
   Nmin = Bmin/sc;
   Nmax = Bmax/sc;
   N = Nmax;
-  
+
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
-  occa::memory o_c = device.malloc(N*sizeof(dfloat));
-  
+
+  const dfloat alpha = 1.0;
+  const dfloat beta = 1.0;
+
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
-    kernel(N, o_a, o_b, o_c); //c = a + b
+    kernel(N, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
   }
 
   printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s), Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz) \n");
-  
+
   for(int samp=1;samp<=Nsamples;++samp){
     int Nrun = Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2)));
     // int Nrun = Nmax;
     // rest gpu (do here to avoid clock drop after warm up)
-    //    device.finish();   
+    //    device.finish();
     //    usleep(1e6);
 
     device.finish();
     dfloat tic = MPI_Wtime();
-    
-    /* ADD Test */
-    int Ntests = 40;   
+
+    /* AXPY Test */
+    int Ntests = 40;
     for(int n=0;n<Ntests;++n){
-      kernel(Nrun, o_a, o_b, o_c); //c = a + b
+      kernel(N, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
     }
 
     device.finish();
     dfloat toc = MPI_Wtime();
     double elapsedTime = (toc-tic)/Ntests;
-    
+
     size_t bytesIn  = 2*Nrun*sizeof(dfloat);
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
@@ -87,7 +89,7 @@ void bs2_t::Run(){
     void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
     hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
-    
+
     printf("2, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
 	   Nrun, (double)elapsedTime, (double)elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, (double)(bytes/1.e9)/elapsedTime,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
@@ -96,5 +98,4 @@ void bs2_t::Run(){
 
   o_a.free();
   o_b.free();
-  o_c.free();
 }
