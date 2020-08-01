@@ -44,11 +44,13 @@ void bs5_t::Run(){
     settings.getSetting("BMAX", Bmax);
     settings.getSetting("NSAMPLES", Nsamples);
   }
-  
+
   int sc = 6*sizeof(dfloat);  // bytes moved per entry
-  Nmin = Bmin/sc;
+  Nmin = mymax(1,Bmin/sc);
   Nmax = Bmax/sc;
   N = Nmax;
+
+  printf("Nmin = %d, Nmax = %d, N = %d\n", Nmin, Nmax, N);
   
   occa::memory o_p  = device.malloc(N*sizeof(dfloat));
   occa::memory o_Ap = device.malloc(N*sizeof(dfloat));
@@ -57,7 +59,9 @@ void bs5_t::Run(){
 
   occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
 
-  int maxNblock = (N+blockSize-1)/(blockSize);
+  int maxNblock = (Nmax+blockSize-1)/(blockSize);
+  maxNblock = (maxNblock>blockSize) ? blockSize : maxNblock; //limit to blockSize entries  
+
   occa::memory o_tmp = device.malloc(maxNblock*sizeof(dfloat));
     
   const dfloat alpha = 1.0;
@@ -77,29 +81,33 @@ void bs5_t::Run(){
 
   printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s), Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz) \n");
   for(int samp=1;samp<=Nsamples;++samp){
-    int Nrun = Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2)));
+    int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
 
-    // rest gpu (do here to avoid clock drop after warm up)
-    //    device.finish();
-    //    usleep(1e6);
-    
     int Nblock = (Nrun+blockSize-1)/(blockSize);
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
-    
-    device.finish();
-    dfloat tic = MPI_Wtime();
 
-    /* CGupdate Test */
-    int Ntests = 50;
-    for(int n=0;n<Ntests;++n){
-      kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-      kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
-    }
+    double minElapsedTime = 1e9;
+    int Nattempts = 5;
     
-    //  occa::streamTag end = device.tagStream();
-    device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
+    for(int att=0;att<Nattempts;++att){
+      
+      device.finish();
+      dfloat tic = MPI_Wtime();
+      
+      /* CGupdate Test */
+      int Ntests = 20;
+      for(int n=0;n<Ntests;++n){
+	kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+	kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+      }
+      
+      //  occa::streamTag end = device.tagStream();
+      device.finish();
+      dfloat toc = MPI_Wtime();
+      double elapsedTime = (toc-tic)/Ntests;
+
+      minElapsedTime = mymin(minElapsedTime, elapsedTime);
+    }
     
     size_t bytesIn  = 4*Nrun*sizeof(dfloat);
     size_t bytesOut = 2*Nrun*sizeof(dfloat);
@@ -110,12 +118,8 @@ void bs5_t::Run(){
     hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
     
     printf("2, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
-	   Nrun, (double)elapsedTime, (double)elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, (double)(bytes/1.e9)/elapsedTime,
+	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
-
-
-    
-    //    fflush(stdout);
     
   }
 

@@ -62,33 +62,45 @@ void bs1_t::Run(){
   //    int Nrun = Nmax;
   printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s) \n");
   for(int samp=1;samp<=Nsamples;++samp){
-    int Nrun = Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2)));
-    
-    // rest gpu (do here to avoid clock drop after warm up)
-    //    device.finish();
-    //    usleep(1e6);
+    int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
 
-    // tic
-    device.finish();
-    dfloat tic = MPI_Wtime();
-    
-    /* COPY Test */
-    int Ntests = 40;
-    for(int n=0;n<Ntests;++n){
-      kernel(Nrun, o_a, o_b); //b = a
+    double minElapsedTime = 1e9;
+    int Nattempts = 5;
+
+    for(int att=0;att<Nattempts;++att){
+      
+      // tic
+      device.finish();
+      dfloat tic = MPI_Wtime();
+      
+      /* COPY Test */
+      int Ntests = 20;
+      for(int n=0;n<Ntests;++n){
+	kernel(Nrun, o_a, o_b); //b = a
+      }
+      
+      device.finish();
+      dfloat toc = MPI_Wtime();
+      double elapsedTime = (toc-tic)/Ntests;
+
+      minElapsedTime = mymin(minElapsedTime, elapsedTime);
     }
-    
-    //    occa::streamTag end = device.tagStream();
-    device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
     
     size_t bytesIn  = Nrun*sizeof(dfloat);
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
     
-    printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5lef ;\n",
-	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
+    //    printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5lef ;\n",
+    //	   Nrun, minElapsedTime, minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, bytes/(1e9*minElapsedTime));
+
+    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
+    double Tlist[3], freqList[3];
+    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
+    
+    printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
+	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
+	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
+
     //    fflush(stdout);
   }
   
