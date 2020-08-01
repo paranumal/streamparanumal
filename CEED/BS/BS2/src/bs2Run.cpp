@@ -63,24 +63,32 @@ void bs2_t::Run(){
   printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s), Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz) \n");
 
   for(int samp=1;samp<=Nsamples;++samp){
-    int Nrun = Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2)));
+    int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
     // int Nrun = Nmax;
     // rest gpu (do here to avoid clock drop after warm up)
     //    device.finish();
     //    usleep(1e6);
 
-    device.finish();
-    dfloat tic = MPI_Wtime();
+    double minElapsedTime = 1e9;
+    int Nattempts = 5;
 
-    /* AXPY Test */
-    int Ntests = 40;
-    for(int n=0;n<Ntests;++n){
-      kernel(Nrun, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
+    for(int att=0;att<Nattempts;++att){
+    
+      device.finish();
+      dfloat tic = MPI_Wtime();
+      
+      /* AXPY Test */
+      int Ntests = 20;
+      for(int n=0;n<Ntests;++n){
+	kernel(Nrun, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
+      }
+      
+      device.finish();
+      dfloat toc = MPI_Wtime();
+      double elapsedTime = (toc-tic)/Ntests;
+      
+      minElapsedTime = mymin(minElapsedTime, elapsedTime);
     }
-
-    device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
 
     size_t bytesIn  = 2*Nrun*sizeof(dfloat);
     size_t bytesOut = Nrun*sizeof(dfloat);
@@ -91,7 +99,7 @@ void bs2_t::Run(){
     hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
 
     printf("2, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
-	   Nrun, (double)elapsedTime, (double)elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, (double)(bytes/1.e9)/elapsedTime,
+	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
     //    fflush(stdout);
   }
