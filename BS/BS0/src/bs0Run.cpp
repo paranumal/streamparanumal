@@ -25,14 +25,15 @@ SOFTWARE.
 */
 
 #include "bs0.hpp"
+#include <unistd.h>
 
 void bs0_t::Run(){
 
   //create arrays buffers
   int N = 1;
 
-  occa::memory o_a = device.malloc(N*sizeof(dfloat));
-  occa::memory o_b = device.malloc(N*sizeof(dfloat));
+  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_b = platform.malloc(N*sizeof(dfloat));
 
   int Nave = 10;
   int Nwarm = 100;
@@ -41,12 +42,12 @@ void bs0_t::Run(){
 
     double elapsed = 0;
     for(int a=0;a<Nave;++a){
-      device.finish();
+      platform.device.finish();
       double tic = MPI_Wtime();
 
       kernel(N, o_a, o_b);
 
-      device.finish();
+      platform.device.finish();
       double toc = MPI_Wtime();
       elapsed += toc-tic;
     }
@@ -63,14 +64,14 @@ void bs0_t::Run(){
     double elapsed = 0;
     for(int a=0;a<Nave;++a){
 
-      device.finish();
+      platform.device.finish();
       double tic = MPI_Wtime();
 
       for(int n=0;n<Ntests;++n){
         kernel(N, o_a, o_b);
       }
 
-      device.finish();
+      platform.device.finish();
       double toc = MPI_Wtime();
 
       elapsed += toc-tic;

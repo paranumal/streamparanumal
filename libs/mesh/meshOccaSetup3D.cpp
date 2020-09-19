@@ -25,15 +25,15 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh3D.hpp"
+#include "mesh/mesh3D.hpp"
 
 void mesh3D::OccaSetup(){
 
   this->mesh_t::OccaSetup();
 
-  o_x = device.malloc(Nelements*Np*sizeof(dfloat), x);
-  o_y = device.malloc(Nelements*Np*sizeof(dfloat), y);
-  o_z = device.malloc(Nelements*Np*sizeof(dfloat), z);
+  // o_x = platform.malloc(Nelements*Np*sizeof(dfloat), x);
+  // o_y = platform.malloc(Nelements*Np*sizeof(dfloat), y);
+  // o_z = platform.malloc(Nelements*Np*sizeof(dfloat), z);
 
   props["defines/" "p_NXID"]= NXID;
   props["defines/" "p_NYID"]= NYID;
@@ -43,6 +43,12 @@ void mesh3D::OccaSetup(){
   props["defines/" "p_IHID"]= IHID;
   props["defines/" "p_WSJID"]= WSJID;
   props["defines/" "p_WIJID"]= WIJID;
+  // props["defines/" "p_STXID"]= STXID;
+  // props["defines/" "p_STYID"]= STYID;
+  // props["defines/" "p_STZID"]= STZID;
+  // props["defines/" "p_SBXID"]= SBXID;
+  // props["defines/" "p_SBYID"]= SBYID;
+  // props["defines/" "p_SBZID"]= SBZID;
 
   props["defines/" "p_G00ID"]= G00ID;
   props["defines/" "p_G01ID"]= G01ID;
@@ -51,6 +57,7 @@ void mesh3D::OccaSetup(){
   props["defines/" "p_G12ID"]= G12ID;
   props["defines/" "p_G22ID"]= G22ID;
   props["defines/" "p_GWJID"]= GWJID;
+
 
   props["defines/" "p_RXID"]= RXID;
   props["defines/" "p_SXID"]= SXID;

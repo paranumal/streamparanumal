@@ -27,7 +27,6 @@ SOFTWARE.
 #ifndef BS6_HPP
 #define BS6_HPP 1
 
-#include "core.hpp"
 #include "mesh.hpp"
 
 #define DBS6 CEED_DIR"/BS/BS6/"

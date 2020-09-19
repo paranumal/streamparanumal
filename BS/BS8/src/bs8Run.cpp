@@ -28,9 +28,11 @@ SOFTWARE.
 
 void bs8_t::Run(){
 
+  platform_t &platform = mesh.platform;
+
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
-  occa::memory o_q = mesh.device.malloc(N*sizeof(dfloat));
+  occa::memory o_q = platform.malloc(N*sizeof(dfloat));
 
   /* Gather Scatter test */
   for(int n=0;n<5;++n){
@@ -39,7 +41,7 @@ void bs8_t::Run(){
 
   int Ntests = 50;
 
-  mesh.device.finish();
+  platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
 
@@ -47,7 +49,7 @@ void bs8_t::Run(){
     mesh.ogsMasked->GatherScatter(o_q, ogs_dfloat, ogs_add, ogs_sym);
   }
 
-  mesh.device.finish();
+  platform.device.finish();
   MPI_Barrier(mesh.comm);
   double endTime = MPI_Wtime();
   double elapsedTime = (endTime - startTime)/Ntests;

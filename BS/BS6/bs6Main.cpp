@@ -37,24 +37,17 @@ int main(int argc, char **argv){
   if (settings.compareSetting("VERBOSE", "TRUE"))
     settings.report();
 
-  // set up occa device
-  occa::device device;
-  occa::properties props;
-  occaDeviceConfig(device, comm, settings, props);
+  // set up platform
+  platform_t platform(settings);
 
   // set up mesh
-  mesh_t& mesh = mesh_t::Setup(device, comm, settings, props);
+  mesh_t& mesh = mesh_t::Setup(platform, settings, comm);
 
   // set up bs solver
   bs6_t& bs = bs6_t::Setup(mesh);
 
   // run
   bs.Run();
-
-  // clean up
-  delete &bs;
-  delete &mesh;
-  device.free();
 
   // close down MPI
   MPI_Finalize();

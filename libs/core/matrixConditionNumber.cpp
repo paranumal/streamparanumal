@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ double matrixConditionNumber(int N, double *A) {
   if(info) {
     std::stringstream ss;
     ss << "dgetrf reports info = " << info << " when computing condition number";
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   //compute inverse condition number
@@ -77,7 +77,7 @@ double matrixConditionNumber(int N, double *A) {
   if(info) {
     std::stringstream ss;
     ss << "dgecon reports info = " << info << " when computing condition number";
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   free(work);
@@ -117,7 +117,7 @@ float matrixConditionNumber(int N, float *A) {
   if(info) {
     std::stringstream ss;
     ss << "sgetrf reports info = " << info << " when computing condition number";
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   //compute inverse condition number
@@ -126,7 +126,7 @@ float matrixConditionNumber(int N, float *A) {
   if(info) {
     std::stringstream ss;
     ss << "sgecon reports info = " << info << " when computing condition number";
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   free(work);

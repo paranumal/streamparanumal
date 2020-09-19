@@ -25,142 +25,48 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
 
 void meshTri2D::OccaSetup(){
 
   this->mesh2D::OccaSetup();
 
-  //build inverse of mass matrix
-  invMM = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  for (int n=0;n<Np*Np;n++)
-    invMM[n] = MM[n];
-  matrixInverse(Np,invMM);
+  // build transposes (we hold matrices as column major on device)
+  // dfloat *DT = (dfloat*) calloc(2*Np*Np, sizeof(dfloat));
+  // dfloat *DrT = DT + 0*Np*Np;
+  // dfloat *DsT = DT + 1*Np*Np;
+  // matrixTranspose(Np, Np, Dr, Np, DrT, Np);
+  // matrixTranspose(Np, Np, Ds, Np, DsT, Np);
 
-  //set surface mass matrix
-  sMT = (dfloat *) calloc(Np*Nfaces*Nfp,sizeof(dfloat));
-  for (int n=0;n<Np;n++) {
-    for (int m=0;m<Nfp*Nfaces;m++) {
-      dfloat MSnm = 0;
-      for (int i=0;i<Np;i++){
-        MSnm += MM[n+i*Np]*LIFT[m+i*Nfp*Nfaces];
-      }
-      sMT[n+m*Np]  = MSnm;
-    }
-  }
+  // dfloat *LIFTT = (dfloat*) calloc(Np*Nfaces*Nfp, sizeof(dfloat));
+  // matrixTranspose(Np, Nfp*Nfaces, LIFT, Nfp*Nfaces, LIFTT, Np);
 
-  // build Dr, Ds, LIFT transposes
-  dfloat *DrT = (dfloat*) calloc(Np*Np, sizeof(dfloat));
-  dfloat *DsT = (dfloat*) calloc(Np*Np, sizeof(dfloat));
-  for(int n=0;n<Np;++n){
-    for(int m=0;m<Np;++m){
-      DrT[n+m*Np] = Dr[n*Np+m];
-      DsT[n+m*Np] = Ds[n*Np+m];
-    }
-  }
+  // dfloat *sMT = (dfloat *) calloc(Np*Nfaces*Nfp,sizeof(dfloat));
+  // matrixTranspose(Np, Nfp*Nfaces, sM, Nfp*Nfaces, sMT, Np);
 
-  // build Dr, Ds transposes
-  dfloat *DrsT = (dfloat*) calloc(2*Np*Np, sizeof(dfloat));
-  for(int n=0;n<Np;++n){
-    for(int m=0;m<Np;++m){
-      DrsT[n+m*Np] = Dr[n*Np+m];
-      DrsT[n+m*Np+Np*Np] = Ds[n*Np+m];
-    }
-  }
+  // dfloat *ST = (dfloat*) calloc(3*Np*Np, sizeof(dfloat));
+  // dfloat *SrrT = ST + 0*Np*Np;
+  // dfloat *SrsT = ST + 1*Np*Np;
+  // dfloat *SssT = ST + 2*Np*Np;
+  // matrixTranspose(Np, Np, Srr, Np, SrrT, Np);
+  // matrixTranspose(Np, Np, Srs, Np, SrsT, Np);
+  // matrixTranspose(Np, Np, Sss, Np, SssT, Np);
 
-  dfloat *LIFTT = (dfloat*) calloc(Np*Nfaces*Nfp, sizeof(dfloat));
-  for(int n=0;n<Np;++n){
-    for(int m=0;m<Nfaces*Nfp;++m){
-      LIFTT[n+m*Np] = LIFT[n*Nfp*Nfaces+m];
-    }
-  }
+  // o_D = platform.malloc(2*Np*Np*sizeof(dfloat), DT);
+  // o_MM = platform.malloc(Np*Np*sizeof(dfloat), MM); //MM is symmetric
 
-  //build element stiffness matrices
-  dfloat *SrrT, *SrsT, *SsrT, *SssT;
-  Srr = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  Srs = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  Ssr = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  Sss = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  for (int n=0;n<Np;n++) {
-    for (int m=0;m<Np;m++) {
-      for (int k=0;k<Np;k++) {
-        for (int l=0;l<Np;l++) {
-          Srr[m+n*Np] += Dr[n+l*Np]*MM[k+l*Np]*Dr[m+k*Np];
-          Srs[m+n*Np] += Dr[n+l*Np]*MM[k+l*Np]*Ds[m+k*Np];
-          Ssr[m+n*Np] += Ds[n+l*Np]*MM[k+l*Np]*Dr[m+k*Np];
-          Sss[m+n*Np] += Ds[n+l*Np]*MM[k+l*Np]*Ds[m+k*Np];
-        }
-      }
-    }
-  }
-  SrrT = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  SrsT = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  SsrT = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  SssT = (dfloat *) calloc(Np*Np,sizeof(dfloat));
-  for (int n=0;n<Np;n++) {
-    for (int m=0;m<Np;m++) {
-      SrrT[m+n*Np] = Srr[n+m*Np];
-      SrsT[m+n*Np] = Srs[n+m*Np];
-      SsrT[m+n*Np] = Ssr[n+m*Np];
-      SssT[m+n*Np] = Sss[n+m*Np];
-    }
-  }
+  // o_sM = platform.malloc(Np*Nfaces*Nfp*sizeof(dfloat), sMT);
 
-  dfloat *ST = (dfloat*) calloc(3*Np*Np, sizeof(dfloat));
-  for(int n=0;n<Np;++n){
-    for(int m=0;m<Np;++m){
-      ST[n+m*Np+0*Np*Np] = Srr[n*Np+m];
-      ST[n+m*Np+1*Np*Np] = Srs[n*Np+m]+Ssr[n*Np+m];
-      ST[n+m*Np+2*Np*Np] = Sss[n*Np+m];
-    }
-  }
+  // o_LIFT = platform.malloc(Np*Nfaces*Nfp*sizeof(dfloat), LIFTT);
 
-  o_Dr = device.malloc(Np*Np*sizeof(dfloat),
-      Dr);
+  // o_S = platform.malloc(3*Np*Np*sizeof(dfloat), ST);
 
-  o_Ds = device.malloc(Np*Np*sizeof(dfloat),
-      Ds);
+  // o_vgeo = platform.malloc((Nelements+totalHaloPairs)*Nvgeo*sizeof(dfloat), vgeo);
+  // o_sgeo = platform.malloc(Nelements*Nfaces*Nsgeo*sizeof(dfloat), sgeo);
+  // o_ggeo = platform.malloc(Nelements*Nggeo*sizeof(dfloat), ggeo);
 
-  o_DrT = device.malloc(Np*Np*sizeof(dfloat),
-      DrT);
-
-  o_DsT = device.malloc(Np*Np*sizeof(dfloat),
-      DsT);
-
-  o_DtT = device.malloc(Np*Np*sizeof(dfloat),
-			      DsT); // note: dummy allocated with DsT
-
-  o_Dmatrices = device.malloc(2*Np*Np*sizeof(dfloat), DrsT);
-
-  o_MM = device.malloc(Np*Np*sizeof(dfloat), MM);
-
-  o_sMT = device.malloc(Np*Nfaces*Nfp*sizeof(dfloat), sMT);
-
-  o_LIFT =
-    device.malloc(Np*Nfaces*Nfp*sizeof(dfloat),
-        LIFT);
-
-  o_LIFTT =
-    device.malloc(Np*Nfaces*Nfp*sizeof(dfloat),
-        LIFTT);
-
-  // o_vgeo =
-  //   device.malloc((Nelements+totalHaloPairs)*Nvgeo*sizeof(dfloat),
-  //       vgeo);
-
-  // o_sgeo =
-  //   device.malloc(Nelements*Nfaces*Nsgeo*sizeof(dfloat),
-  //       sgeo);
-
-  // o_ggeo =
-  //   device.malloc(Nelements*Nggeo*sizeof(dfloat),
-  //       ggeo);
-
-  o_SrrT = device.malloc(Np*Np*sizeof(dfloat), SrrT);
-  o_SrsT = device.malloc(Np*Np*sizeof(dfloat), SrsT);
-  o_SsrT = device.malloc(Np*Np*sizeof(dfloat), SsrT);
-  o_SssT = device.malloc(Np*Np*sizeof(dfloat), SssT);
-  o_Smatrices = device.malloc(3*Np*Np*sizeof(dfloat), ST);
-
-  free(DrsT); free(ST);
+  // free(DT);
+  // free(LIFTT);
+  // free(sMT);
+  // free(ST);
 }

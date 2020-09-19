@@ -50,8 +50,8 @@ void bs1_t::Run(){
   Nmax = Bmax/sc;
   N = Nmax;
 
-  occa::memory o_a = device.malloc(N*sizeof(dfloat));
-  occa::memory o_b = device.malloc(N*sizeof(dfloat));
+  occa::memory o_a = platform.device.malloc(N*sizeof(dfloat));
+  occa::memory o_b = platform.device.malloc(N*sizeof(dfloat));
 
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
@@ -70,7 +70,7 @@ void bs1_t::Run(){
     for(int att=0;att<Nattempts;++att){
 
       // tic
-      device.finish();
+      platform.device.finish();
       dfloat tic = MPI_Wtime();
 
       /* COPY Test */
@@ -79,7 +79,7 @@ void bs1_t::Run(){
 	kernel(Nrun, o_a, o_b); //b = a
       }
 
-      device.finish();
+      platform.device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
 

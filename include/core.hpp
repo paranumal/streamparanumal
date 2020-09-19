@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,27 +27,12 @@ SOFTWARE.
 #ifndef CORE_HPP
 #define CORE_HPP
 
-#include <unistd.h>
-
+#include <mpi.h>
 #include <occa.h>
 #include <string>
-#include "types.h"
+#include <math.h>
+#include <stdlib.h>
 #include "utils.hpp"
-#include "settings.hpp"
-
-void occaAddSettings(settings_t& settings);
-
-void occaReportSettings(settings_t& settings);
-
-void occaDeviceConfig(occa::device &device, MPI_Comm comm,
-                      settings_t& settings, occa::properties& kernelInfo);
-
-void occaDeviceProperties(occa::device &device, occa::properties& props);
-
-void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa::memory &mem, occa::memory &h_mem);
-
-occa::kernel buildKernel(occa::device& device, std::string fileName, std::string kernelName,
-                         occa::properties& kernelInfo, MPI_Comm& comm);
 
 // sort entries in an array in parallel
 void parallelSort(int size, int rank, MPI_Comm comm,
@@ -55,5 +40,34 @@ void parallelSort(int size, int rank, MPI_Comm comm,
       int (*compare)(const void *, const void *),
       void (*match)(void *, void *)
       );
+
+void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
+void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);
+
+void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI);
+void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI);
+
+void matrixEigenValues(int N, double *A, double *WR, double *WI);
+void matrixEigenValues(int N, float *A, float *WR, float *WI);
+
+void matrixInverse(int N, double *A);
+void matrixInverse(int N, float *A);
+
+double matrixConditionNumber(int N, double *A);
+float  matrixConditionNumber(int N, float *A);
+
+void matrixTranspose(const int M, const int N,
+                     const double  *A, const int LDA,
+                           double *AT, const int LDAT);
+void matrixTranspose(const int M, const int N,
+                     const float  *A, const int LDA,
+                           float *AT, const int LDAT);
+
+void matrixTranspose(const int M, const int N,
+                     const int  *A, const int LDA,
+                           int *AT, const int LDAT);
+void matrixTranspose(const int M, const int N,
+                     const long long int  *A, const int LDA,
+                           long long int *AT, const int LDAT);
 
 #endif

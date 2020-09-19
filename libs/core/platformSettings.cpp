@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,48 +26,39 @@ SOFTWARE.
 
 #include "platform.hpp"
 
-platformSettings_t::platformSettings_t(MPI_Comm _comm):
-  settings_t(_comm) {
+void platformAddSettings(settings_t& settings) {
 
-  //settings format
-  newSetting("FORMAT",
-             "2.0",
-             "Setting file version number",
-             {"2.0"});
+  settings.newSetting("-m", "--mode",
+                      "THREAD MODEL",
+                      "CUDA",
+                      "OCCA's Parallel execution platform",
+                      {"Serial", "OpenMP", "CUDA", "HIP", "OpenCL"});
 
-  newSetting("THREAD MODEL",
-             "CUDA",
-             "OCCA's Parallel execution platform",
-             {"Serial", "OpenMP", "CUDA", "HIP", "OpenCL"});
+  settings.newSetting("-pl", "--platform",
+                      "PLATFORM NUMBER",
+                      "0",
+                      "Parallel platform number (used in OpenCL mode)");
 
-  newSetting("PLATFORM NUMBER",
-             "0",
-             "Parallel platform number (used in OpenCL mode)");
-
-  newSetting("DEVICE NUMBER",
-             "0"
-             "Parallel device number");
+  settings.newSetting("-d", "--device",
+                      "DEVICE NUMBER",
+                      "0"
+                      "Parallel device number");
 }
 
-void platformSettings_t::report() {
+void platformReportSettings(settings_t& settings) {
 
-  int rank;
-  MPI_Comm_rank(comm, &rank);
+  std::cout << "Platform Settings:\n\n";
 
-  if (rank==0) {
-    std::cout << "OCCA Settings:\n\n";
+  settings.reportSetting("THREAD MODEL");
 
-    reportSetting("THREAD MODEL");
+  if (settings.compareSetting("THREAD MODEL","OpenCL"))
+    settings.reportSetting("PLATFORM NUMBER");
 
-    if (compareSetting("THREAD MODEL","OpenCL"))
-      reportSetting("PLATFORM NUMBER");
-
-    int size;
-    MPI_Comm_size(comm, &size);
-    if ((size==1)
-        &&(compareSetting("THREAD MODEL","CUDA")
-        ||compareSetting("THREAD MODEL","HIP")
-        ||compareSetting("THREAD MODEL","OpenCL") ))
-      reportSetting("DEVICE NUMBER");
-  }
+  int size;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  if ((size==1)
+      &&(settings.compareSetting("THREAD MODEL","CUDA")
+      ||settings.compareSetting("THREAD MODEL","HIP")
+      ||settings.compareSetting("THREAD MODEL","OpenCL") ))
+    settings.reportSetting("DEVICE NUMBER");
 }

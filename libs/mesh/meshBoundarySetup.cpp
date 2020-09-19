@@ -1,19 +1,14 @@
 /*
-
 The MIT License (MIT)
-
 Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,7 +16,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 */
 
 #include "mesh.hpp"
@@ -54,7 +48,7 @@ void mesh_t::BoundarySetup(int Nfields){
       Nmasked++;
     }
   }
-  o_mapB = device.malloc(Nelements*Np*sizeof(int), mapB);
+  o_mapB = platform.malloc(Nelements*Np*sizeof(int), mapB);
 
 
   maskIds = (dlong *) calloc(Nmasked, sizeof(dlong));
@@ -62,7 +56,7 @@ void mesh_t::BoundarySetup(int Nfields){
   for (dlong n=0;n<Nelements*Np;n++)
     if (mapB[n] == 1) maskIds[Nmasked++] = n;
 
-  if (Nmasked) o_maskIds = device.malloc(Nmasked*sizeof(dlong), maskIds);
+  if (Nmasked) o_maskIds = platform.malloc(Nmasked*sizeof(dlong), maskIds);
 
   //make a masked version of the global id numbering
   maskedGlobalIds = (hlong *) calloc(Nelements*Np*Nfields,sizeof(hlong));
@@ -89,7 +83,7 @@ void mesh_t::BoundarySetup(int Nfields){
   int verbose = 0;
   ogs_t::Unique(maskedGlobalIds, Nelements*Np*Nfields, comm);     //flag a unique node in every gather node
   ogsMasked = ogs_t::Setup(Nelements*Np*Nfields, maskedGlobalIds,
-                           comm, verbose, device);
+                           comm, verbose, platform);
 
   /* use the masked gs handle to define a global ordering */
   dlong Ntotal  = Np*Nelements*Nfields; // number of degrees of freedom on this rank (before gathering)
@@ -107,8 +101,8 @@ void mesh_t::BoundarySetup(int Nfields){
 
   ogsMasked->Scatter(weight, weightG, ogs_dfloat, ogs_add, ogs_notrans);
 
-  // o_weight  = device.malloc(Ntotal*sizeof(dfloat), weight);
-  // o_weightG = device.malloc(ogsMasked->Ngather*sizeof(dfloat), weightG);
+  // o_weight  = platform.malloc(Ntotal*sizeof(dfloat), weight);
+  // o_weightG = platform.malloc(ogsMasked->Ngather*sizeof(dfloat), weightG);
 
   // create a global numbering system
   hlong *newglobalIds = (hlong *) calloc(Ngather,sizeof(hlong));
@@ -139,6 +133,6 @@ void mesh_t::BoundarySetup(int Nfields){
   ogsMasked->GatheredHaloExchangeSetup();
 
   // mask
-  maskKernel = buildKernel(device, CEED_DIR "/core/okl/mask.okl",
-                                     "mask", props, comm);
+  // maskKernel = buildKernel(device, CEED_DIR "/core/okl/mask.okl",
+  //                                    "mask", props, comm);
 }

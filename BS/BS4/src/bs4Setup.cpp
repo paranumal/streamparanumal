@@ -26,20 +26,19 @@ SOFTWARE.
 
 #include "bs4.hpp"
 
-bs4_t& bs4_t::Setup(occa::device& device, MPI_Comm& comm,
-                    settings_t& settings, occa::properties& props) {
+bs4_t& bs4_t::Setup(platform_t &platform, settings_t& settings) {
 
-  bs4_t* bs4 = new bs4_t(device, comm, settings, props);
+  bs4_t* bs4 = new bs4_t(platform, settings);
 
   // OCCA build stuff
-  occa::properties kernelInfo = bs4->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
   bs4->blockSize = 256;
 
   kernelInfo["defines/" "p_blockSize"] = bs4->blockSize;
 
-  bs4->kernel1 = buildKernel(device, DBS4 "/okl/bs4.okl", "bs4_1", kernelInfo, comm);
-  bs4->kernel2 = buildKernel(device, DBS4 "/okl/bs4.okl", "bs4_2", kernelInfo, comm);
+  bs4->kernel1 = platform.buildKernel(DBS4 "/okl/bs4.okl", "bs4_1", kernelInfo);
+  bs4->kernel2 = platform.buildKernel(DBS4 "/okl/bs4.okl", "bs4_2", kernelInfo);
 
   return *bs4;
 }

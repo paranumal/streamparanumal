@@ -25,7 +25,7 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
 
 static int findBestMatch(dfloat x1, dfloat y1,
                    int Np2, int *nodeList, dfloat *x2, dfloat *y2, int *nP){
@@ -67,17 +67,14 @@ void mesh2D::ConnectFaceNodes(){
 
   //check if we're connecting a periodic box mesh
   int periodicFlag = 0;
-  // if (settings.compareSetting("MESH FILE","BOX") &&
-  //     settings.compareSetting("BOX BOUNDARY FLAG","-1"))
-  //   periodicFlag = 1;
+  if (settings.compareSetting("MESH FILE","BOX") &&
+      settings.compareSetting("BOX BOUNDARY FLAG","-1"))
+    periodicFlag = 1;
 
   //box dimensions
   dfloat DIMX, DIMY;
-  // settings.getSetting("BOX DIMX", DIMX);
-  // settings.getSetting("BOX DIMY", DIMY);
-
-  //Hard code to 2x2
-  DIMX = 2.0; DIMY = 2.0;
+  settings.getSetting("BOX DIMX", DIMX);
+  settings.getSetting("BOX DIMY", DIMY);
 
   //box is centered at the origin
   DIMX /= 2.0;

@@ -28,11 +28,13 @@ SOFTWARE.
 
 void bs6_t::Run(){
 
+  platform_t &platform = mesh.platform;
+
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   dlong Ngather = mesh.ogsMasked->Ngather;
-  occa::memory o_q = mesh.device.malloc(N*sizeof(dfloat));
-  occa::memory o_gq = mesh.device.malloc(Ngather*sizeof(dfloat));
+  occa::memory o_q = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
 
   /* Gather test */
   for(int n=0;n<5;++n){
@@ -41,7 +43,7 @@ void bs6_t::Run(){
 
   int Ntests = 50;
 
-  mesh.device.finish();
+  platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
 
@@ -49,7 +51,7 @@ void bs6_t::Run(){
     mesh.ogsMasked->Gather(o_gq, o_q, ogs_dfloat, ogs_add, ogs_trans);
   }
 
-  mesh.device.finish();
+  platform.device.finish();
   MPI_Barrier(mesh.comm);
   double endTime = MPI_Wtime();
   double elapsedTime = (endTime - startTime)/Ntests;

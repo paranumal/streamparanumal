@@ -25,7 +25,7 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
 
 // ------------------------------------------------------------------------
 // QUAD 2D NODES
@@ -100,8 +100,7 @@ void mesh_t::EquispacedNodesQuad2D(int _N, dfloat *_r, dfloat *_s){
 
   //Equispaced 1D nodes
   dfloat *r1D = (dfloat*) malloc(_Nq*sizeof(dfloat));
-  dfloat dr = 2.0/_N;
-  for (int i=0;i<_Nq;i++) r1D[i] = -1.0 + i*dr;
+  EquispacedNodes1D(_N, r1D);
 
   //Tensor product
   for (int j=0;j<_Nq;j++) {
@@ -130,6 +129,23 @@ void mesh_t::EquispacedEToVQuad2D(int _N, int *_EToV){
       _EToV[cnt*_Nverts+0] = i  +(j  )*_Nq;
       _EToV[cnt*_Nverts+1] = i+1+(j+1)*_Nq;
       _EToV[cnt*_Nverts+2] = i  +(j+1)*_Nq;
+      cnt++;
+    }
+  }
+}
+
+void mesh_t::SEMFEMEToVQuad2D(int _N, int *_EToV){
+  int _Nq = _N+1;
+  int _Nverts = 4;
+
+  //Tensor product
+  int cnt=0;
+  for (int j=0;j<_N;j++) {
+    for (int i=0;i<_N;i++) {
+      _EToV[cnt*_Nverts+0] = i  +(j  )*_Nq;
+      _EToV[cnt*_Nverts+1] = i+1+(j  )*_Nq;
+      _EToV[cnt*_Nverts+2] = i+1+(j+1)*_Nq;
+      _EToV[cnt*_Nverts+3] = i  +(j+1)*_Nq;
       cnt++;
     }
   }
@@ -197,6 +213,34 @@ void mesh_t::MassMatrixQuad2D(int _Np, dfloat *V, dfloat *_MM){
     }
   }
   matrixInverse(_Np, _MM);
+}
+
+void mesh_t::LumpedMassMatrixQuad2D(int _N, dfloat *_gllw, dfloat *_MM){
+
+  int _Nq = _N+1;
+  int _Np = _Nq*_Nq;
+
+  // LumpedMassMatrix = gllw \ctimes gllw
+  for(int n=0;n<_Nq;++n){
+    for(int m=0;m<_Nq;++m){
+      int id = n+m*_Nq;
+      _MM[id+id*_Np] = _gllw[n]*_gllw[m];
+    }
+  }
+}
+
+void mesh_t::invLumpedMassMatrixQuad2D(int _N, dfloat *_gllw, dfloat *_invMM){
+
+  int _Nq = _N+1;
+  int _Np = _Nq*_Nq;
+
+  // invLumpedMassMatrix = invgllw \ctimes invgllw
+  for(int n=0;n<_Nq;++n){
+    for(int m=0;m<_Nq;++m){
+      int id = n+m*_Nq;
+      _invMM[id+id*_Np] = 1.0/(_gllw[n]*_gllw[m]);
+    }
+  }
 }
 
 void mesh_t::DmatrixQuad2D(int _N, int Npoints, dfloat *_r, dfloat *_s,

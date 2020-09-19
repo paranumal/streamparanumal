@@ -49,9 +49,9 @@ void bs3_t::Run(){
   Nmax = Bmax/sc;
   N = Nmax;
 
-  occa::memory o_a = device.malloc(N*sizeof(dfloat));
-  occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
-  occa::memory o_norm = device.malloc(1*sizeof(dfloat));
+  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_tmp = platform.malloc(blockSize*sizeof(dfloat));
+  occa::memory o_norm = platform.malloc(1*sizeof(dfloat));
 
   {
     int Nwarm = 5;
@@ -70,7 +70,7 @@ void bs3_t::Run(){
     int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
 
     // rest gpu (do here to avoid clock drop after warm up)
-    //    device.finish();
+    //    platform.device.finish();
     //    usleep(1e6);;
 
     int Nblock = (Nrun+blockSize-1)/blockSize;
@@ -81,7 +81,7 @@ void bs3_t::Run(){
 
     for(int att=0;att<Nattempts;++att){
 
-      device.finish();
+      platform.device.finish();
       dfloat tic = MPI_Wtime();
 
       int Ntests = 20;
@@ -91,7 +91,7 @@ void bs3_t::Run(){
 	kernel2(Nblock, o_tmp, o_norm);    // finish reduction
       }
 
-      device.finish();
+      platform.device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
       minElapsedTime = mymin(minElapsedTime, elapsedTime);

@@ -30,7 +30,7 @@ SOFTWARE.
 bs0Settings_t::bs0Settings_t(const int argc, char** argv, MPI_Comm &_comm):
   settings_t(_comm) {
 
-  occaAddSettings(*this);
+  platformAddSettings(*this);
 
   newSetting("-b", "--bytes",
              "BYTES",
@@ -64,7 +64,7 @@ bs0Settings_t::bs0Settings_t(const int argc, char** argv, MPI_Comm &_comm):
 void bs0Settings_t::report() {
 
   std::cout << "Settings:\n\n";
-  occaReportSettings(*this);
+  platformReportSettings(*this);
 
   reportSetting("BYTES");
 }

@@ -26,20 +26,19 @@ SOFTWARE.
 
 #include "bs3.hpp"
 
-bs3_t& bs3_t::Setup(occa::device& device, MPI_Comm& comm,
-                    settings_t& settings, occa::properties& props) {
+bs3_t& bs3_t::Setup(platform_t &platform, settings_t& settings) {
 
-  bs3_t* bs3 = new bs3_t(device, comm, settings, props);
+  bs3_t* bs3 = new bs3_t(platform, settings);
 
   // OCCA build stuff
-  occa::properties kernelInfo = bs3->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
   bs3->blockSize = 256;
 
   kernelInfo["defines/" "p_blockSize"] = bs3->blockSize;
 
-  bs3->kernel1 = buildKernel(device, DBS3 "/okl/bs3.okl", "bs3_1", kernelInfo, comm);
-  bs3->kernel2 = buildKernel(device, DBS3 "/okl/bs3.okl", "bs3_2", kernelInfo, comm);
+  bs3->kernel1 = platform.buildKernel(DBS3 "/okl/bs3.okl", "bs3_1", kernelInfo);
+  bs3->kernel2 = platform.buildKernel(DBS3 "/okl/bs3.okl", "bs3_2", kernelInfo);
 
   return *bs3;
 }

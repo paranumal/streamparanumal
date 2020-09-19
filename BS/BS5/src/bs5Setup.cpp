@@ -26,25 +26,24 @@ SOFTWARE.
 
 #include "bs5.hpp"
 
-bs5_t& bs5_t::Setup(occa::device& device, MPI_Comm& comm,
-                    settings_t& settings, occa::properties& props) {
+bs5_t& bs5_t::Setup(platform_t &platform, settings_t& settings) {
 
-  bs5_t* bs5 = new bs5_t(device, comm, settings, props);
+  bs5_t* bs5 = new bs5_t(platform, settings);
 
   // OCCA build stuff
-  occa::properties kernelInfo = bs5->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
   bs5->blockSize = 256;
-  
+
   kernelInfo["defines/" "p_blockSize"] = bs5->blockSize;
 
   if(settings.compareSetting("THREAD MODEL", "HIP"))
     kernelInfo["defines/" "USE_HIP"] = 1;
   else
     kernelInfo["defines/" "USE_HIP"] = 0;
-  
-  bs5->kernel1 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_1", kernelInfo, comm);
-  bs5->kernel2 = buildKernel(device, DBS5 "/okl/bs5.okl", "bs5_2", kernelInfo, comm);
+
+  bs5->kernel1 = platform.buildKernel(DBS5 "/okl/bs5.okl", "bs5_1", kernelInfo);
+  bs5->kernel2 = platform.buildKernel(DBS5 "/okl/bs5.okl", "bs5_2", kernelInfo);
 
   return *bs5;
 }

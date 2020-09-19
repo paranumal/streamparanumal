@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -103,7 +103,7 @@ void platform_t::DeviceConfig(){
       if (deviceCount>0 && localRank>=deviceCount) {
         stringstream ss;
         ss << "Rank " << rank << " oversubscribing CUDA device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
-        LIBP_WARNING(ss.str());
+        CEED_WARNING(ss.str());
         device_id = device_id%deviceCount;
       }
 #endif
@@ -114,7 +114,7 @@ void platform_t::DeviceConfig(){
       if (deviceCount>0 && localRank>=deviceCount) {
         stringstream ss;
         ss << "Rank " << rank << " oversubscribing HIP device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
-        LIBP_WARNING(ss.str());
+        CEED_WARNING(ss.str());
         device_id = device_id%deviceCount;
       }
 #endif
@@ -126,7 +126,7 @@ void platform_t::DeviceConfig(){
       if (deviceCount>0 && localRank>=deviceCount) {
         stringstream ss;
         ss << "Rank " << rank << " oversubscribing OpenCL device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
-        LIBP_WARNING(ss.str());
+        CEED_WARNING(ss.str());
         device_id = device_id%deviceCount;
       }
 #endif

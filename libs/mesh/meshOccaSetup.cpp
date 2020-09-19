@@ -28,28 +28,26 @@ SOFTWARE.
 
 void mesh_t::OccaSetup(){
 
-  if(NinternalElements)
-    o_internalElementIds    =
-      device.malloc(NinternalElements*sizeof(dlong), internalElementIds);
+  // if(NinternalElements)
+  //   o_internalElementIds    =
+  //     platform.malloc(NinternalElements*sizeof(dlong), internalElementIds);
 
-  if(NhaloElements)
-    o_haloElementIds = device.malloc(NhaloElements*sizeof(dlong), haloElementIds);
+  // if(NhaloElements)
+  //   o_haloElementIds = platform.malloc(NhaloElements*sizeof(dlong), haloElementIds);
 
-  if(NglobalGatherElements)
-    o_globalGatherElementList =
-      device.malloc(NglobalGatherElements*sizeof(dlong), globalGatherElementList);
+  // if(NglobalGatherElements)
+  //   o_globalGatherElementList =
+  //     platform.malloc(NglobalGatherElements*sizeof(dlong), globalGatherElementList);
 
-  if(NlocalGatherElements)
-    o_localGatherElementList =
-      device.malloc(NlocalGatherElements*sizeof(dlong), localGatherElementList);
+  // if(NlocalGatherElements)
+  //   o_localGatherElementList =
+  //     platform.malloc(NlocalGatherElements*sizeof(dlong), localGatherElementList);
 
-  // o_vmapM = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapM);
-  // o_vmapP = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapP);
-  // o_mapP  = device.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), mapP);
+  // o_vmapM = platform.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapM);
+  // o_vmapP = platform.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), vmapP);
+  // o_mapP  = platform.malloc(Nelements*Nfp*Nfaces*sizeof(dlong), mapP);
 
-  // o_EToB = device.malloc(Nelements*Nfaces*sizeof(int), EToB);
-
-  defaultStream = device.getStream();
+  // o_EToB = platform.malloc(Nelements*Nfaces*sizeof(int), EToB);
 
   props["defines/" "p_dim"]= dim;
   props["defines/" "p_N"]= N;
@@ -58,13 +56,7 @@ void mesh_t::OccaSetup(){
   props["defines/" "p_Nfp"]= Nfp;
   props["defines/" "p_Nfaces"]= Nfaces;
   props["defines/" "p_NfacesNfp"]= Nfp*Nfaces;
-  // props["defines/" "p_Nvgeo"]= Nvgeo;
-  // props["defines/" "p_Nsgeo"]= Nsgeo;
+  props["defines/" "p_Nvgeo"]= Nvgeo;
+  props["defines/" "p_Nsgeo"]= Nsgeo;
   props["defines/" "p_Nggeo"]= Nggeo;
-
-  props["defines/" "p_cubNq"]= cubNq;
-  props["defines/" "p_cubNp"]= cubNp;
-  props["defines/" "p_intNfp"]= intNfp;
-  props["defines/" "p_intNfpNfaces"]= intNfp*Nfaces;
-  props["defines/" "p_cubNfp"]= cubNfp;
 }

@@ -27,7 +27,6 @@ SOFTWARE.
 #ifndef BS8_HPP
 #define BS8_HPP 1
 
-#include "core.hpp"
 #include "mesh.hpp"
 
 #define DBS8 CEED_DIR"/BS/BS8/"

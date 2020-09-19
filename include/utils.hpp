@@ -71,16 +71,5 @@ SOFTWARE.
 // block size for reduction (hard coded)
 #define BLOCKSIZE 256
 
-// serial sort
-void mysort(hlong *data, int N, const char *order);
-
-void readDfloatArray(MPI_Comm comm, FILE *fp, const char *label, dfloat **A, int *Nrows, int* Ncols);
-void readIntArray   (MPI_Comm comm, FILE *fp, const char *label, int **A   , int *Nrows, int* Ncols);
-
-void matrixRightSolve(int NrowsA, int NcolsA, dfloat *A, int NrowsB, int NcolsB, dfloat *B, dfloat *C);
-void matrixEig(int N, dfloat *A, dfloat *VR, dfloat *WR, dfloat *WI);
-void matrixInverse(int N, dfloat *A);
-dfloat matrixConditionNumber(int N, dfloat *A);
-
 
 #endif

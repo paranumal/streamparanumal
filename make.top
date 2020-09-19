@@ -31,8 +31,14 @@ CEED_ARCH=GNU
 export CEED_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 export CEED_INCLUDE_DIR=${CEED_DIR}/include
-export CEED_CORE_DIR=${CEED_DIR}/libs
+export CEED_LIBS_DIR=${CEED_DIR}/libs
 export CEED_TPL_DIR=${CEED_DIR}/3rdParty
+
+#paths to installed blas and lapack libraries
+export CEED_BLAS_DIR  =/usr/lib/x86_64-linux-gnu
+export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu
+export CEED_BLAS_LIB  =-L${CEED_BLAS_DIR} -lblas
+export CEED_LAPACK_LIB=-L${CEED_LAPACK_DIR} -llapack
 
 #include OCCA
 ifndef OCCA_DIR
@@ -45,17 +51,21 @@ else
 endif
 
 #compilers to use for C/C++
-export CC = mpicc
-export CXX= mpic++
-export LD	= mpic++
+export CEED_MPICC = mpicc
+export CEED_MPICXX= mpic++
+export CEED_LD    = mpic++
 
-export CFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function
-export CXXFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
+export CEED_CFLAGS=-O2 -fopenmp -g -Wall -Wshadow -Wno-unused-function
+export CEED_MPICFLAGS=$(CEED_CFLAGS)
+
+export CEED_CXXFLAGS=-O2 -fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
+export CEED_MPICXXFLAGS=$(CEED_CXXFLAGS)
 
 export CEED_BLAS_DIR=/usr/lib/x86_64-linux-gnu/
 export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu/
 
-export CEED_LIBS= -L$(CEED_LAPACK_DIR)/lib -llapack -L$(CEED_BLAS_DIR)/lib -lblas \
+export CEED_LIBS= ${CEED_BLAS_LIB} \
+                  ${CEED_LAPACK_LIB} \
                   -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca $(links)
 
 export CEED_DEFINES=-DUSE_OCCA_MEM_BYTE_ALIGN=32
@@ -67,7 +77,7 @@ ifeq (GNU,${CEED_ARCH})
   #-funroll-all-loops
   #CEED_LIBS+=-L/opt/apps/gcc5_2/atlas/3.10.2/lib/ -llapack -latlas  -lf77blas -lcblas -lptcblas -lptf77blas -lsatlas  -lgfortran  -L../../../libxsmm/lib -lxsmm -ldl
 else ifeq (INTEL,${CEED_ARCH})
-  CXXFLAGS+=-funroll-loops -xHost
+  CEED_CXXFLAGS+=-funroll-loops -xHost
   CEED_LIBS+=-L/opt/apps/intel15_3/mkl/11.2.3/lib/intel64  -lmkl_rt
   #  -fopt-info-vec-missed  -fopt-info
   #-fopt-info

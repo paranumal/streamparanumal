@@ -26,17 +26,16 @@ SOFTWARE.
 
 #include "bs1.hpp"
 
-bs1_t& bs1_t::Setup(occa::device& device, MPI_Comm& comm,
-                    settings_t& settings, occa::properties& props) {
+bs1_t& bs1_t::Setup(platform_t &platform, settings_t& settings) {
 
-  bs1_t* bs1 = new bs1_t(device, comm, settings, props);
+  bs1_t* bs1 = new bs1_t(platform, settings);
 
   // OCCA build stuff
-  occa::properties kernelInfo = bs1->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
   kernelInfo["defines/" "p_blockSize"] = (int)256;
 
-  bs1->kernel = buildKernel(device, DBS1 "/okl/bs1.okl", "bs1", kernelInfo, comm);
+  bs1->kernel = platform.buildKernel(DBS1 "/okl/bs1.okl", "bs1", kernelInfo);
 
   return *bs1;
 }

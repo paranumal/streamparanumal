@@ -49,8 +49,8 @@ void bs2_t::Run(){
   Nmax = Bmax/sc;
   N = Nmax;
 
-  occa::memory o_a = device.malloc(N*sizeof(dfloat));
-  occa::memory o_b = device.malloc(N*sizeof(dfloat));
+  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_b = platform.malloc(N*sizeof(dfloat));
 
   const dfloat alpha = 1.0;
   const dfloat beta = 1.0;
@@ -66,7 +66,7 @@ void bs2_t::Run(){
     int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
     // int Nrun = Nmax;
     // rest gpu (do here to avoid clock drop after warm up)
-    //    device.finish();
+    //    platform.device.finish();
     //    usleep(1e6);
 
     double minElapsedTime = 1e9;
@@ -74,7 +74,7 @@ void bs2_t::Run(){
 
     for(int att=0;att<Nattempts;++att){
 
-      device.finish();
+      platform.device.finish();
       dfloat tic = MPI_Wtime();
 
       /* AXPY Test */
@@ -83,7 +83,7 @@ void bs2_t::Run(){
 	kernel(Nrun, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
       }
 
-      device.finish();
+      platform.device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
 

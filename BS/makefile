@@ -42,7 +42,7 @@ make BS
 	 Builds each Bakeoff Kernel executable.
 make BS{#}
 	 Builds a Bakeoff Kernel executable,
-	 # can be 1-8.
+	 # can be 0-8.
 make clean
 	 Cleans all BS executables and object files.
 make clean-BS{#}
@@ -61,7 +61,7 @@ Can use "make verbose=true" for verbose output.
 endef
 
 ifeq (,$(filter BS \
-								BS1 BS2 BS3 BS4 BS5 BS6 \
+								BS0 BS1 BS2 BS3 BS4 BS5 BS6 \
 								clean-BS0 clean-BS1 clean-BS2 clean-BS3 clean-BS4 clean-BS5 clean-BS6 \
 								clean clean-libs \
 								realclean info help,$(MAKECMDGOALS)))
@@ -79,24 +79,27 @@ endif
 endif
 
 #libraries
-GS_DIR       =${CEED_TPL_DIR}/gslib
-BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-LIBS_DIR     =${CEED_DIR}/libs
-OGS_DIR      =${LIBS_DIR}/ogs
-MESH_DIR     =${LIBS_DIR}/mesh
+BS_CEED_LIBS=mesh ogs linAlg core
 
-.PHONY: all BS \
-				BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8 \
-				clean-BS1 clean-BS2 clean-BS3 clean-BS4 clean-BS5 \
-				clean-BS6 clean-BS7 clean-BS8 \
+.PHONY: all BS ceed_libs \
+				BS0 BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8 \
+				clean-BS0 clean-BS1 clean-BS2 clean-BS3 clean-BS4 \
+				clean-BS5 clean-BS6 clean-BS7 clean-BS8 \
 				clean clean-libs \
 				realclean info help
 
 all: BS
 
-BS: BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8
+BS: BS0 BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8
 
-BS1: libmesh
+ceed_libs:
+ifneq (,${verbose})
+	${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) verbose=${verbose}
+else
+	@${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) --no-print-directory
+endif
+
+BS0: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -104,7 +107,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS2: libmesh
+BS1: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -112,7 +115,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS3: libmesh
+BS2: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -120,7 +123,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS4: libmesh
+BS3: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -128,7 +131,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS5: libmesh
+BS4: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -136,7 +139,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS6: libmesh
+BS5: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -144,7 +147,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS7: libmesh
+BS6: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -152,7 +155,7 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-BS8: libmesh
+BS7: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -160,43 +163,20 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-libmesh: libogs libgs libblas libcore
+BS8: ceed_libs
 ifneq (,${verbose})
-	${MAKE} -C ${MESH_DIR} lib verbose=${verbose}
+	${MAKE} -C $(@F) verbose=${verbose}
 else
-	@${MAKE} -C ${MESH_DIR} lib --no-print-directory
-endif
-
-libogs: libcore
-ifneq (,${verbose})
-	${MAKE} -C ${OGS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${OGS_DIR} lib --no-print-directory
-endif
-
-libcore: libgs
-ifneq (,${verbose})
-	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
-endif
-
-libgs: libblas
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
-libblas:
-ifneq (,${verbose})
-	${MAKE} -C ${BLAS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${BLAS_DIR} lib --no-print-directory
+	@printf "%b" "$(SOL_COLOR)Building $(@F) benchmark $(NO_COLOR)\n";
+	@${MAKE} -C $(@F) --no-print-directory
 endif
 
 #cleanup
-clean: clean-BS1 clean-BS2 clean-BS3 clean-BS4 clean-BS5 clean-BS6 clean-BS7 clean-BS8
+clean: clean-BS0 clean-BS1 clean-BS2 clean-BS3 clean-BS4 \
+       clean-BS5 clean-BS6 clean-BS7 clean-BS8
+
+clean-BS0:
+	${MAKE} -C BS0 clean
 
 clean-BS1:
 	${MAKE} -C BS1 clean
@@ -223,13 +203,10 @@ clean-BS8:
 	${MAKE} -C BS8 clean
 
 clean-libs: clean
-	${MAKE} -C ${MESH_DIR} clean
-	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${LIBS_DIR} clean
+	${MAKE} -C ${CEED_LIBS_DIR} clean
 
-realclean: clean-libs
-	${MAKE} -C ${GS_DIR} clean
-	${MAKE} -C ${BLAS_DIR} clean
+realclean: clean
+	${MAKE} -C ${CEED_LIBS_DIR} realclean
 
 help:
 	$(info $(value CEED_HELP_MSG))

@@ -52,17 +52,17 @@ void bs5_t::Run(){
 
   printf("Nmin = %d, Nmax = %d, N = %d\n", Nmin, Nmax, N);
 
-  occa::memory o_p  = device.malloc(N*sizeof(dfloat));
-  occa::memory o_Ap = device.malloc(N*sizeof(dfloat));
-  occa::memory o_x  = device.malloc(N*sizeof(dfloat));
-  occa::memory o_r  = device.malloc(N*sizeof(dfloat));
+  occa::memory o_p  = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_Ap = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_x  = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_r  = platform.malloc(N*sizeof(dfloat));
 
-  occa::memory o_rdotr = device.malloc(1*sizeof(dfloat));
+  occa::memory o_rdotr = platform.malloc(1*sizeof(dfloat));
 
   int maxNblock = (Nmax+blockSize-1)/(blockSize);
   maxNblock = (maxNblock>blockSize) ? blockSize : maxNblock; //limit to blockSize entries
 
-  occa::memory o_tmp = device.malloc(maxNblock*sizeof(dfloat));
+  occa::memory o_tmp = platform.malloc(maxNblock*sizeof(dfloat));
 
   const dfloat alpha = 1.0;
 
@@ -91,7 +91,7 @@ void bs5_t::Run(){
 
     for(int att=0;att<Nattempts;++att){
 
-      device.finish();
+      platform.device.finish();
       dfloat tic = MPI_Wtime();
 
       /* CGupdate Test */
@@ -102,7 +102,7 @@ void bs5_t::Run(){
       }
 
       //  occa::streamTag end = device.tagStream();
-      device.finish();
+      platform.device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
 

@@ -25,7 +25,14 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
+#include "mesh/mesh3D.hpp"
+
+void meshQuad3D::ReferenceNodes(int N_){
+  mesh_t *mesh_p = (mesh_t*) this;
+  meshQuad2D* quadmesh = (meshQuad2D*) mesh_p;
+  quadmesh->meshQuad2D::ReferenceNodes(N_);
+}
 
 void meshQuad2D::ReferenceNodes(int N_){
 
@@ -46,13 +53,20 @@ void meshQuad2D::ReferenceNodes(int N_){
   VertexNodesQuad2D(N, r, s, vertexNodes);
 
   //GLL quadrature
-  gllz = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  gllw = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  JacobiGLL(N, gllz, gllw);
+  dfloat *gllz = (dfloat *) malloc((N+1)*sizeof(dfloat));
+  w = (dfloat *) malloc((N+1)*sizeof(dfloat));
+  JacobiGLL(N, gllz, w);
+
+  //Lumped Mass matrix
+  // MM    = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // LumpedMassMatrixQuad2D(N, w, MM);
+  // invLumpedMassMatrixQuad2D(N, w, invMM);
 
   // D matrix
-  D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
-  Dmatrix1D(N, N+1, gllz, D);
+  // D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
+  // Dmatrix1D(N, Nq, gllz, Nq, gllz, D);
+  // free(gllz);
 
   /* Plotting data */
   int plotN = N_ + 3; //enriched interpolation space for plotting
@@ -60,36 +74,16 @@ void meshQuad2D::ReferenceNodes(int N_){
   plotNp = plotNq*plotNq;
 
   /* Plotting nodes */
-  plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  EquispacedNodesQuad2D(plotN, plotR, plotS);
+  // plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // EquispacedNodesQuad2D(plotN, plotR, plotS);
 
-  plotNelements = 2*plotN*plotN;
-  plotNverts = 3;
-  plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
-  EquispacedEToVQuad2D(plotN, plotEToV);
+  // plotNelements = 2*plotN*plotN;
+  // plotNverts = 3;
+  // plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
+  // EquispacedEToVQuad2D(plotN, plotEToV);
 
-  plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
-  InterpolationMatrixQuad2D(N, Np, r, s, plotNp, plotR, plotS, plotInterp);
-
-  /* Quadrature data */
-  cubN = N+1;
-  cubNq = cubN+1;
-  cubNp = cubNq*cubNq;
-  cubNfp = cubNq;
-  intNfp = cubNq;
-
-  // cubN+1 point Gauss-Legendre quadrature
-  cubr = (dfloat *) malloc(cubNq*sizeof(dfloat));
-  cubw = (dfloat *) malloc(cubNq*sizeof(dfloat));
-  JacobiGQ(0, 0, cubN, cubr, cubw);
-
-  // GLL to GL interpolation matrix
-  cubInterp = (dfloat *) malloc(Nq*cubNq*sizeof(dfloat));
-  InterpolationMatrix1D(N, Nq, gllz, cubNq, cubr, cubInterp);
-
-  // GL to GL differentiation matrix
-  cubD = (dfloat *) malloc(cubNq*cubNq*sizeof(dfloat));
-  Dmatrix1D(cubN, cubNq, cubr, cubD);
+  // plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
+  // InterpolationMatrixQuad2D(N, Np, r, s, plotNp, plotR, plotS, plotInterp);
 }
 

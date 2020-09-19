@@ -25,7 +25,12 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
+#include "mesh/mesh3D.hpp"
+
+void meshQuad3D::SetupBox(){
+  CEED_ABORT(string("BOX mesh not currently supprted for Quad3D meshes."))
+}
 
 void meshQuad2D::SetupBox(){
 

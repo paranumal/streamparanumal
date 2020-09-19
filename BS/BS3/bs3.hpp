@@ -27,7 +27,7 @@ SOFTWARE.
 #ifndef BS3_HPP
 #define BS3_HPP 1
 
-#include "core.hpp"
+#include "platform.hpp"
 
 #define DBS3 CEED_DIR"/BS/BS3/"
 
@@ -39,25 +39,21 @@ public:
 
 class bs3_t {
 public:
-  occa::device& device;
-  MPI_Comm& comm;
-  settings_t& settings;
-  occa::properties& props;
+  platform_t &platform;
+  settings_t &settings;
 
   int blockSize;
 
   occa::kernel kernel1, kernel2;
 
   bs3_t() = delete;
-  bs3_t(occa::device& _device, MPI_Comm& _comm,
-        settings_t& _settings, occa::properties& _props):
-    device(_device), comm(_comm), settings(_settings), props(_props) {}
+  bs3_t(platform_t &_platform, settings_t& _settings):
+    platform(_platform), settings(_settings) {}
 
   ~bs3_t();
 
   //setup
-  static bs3_t& Setup(occa::device& _device, MPI_Comm& _comm,
-        settings_t& _settings, occa::properties& _props);
+  static bs3_t& Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };

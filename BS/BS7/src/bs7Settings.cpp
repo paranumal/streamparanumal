@@ -30,7 +30,7 @@ SOFTWARE.
 bs7Settings_t::bs7Settings_t(const int argc, char** argv, MPI_Comm &_comm):
   settings_t(_comm) {
 
-  occaAddSettings(*this);
+  platformAddSettings(*this);
   meshAddSettings(*this);
 
   newSetting("-v", "--verbose",
@@ -45,6 +45,6 @@ bs7Settings_t::bs7Settings_t(const int argc, char** argv, MPI_Comm &_comm):
 void bs7Settings_t::report() {
 
   std::cout << "Settings:\n\n";
-  occaReportSettings(*this);
+  platformReportSettings(*this);
   meshReportSettings(*this);
 }

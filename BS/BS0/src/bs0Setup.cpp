@@ -26,15 +26,14 @@ SOFTWARE.
 
 #include "bs0.hpp"
 
-bs0_t& bs0_t::Setup(occa::device& device, MPI_Comm& comm,
-                    settings_t& settings, occa::properties& props) {
+bs0_t& bs0_t::Setup(platform_t &platform, settings_t& settings) {
 
-  bs0_t* bs0 = new bs0_t(device, comm, settings, props);
+  bs0_t* bs0 = new bs0_t(platform, settings);
 
   // OCCA build stuff
-  occa::properties kernelInfo = bs0->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
-  bs0->kernel = buildKernel(device, DBS0 "/okl/bs0.okl", "bs0", kernelInfo, comm);
+  bs0->kernel = platform.buildKernel(DBS0 "/okl/bs0.okl", "bs0", kernelInfo);
 
   return *bs0;
 }

@@ -25,42 +25,62 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
-#include "mesh3D.hpp"
+#include "mesh/mesh2D.hpp"
+#include "mesh/mesh3D.hpp"
 
-mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
-                     settings_t& settings, occa::properties& props){
+mesh_t& mesh_t::Setup(platform_t& platform, settings_t& settings,
+                      MPI_Comm comm){
 
-  string eType;
-  int N, elementType = HEXAHEDRA;
+  string fileName;
+  int N, dim, elementType;
 
+  settings.getSetting("MESH FILE", fileName);
   settings.getSetting("POLYNOMIAL DEGREE", N);
-  settings.getSetting("ELEMENT TYPE", eType);
+  settings.getSetting("ELEMENT TYPE", elementType);
+  settings.getSetting("MESH DIMENSION", dim);
 
   mesh_t *mesh=NULL;
-  if (eType.compare("Tri")==0) {
-    mesh = new meshTri2D(device, comm, settings, props);
-    elementType = TRIANGLES;
-  } else if (eType.compare("Quad")==0) {
-    mesh = new meshQuad2D(device, comm, settings, props);
-    elementType = QUADRILATERALS;
-  } else if (eType.compare("Tet")==0) {
-    mesh = new meshTet3D(device, comm, settings, props);
-    elementType = TETRAHEDRA;
-  } else if (eType.compare("Hex")==0) {
-    mesh = new meshHex3D(device, comm, settings, props);
-    elementType = HEXAHEDRA;
+  switch(elementType){
+  case TRIANGLES:
+    if(dim==2)
+      mesh = new meshTri2D(platform, settings, comm);
+    else
+      mesh = new meshTri3D(platform, settings, comm);
+    break;
+  case QUADRILATERALS:
+    if(dim==2)
+      mesh = new meshQuad2D(platform, settings, comm);
+    else
+      mesh = new meshQuad3D(platform, settings, comm);
+    break;
+  case TETRAHEDRA:
+    mesh = new meshTet3D(platform, settings, comm);
+    break;
+  case HEXAHEDRA:
+    mesh = new meshHex3D(platform, settings, comm);
+    break;
   }
 
   mesh->elementType = elementType;
 
-  mesh->ringHalo = NULL;
+  // mesh->ringHalo = NULL;
+
+  // if (settings.compareSetting("MESH FILE","PMLBOX")) {
+  //   //build a box mesh with a pml layer
+  //   mesh->SetupPmlBox();
+  // } else if (settings.compareSetting("MESH FILE","BOX")) {
+  //   //build a box mesh
+  //   mesh->SetupBox();
+  // } else {
+  //   // read chunk of elements from file
+  //   mesh->ParallelReader(fileName.c_str());
+
+  //   // partition elements using Morton ordering & parallel sort
+  //   mesh->GeometricPartition();
+  // }
 
   //build a box mesh
   mesh->SetupBox();
-
-  // partition elements using Morton ordering & parallel sort
-  // mesh->GeometricPartition();
 
   // connect elements using parallel sort
   mesh->ParallelConnect();
@@ -72,7 +92,7 @@ mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
   // connect elements to boundary faces
   mesh->ConnectBoundary();
 
-  // reference (r,s, t) element nodes and operators
+  // load reference (r,s) element nodes
   mesh->ReferenceNodes(N);
 
   // set up halo exchange info for MPI (do before connect face nodes)
@@ -82,15 +102,6 @@ mesh_t& mesh_t::Setup(occa::device& device, MPI_Comm& comm,
   mesh->PhysicalNodes();
 
   // compute geometric factors
-  if (elementType == TRIANGLES) {
-    mesh->Nggeo=4;
-  } else if (elementType == QUADRILATERALS) {
-    mesh->Nggeo=4;
-  } else if (elementType == TETRAHEDRA) {
-    mesh->Nggeo=7;
-  } else if (elementType == HEXAHEDRA) {
-    mesh->Nggeo=7;
-  }
   // mesh->GeometricFactors();
 
   // connect face nodes (find trace indices)

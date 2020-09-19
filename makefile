@@ -70,19 +70,22 @@ endif
 endif
 
 #libraries
-GS_DIR       =${CEED_TPL_DIR}/gslib
-BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-LIBS_DIR     =${CEED_DIR}/libs
-OGS_DIR      =${LIBS_DIR}/ogs
-MESH_DIR     =${LIBS_DIR}/mesh
+BS_CEED_LIBS=mesh ogs linAlg core
 
-.PHONY: all BS \
+.PHONY: all BS ceed_libs \
 		clean clean-libs \
 		realclean info help
 
 all: BS
 
-BS: libmesh
+ceed_libs:
+ifneq (,${verbose})
+	${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) verbose=${verbose}
+else
+	@${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) --no-print-directory
+endif
+
+BS: ceed_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -90,53 +93,15 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
-libmesh: libogs libgs libblas libcore
-ifneq (,${verbose})
-	${MAKE} -C ${MESH_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${MESH_DIR} lib --no-print-directory
-endif
-
-libogs: libcore
-ifneq (,${verbose})
-	${MAKE} -C ${OGS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${OGS_DIR} lib --no-print-directory
-endif
-
-libcore: libgs
-ifneq (,${verbose})
-	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
-endif
-
-libgs: libblas
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
-libblas:
-ifneq (,${verbose})
-	${MAKE} -C ${BLAS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${BLAS_DIR} lib --no-print-directory
-endif
-
 #cleanup
 clean:
 	${MAKE} -C BS clean
 
 clean-libs: clean
-	${MAKE} -C ${MESH_DIR} clean
-	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${LIBS_DIR} clean
+	${MAKE} -C ${CEED_LIBS_DIR} clean
 
-realclean: clean-libs
-	${MAKE} -C ${GS_DIR} clean
-	${MAKE} -C ${BLAS_DIR} clean
+realclean: clean
+	${MAKE} -C ${CEED_LIBS_DIR} realclean
 
 help:
 	$(info $(value CEED_HELP_MSG))

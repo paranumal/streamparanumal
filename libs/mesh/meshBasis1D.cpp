@@ -33,6 +33,13 @@ void mesh_t::Nodes1D(int _N, dfloat *_r){
   JacobiGLL(_N, _r); //Gauss-Legendre-Lobatto nodes
 }
 
+void mesh_t::EquispacedNodes1D(int _N, dfloat *_r){
+  int _Nq = _N+1;
+
+  dfloat dr = 2.0/_N;
+  for (int i=0;i<_Nq;i++) _r[i] = -1.0 + i*dr;
+}
+
 // ------------------------------------------------------------------------
 // ORTHONORMAL BASIS POLYNOMIALS
 // ------------------------------------------------------------------------
@@ -52,11 +59,9 @@ void mesh_t::Vandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *V){
   int _Np = (_N+1);
 
   for(int n=0; n<Npoints; n++){
-    int sk = 0;
-    for(int i=0; i<=_N; i++){
-      int id = n*_Np+sk;
+    for(int i=0; i<_Np; i++){
+      int id = n*_Np+i;
       OrthonormalBasis1D(_r[n], i, V+id);
-      sk++;
     }
   }
 }
@@ -66,11 +71,9 @@ void mesh_t::GradVandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *Vr){
   int _Np = (_N+1);
 
   for(int n=0; n<Npoints; n++){
-    int sk = 0;
-    for(int i=0; i<=_N; i++){
-      int id = n*_Np+sk;
+    for(int i=0; i<_Np; i++){
+      int id = n*_Np+i;
       GradOrthonormalBasis1D(_r[n], i, Vr+id);
-      sk++;
     }
   }
 }
@@ -93,18 +96,23 @@ void mesh_t::MassMatrix1D(int _Np, dfloat *V, dfloat *_MM){
   matrixInverse(_Np, _MM);
 }
 
-void mesh_t::Dmatrix1D(int _N, int Npoints, dfloat *_r, dfloat *_Dr){
+void mesh_t::Dmatrix1D(int _N, int NpointsIn, dfloat *_rIn,
+                               int NpointsOut, dfloat *_rOut, dfloat *_Dr){
+
+  // need NpointsIn = (_N+1)
+  if (NpointsIn != _N+1)
+    CEED_ABORT(string("Invalid Differentiation operator requested."))
 
   int _Np = _N+1;
 
-  dfloat *V  = (dfloat *) calloc(Npoints*_Np, sizeof(dfloat));
-  dfloat *Vr = (dfloat *) calloc(Npoints*_Np, sizeof(dfloat));
+  dfloat *V  = (dfloat *) calloc(NpointsIn*_Np, sizeof(dfloat));
+  dfloat *Vr = (dfloat *) calloc(NpointsOut*_Np, sizeof(dfloat));
 
-  Vandermonde1D(_N, Npoints, _r, V);
-  GradVandermonde1D(_N, Npoints, _r, Vr);
+  Vandermonde1D(_N, NpointsIn, _rIn, V);
+  GradVandermonde1D(_N, NpointsOut, _rOut, Vr);
 
   //D = Vr/V
-  matrixRightSolve(_Np, _Np, Vr, _Np, _Np, V, _Dr);
+  matrixRightSolve(NpointsOut, _Np, Vr, _Np, _Np, V, _Dr);
 
   free(V);
   free(Vr);
@@ -128,6 +136,36 @@ void mesh_t::InterpolationMatrix1D(int _N,
   matrixRightSolve(NpointsOut, _N+1, VOut, NpointsIn, _N+1, VIn, I);
 
   free(VIn); free(VOut);
+}
+
+void mesh_t::DegreeRaiseMatrix1D(int Nc, int Nf, dfloat *P){
+
+  int Nqc = Nc+1;
+  int Nqf = Nf+1;
+
+  dfloat *rc = (dfloat *) malloc(Nqc*sizeof(dfloat));
+  dfloat *rf = (dfloat *) malloc(Nqf*sizeof(dfloat));
+
+  Nodes1D(Nc, rc);
+  Nodes1D(Nf, rf);
+
+  InterpolationMatrix1D(Nc, Nqc, rc, Nqf, rf, P);
+
+  free(rc); free(rf);
+}
+
+void mesh_t::CubatureWeakDmatrix1D(int _Nq, int _cubNq,
+                                     dfloat *_cubProject, dfloat *_cubD, dfloat *_cubPDT){
+
+  // cubPDT = cubProject*cubD';
+  for(int n=0;n<_Nq;++n){
+    for(int m=0;m<_cubNq;++m){
+      _cubPDT[n*_cubNq+m] = 0.0;
+      for(int k=0;k<_cubNq;++k){
+        _cubPDT[n*_cubNq+m] += _cubProject[n*_cubNq+k]*_cubD[m*_cubNq+k];
+      }
+    }
+  }
 }
 
 // ------------------------------------------------------------------------
@@ -188,7 +226,7 @@ dfloat mesh_t::GradJacobiP(dfloat a, dfloat alpha, dfloat beta, int _N){
 // ------------------------------------------------------------------------
 // 1D GAUSS-LEGENDRE-LOBATTO QUADRATURE
 // ------------------------------------------------------------------------
-void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
+void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *_w){
 
   _x[0] = -1.;
   _x[_N] =  1.;
@@ -199,7 +237,7 @@ void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
     free(wtmp);
   }
 
-  if (w!=NULL) {
+  if (_w!=NULL) {
     int _Np = _N+1;
     dfloat *_MM = (dfloat*) malloc(_Np*_Np*sizeof(dfloat));
     dfloat  *V = (dfloat*) malloc(_Np*_Np*sizeof(dfloat));
@@ -213,7 +251,7 @@ void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
       for(int m=0;m<=_N;++m){
         res += _MM[n*(_N+1)+m];
       }
-      w[n] = res;
+      _w[n] = res;
     }
   }
 }
@@ -221,15 +259,15 @@ void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
 // ------------------------------------------------------------------------
 // 1D GAUSS QUADRATURE
 // ------------------------------------------------------------------------
-void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
+void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *_w){
 
-  // function NGQ = JacobiGQ(alpha,beta,_N, _x, w)
+  // function NGQ = JacobiGQ(alpha,beta,_N, _x, _w)
   // Purpose: Compute the _N'th order Gauss quadrature points, _x,
-  //          and weights, w, associated with the Jacobi
+  //          and weights, _w, associated with the Jacobi
   //          polynomial, of type (alpha,beta) > -1 ( <> -0.5).
   if (_N==0){
     _x[0] = (alpha-beta)/(alpha+beta+2);
-    w[0] = 2;
+    _w[0] = 2;
   }
 
   // Form symmetric matrix from recurrence.
@@ -268,11 +306,11 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
   dfloat *VR = (dfloat*) calloc((_N+1)*(_N+1), sizeof(dfloat));
 
   // _x = diag(D);
-  matrixEig(_N+1, J, VR, _x, WI);
+  matrixEigenVectors(_N+1, J, VR, _x, WI);
 
-  //w = (V(1,:)').^2*2^(alpha+beta+1)/(alpha+beta+1)*gamma(alpha+1)*.gamma(beta+1)/gamma(alpha+beta+1);
+  //_w = (V(1,:)').^2*2^(alpha+beta+1)/(alpha+beta+1)*gamma(alpha+1)*.gamma(beta+1)/gamma(alpha+beta+1);
   for(int n=0;n<=_N;++n){
-    w[n] = pow(VR[0*(_N+1)+n],2)*(pow(2,alpha+beta+1)/(alpha+beta+1))*mygamma(alpha+1)*mygamma(beta+1)/mygamma(alpha+beta+1);
+    _w[n] = pow(VR[0*(_N+1)+n],2)*(pow(2,alpha+beta+1)/(alpha+beta+1))*mygamma(alpha+1)*mygamma(beta+1)/mygamma(alpha+beta+1);
   }
 
   // sloppy sort
@@ -280,18 +318,18 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
     for(int m=n+1;m<=_N;++m){
       if(_x[n]>_x[m]){
         dfloat tmpx = _x[m];
-        dfloat tmpw = w[m];
+        dfloat tmpw = _w[m];
         _x[m] = _x[n];
-        w[m] = w[n];
+        _w[m] = _w[n];
         _x[n] = tmpx;
-        w[n] = tmpw;
+        _w[n] = tmpw;
       }
     }
   }
 
 #if 0
   for(int n=0;n<=_N;++n){
-    printf("zgl[%d] = % e, wgl[%d] = % e\n", n, _x[0][n], n, w[0][n]);
+    printf("zgl[%d] = % e, wgl[%d] = % e\n", n, _x[0][n], n, _w[0][n]);
   }
 #endif
 

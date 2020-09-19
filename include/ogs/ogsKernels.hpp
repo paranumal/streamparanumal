@@ -29,7 +29,7 @@ SOFTWARE.
 
 #include <limits>
 #include "ogs.hpp"
-#include "ogsDefs.h"
+#include "ogs/ogsDefs.h"
 
 #define DEFINE_ADD_OGS_INIT(T)                                  \
   static T init_##T##_add = (T)  0;                             \
@@ -48,7 +48,7 @@ extern int Nrefs;
 
 extern occa::stream dataStream;
 
-void initKernels(MPI_Comm& comm, occa::device& device);
+void initKernels(platform_t &platform);
 
 void freeKernels();
 

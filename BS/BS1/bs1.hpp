@@ -27,7 +27,7 @@ SOFTWARE.
 #ifndef BS1_HPP
 #define BS1_HPP 1
 
-#include "core.hpp"
+#include "platform.hpp"
 
 #define DBS1 CEED_DIR"/BS/BS1/"
 
@@ -39,23 +39,19 @@ public:
 
 class bs1_t {
 public:
-  occa::device& device;
-  MPI_Comm& comm;
-  settings_t& settings;
-  occa::properties& props;
+  platform_t &platform;
+  settings_t &settings;
 
   occa::kernel kernel;
 
   bs1_t() = delete;
-  bs1_t(occa::device& _device, MPI_Comm& _comm,
-        settings_t& _settings, occa::properties& _props):
-    device(_device), comm(_comm), settings(_settings), props(_props) {}
+  bs1_t(platform_t &_platform, settings_t& _settings):
+    platform(_platform), settings(_settings) {}
 
   ~bs1_t();
 
   //setup
-  static bs1_t& Setup(occa::device& _device, MPI_Comm& _comm,
-        settings_t& _settings, occa::properties& _props);
+  static bs1_t& Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };

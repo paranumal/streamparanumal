@@ -25,7 +25,7 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh3D.hpp"
+#include "mesh/mesh3D.hpp"
 
 void meshHex3D::ReferenceNodes(int N_){
 
@@ -47,13 +47,20 @@ void meshHex3D::ReferenceNodes(int N_){
   VertexNodesHex3D(N, r, s, t, vertexNodes);
 
   //GLL quadrature
-  gllz = (dfloat *) malloc(Nq*sizeof(dfloat));
-  gllw = (dfloat *) malloc(Nq*sizeof(dfloat));
-  JacobiGLL(N, gllz, gllw);
+  dfloat *gllz = (dfloat *) malloc((N+1)*sizeof(dfloat));
+  w = (dfloat *) malloc((N+1)*sizeof(dfloat));
+  JacobiGLL(N, gllz, w);
+
+  //Lumped Mass matrix
+  // MM    = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // LumpedMassMatrixHex3D(N, w, MM);
+  // invLumpedMassMatrixHex3D(N, w, invMM);
 
   // D matrix
-  D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
-  Dmatrix1D(N, Nq, gllz, D);
+  // D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
+  // Dmatrix1D(N, Nq, gllz, Nq, gllz, D);
+  // free(gllz);
 
   /* Plotting data */
   int plotN = N_ + 3; //enriched interpolation space for plotting
@@ -61,37 +68,17 @@ void meshHex3D::ReferenceNodes(int N_){
   plotNp = plotNq*plotNq*plotNq;
 
   /* Plotting nodes */
-  plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  plotT = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  EquispacedNodesHex3D(plotN, plotR, plotS, plotT);
+  // plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // plotT = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // EquispacedNodesHex3D(plotN, plotR, plotS, plotT);
 
-  plotNelements = 6*plotN*plotN*plotN;
-  plotNverts = 4;
-  plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
-  EquispacedEToVHex3D(plotN, plotEToV);
+  // plotNelements = 6*plotN*plotN*plotN;
+  // plotNverts = 4;
+  // plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
+  // EquispacedEToVHex3D(plotN, plotEToV);
 
-  plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
-  InterpolationMatrixHex3D(N, Np, r, s, t, plotNp, plotR, plotS, plotT, plotInterp);
-
-  /* Quadrature data */
-  cubN = N+1;
-  cubNq = cubN+1;
-  cubNp = cubNq*cubNq*cubNq;
-  cubNfp = cubNq*cubNq;
-  intNfp = cubNq*cubNq;
-
-  // cubN+1 point Gauss-Legendre quadrature
-  cubr = (dfloat *) malloc(cubNq*sizeof(dfloat));
-  cubw = (dfloat *) malloc(cubNq*sizeof(dfloat));
-  JacobiGQ(0, 0, cubN, cubr, cubw);
-
-  // GLL to GL interpolation matrix
-  cubInterp = (dfloat *) malloc(Nq*cubNq*sizeof(dfloat));
-  InterpolationMatrix1D(N, Nq, gllz, cubNq, cubr, cubInterp);
-
-  // GL to GL differentiation matrix
-  cubD = (dfloat *) malloc(cubNq*cubNq*sizeof(dfloat));
-  Dmatrix1D(cubN, cubNq, cubr, cubD);
+  // plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
+  // InterpolationMatrixHex3D(N, Np, r, s, t, plotNp, plotR, plotS, plotT, plotInterp);
 }
 

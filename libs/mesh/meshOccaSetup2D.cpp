@@ -25,15 +25,15 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
 
 void mesh2D::OccaSetup(){
 
   this->mesh_t::OccaSetup();
 
-  o_x = device.malloc(Nelements*Np*sizeof(dfloat), x);
-  o_y = device.malloc(Nelements*Np*sizeof(dfloat), y);
-  o_z = device.malloc(Nelements*Np*sizeof(dfloat), y); // dummy z variables (note used y)
+  // o_x = platform.malloc(Nelements*Np*sizeof(dfloat), x);
+  // o_y = platform.malloc(Nelements*Np*sizeof(dfloat), y);
+  // o_z = o_y; // dummy z variable
 
   props["defines/" "p_NXID"]= NXID;
   props["defines/" "p_NYID"]= NYID;

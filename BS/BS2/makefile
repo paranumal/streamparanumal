@@ -26,7 +26,7 @@
 
 define BS2_HELP_MSG
 
-Bakeoff Streaming 1 makefile targets:
+Bakeoff Streaming 2 makefile targets:
 
    make BS2 (default)
    make clean
@@ -73,24 +73,21 @@ endif
 endif
 
 #libraries
-BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-LIBS_DIR     =${CEED_DIR}/libs
+BS2_CEED_LIBS=linAlg core
 
 #includes
 INCLUDES=${CEED_INCLUDES} \
-		 -I${CEED_LIBS_DIR}/include \
          -I.
-
 
 #defines
 DEFINES =${CEED_DEFINES} \
          -DCEED_DIR='"${CEED_DIR}"'
 
 #.cpp compilation flags
-BS2_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
+BS2_CXXFLAGS=${CEED_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${LIBS_DIR} -lcore \
+LIBS=-L${CEED_LIBS_DIR} $(addprefix -l,$(BS2_CEED_LIBS)) \
      ${CEED_LIBS}
 
 #link flags
@@ -105,40 +102,33 @@ SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all libcore libblas clean clean-libs \
+.PHONY: all ceed_libs clean clean-libs \
 		clean-kernels realclean help info BS2
 
 all: BS2
 
-BS2:$(OBJS) bs2Main.o | libcore
+ceed_libs:
 ifneq (,${verbose})
-	$(LD) -o BS2 bs2Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	${MAKE} -C ${CEED_LIBS_DIR} $(BS2_CEED_LIBS) verbose=${verbose}
+else
+	@${MAKE} -C ${CEED_LIBS_DIR} $(BS2_CEED_LIBS) --no-print-directory
+endif
+
+BS2:$(OBJS) bs2Main.o ceed_libs
+ifneq (,${verbose})
+	$(CEED_LD) -o BS2 bs2Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(LD) -o BS2 bs2Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
-endif
-
-libcore: libblas
-ifneq (,${verbose})
-	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
-endif
-
-libblas:
-ifneq (,${verbose})
-	${MAKE} -C ${BLAS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${BLAS_DIR} lib --no-print-directory
+	@$(CEED_LD) -o BS2 bs2Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 endif
 
 # rule for .cpp files
-%.o: %.cpp $(DEPS) | libcore
+%.o: %.cpp $(DEPS) | ceed_libs
 ifneq (,${verbose})
-	$(CXX) -o $*.o -c $*.cpp $(BS2_CXXFLAGS)
+	$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS2_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CXX) -o $*.o -c $*.cpp $(BS2_CXXFLAGS)
+	@$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS2_CXXFLAGS)
 endif
 
 #cleanup
@@ -146,13 +136,13 @@ clean:
 	rm -f src/*.o *.o BS2
 
 clean-libs: clean
-	${MAKE} -C ${LIBS_DIR} clean
+	${MAKE} -C ${CEED_LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ~/.occa/
 
-realclean: clean-libs
-	${MAKE} -C ${BLAS_DIR} clean
+realclean: clean
+	${MAKE} -C ${CEED_LIBS_DIR} realclean
 
 help:
 	$(info $(value BS2_HELP_MSG))

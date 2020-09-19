@@ -30,7 +30,7 @@ SOFTWARE.
 bs4Settings_t::bs4Settings_t(const int argc, char** argv, MPI_Comm &_comm):
   settings_t(_comm) {
 
-  occaAddSettings(*this);
+  platformAddSettings(*this);
 
   newSetting("-b", "--bytes",
              "BYTES",
@@ -62,14 +62,14 @@ bs4Settings_t::bs4Settings_t(const int argc, char** argv, MPI_Comm &_comm):
              "NSAMPLES",
              "1",
              "Array step size in bytes");
-  
+
   parseSettings(argc, argv);
 }
 
 void bs4Settings_t::report() {
 
   std::cout << "Settings:\n\n";
-  occaReportSettings(*this);
+  platformReportSettings(*this);
 
   reportSetting("BYTES");
 }

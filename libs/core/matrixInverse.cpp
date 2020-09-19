@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ void matrixInverse(int N, double *A){
   if(info) {
     std::stringstream ss;
     ss << "dgetrf_ reports info = " << info;
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   dgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
@@ -55,7 +55,7 @@ void matrixInverse(int N, double *A){
   if(info) {
     std::stringstream ss;
     ss << "dgetri_ reports info = " << info;
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   free(work);
@@ -75,7 +75,7 @@ void matrixInverse(int N, float *A){
   if(info) {
     std::stringstream ss;
     ss << "sgetrf_ reports info = " << info;
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   sgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
@@ -83,7 +83,7 @@ void matrixInverse(int N, float *A){
   if(info) {
     std::stringstream ss;
     ss << "sgetri_ reports info = " << info;
-    LIBP_ABORT(ss.str());
+    CEED_ABORT(ss.str());
   }
 
   free(work);

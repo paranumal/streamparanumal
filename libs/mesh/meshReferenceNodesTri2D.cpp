@@ -25,78 +25,75 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh2D.hpp"
+#include "mesh/mesh2D.hpp"
+#include "mesh/mesh3D.hpp"
+
+void meshTri3D::ReferenceNodes(int N_){
+  mesh_t *mesh_p = (mesh_t*) this;
+  meshTri2D* trimesh = (meshTri2D*) mesh_p;
+  trimesh->meshTri2D::ReferenceNodes(N);
+}
 
 void meshTri2D::ReferenceNodes(int N_){
-
-  // char fname[BUFSIZ];
-  // sprintf(fname, CEED_DIR "/nodes/triangleN%02d.dat", N_);
-
-  // FILE *fp = fopen(fname, "r");
-
-  // if (!fp) {
-  //   stringstream ss;
-  //   ss << "Cannot open file: " << fname;
-  //   CEED_ABORT(ss.str())
-  // }
 
   N = N_;
   Nfp = N+1;
   Np = (N+1)*(N+2)/2;
 
-  CEED_ABORT(string("Tri node setup not complete."))
+  /* Nodal Data */
+  r = (dfloat *) malloc(Np*sizeof(dfloat));
+  s = (dfloat *) malloc(Np*sizeof(dfloat));
+  NodesTri2D(N, r, s);
 
-  // int Nrows, Ncols;
+  faceNodes = (int *) malloc(Nfaces*Nfp*sizeof(int));
+  FaceNodesTri2D(N, r, s, faceNodes);
 
-  // /* Nodal Data */
-  // readDfloatArray(comm, fp, "Nodal r-coordinates", &(r),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Nodal s-coordinates", &(s),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Nodal Dr differentiation matrix", &(Dr), &Nrows, &Ncols);
-  // readDfloatArray(comm, fp, "Nodal Ds differentiation matrix", &(Ds), &Nrows, &Ncols);
-  // readDfloatArray(comm, fp, "Nodal Mass Matrix", &(MM), &Nrows, &Ncols);
-  // readIntArray   (comm, fp, "Nodal Face nodes", &(faceNodes), &Nrows, &Ncols);
-  // readDfloatArray(comm, fp, "Nodal Lift Matrix", &(LIFT), &Nrows, &Ncols);
+  vertexNodes = (int*) calloc(Nverts, sizeof(int));
+  VertexNodesTri2D(N, r, s, vertexNodes);
 
-  // /* Plotting data */
-  // readDfloatArray(comm, fp, "Plotting r-coordinates", &(plotR),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Plotting s-coordinates", &(plotS),&Nrows,&Ncols);
-  // plotNp = Nrows;
+  // dfloat *V = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // VandermondeTri2D(N, Np, r, s, V);
 
-  // readDfloatArray(comm, fp, "Plotting Interpolation Matrix", &(plotInterp),&Nrows,&Ncols);
-  // readIntArray   (comm, fp, "Plotting triangulation", &(plotEToV), &Nrows, &Ncols);
-  // plotNelements = Nrows;
-  // plotNverts = Ncols;
+  // //Mass matrix
+  // MM    = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
+  // MassMatrixTri2D(Np, V, MM);
+  // invMassMatrixTri2D(Np, V, invMM);
+  // free(V);
 
-  // /* Cubature data */
-  // readDfloatArray(comm, fp, "Cubature r-coordinates", &(cubr),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature s-coordinates", &(cubs),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature weights", &(cubw),&Nrows,&Ncols);
-  // cubNp = Nrows;
+  //packed D matrices
+  // D  = (dfloat *) malloc(2*Np*Np*sizeof(dfloat));
+  // Dr = D + 0*Np*Np;
+  // Ds = D + 1*Np*Np;
+  // DmatrixTri2D(N, Np, r, s, Dr, Ds);
 
-  // //zero out some unused values
-  // cubNq = 0;
-  // cubNfp = 0;
+  // LIFT = (dfloat *) malloc(Np*Nfaces*Nfp*sizeof(dfloat));
+  // LIFTmatrixTri2D(N, faceNodes, r, s, LIFT);
 
-  // readDfloatArray(comm, fp, "Cubature Interpolation Matrix", &(cubInterp),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature Weak Dr Differentiation Matrix", &(cubDrW),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature Weak Ds Differentiation Matrix", &(cubDsW),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature Projection Matrix", &(cubProject),&Nrows,&Ncols);
-  // readDfloatArray(comm, fp, "Cubature Surface Interpolation Matrix", &(intInterp),&Nrows,&Ncols);
-  // intNfp = Nrows/Nfaces; //number of interpolation points per face
+  // sM = (dfloat *) calloc(Np*Nfaces*Nfp,sizeof(dfloat));
+  // SurfaceMassMatrixTri2D(N, MM, LIFT, sM);
 
-  // readDfloatArray(comm, fp, "Cubature Surface Lift Matrix", &(intLIFT),&Nrows,&Ncols);
+  //packed stiffness matrices
+  // S = (dfloat*) calloc(3*Np*Np, sizeof(dfloat));
+  // Srr = S + 0*Np*Np;
+  // Srs = S + 1*Np*Np;
+  // Sss = S + 2*Np*Np;
+  // SmatrixTri2D(N, Dr, Ds, MM, Srr, Srs, Sss);
 
-  // fclose(fp);
+  /* Plotting data */
+  int plotN = N + 3; //enriched interpolation space for plotting
+  plotNp = (plotN+1)*(plotN+2)/2;
 
-  // // find node indices of vertex nodes
-  // dfloat NODETOL = 1e-6;
-  // vertexNodes = (int*) calloc(Nverts, sizeof(int));
-  // for(int n=0;n<Np;++n){
-  //   if( (r[n]+1)*(r[n]+1)+(s[n]+1)*(s[n]+1)<NODETOL)
-  //     vertexNodes[0] = n;
-  //   if( (r[n]-1)*(r[n]-1)+(s[n]+1)*(s[n]+1)<NODETOL)
-  //     vertexNodes[1] = n;
-  //   if( (r[n]+1)*(r[n]+1)+(s[n]-1)*(s[n]-1)<NODETOL)
-  //     vertexNodes[2] = n;
-  // }
+  /* Plotting nodes */
+  // plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
+  // EquispacedNodesTri2D(plotN, plotR, plotS);
+
+  // plotNelements = plotN*plotN;
+  // plotNverts = 3;
+  // plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
+  // EquispacedEToVTri2D(plotN, plotEToV);
+
+  // plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
+  // InterpolationMatrixTri2D(N, Np, r, s, plotNp, plotR, plotS, plotInterp);
 }

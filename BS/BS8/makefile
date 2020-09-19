@@ -72,29 +72,26 @@ include ../../make.top
 endif
 endif
 
+#gslib
+GS_DIR=${CEED_TPL_DIR}/gslib
+
 #libraries
-GS_DIR       =${CEED_TPL_DIR}/gslib
-BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-LIBS_DIR     =${CEED_DIR}/libs
-OGS_DIR      =${LIBS_DIR}/ogs
-MESH_DIR     =${LIBS_DIR}/mesh
+BS8_CEED_LIBS=mesh ogs linAlg core
 
 #includes
 INCLUDES=${CEED_INCLUDES} \
-		 -I${CEED_LIBS_DIR}/include \
          -I.
-
 
 #defines
 DEFINES =${CEED_DEFINES} \
          -DCEED_DIR='"${CEED_DIR}"'
 
 #.cpp compilation flags
-BS8_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
+BS8_CXXFLAGS=${CEED_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${LIBS_DIR} -lmesh -logs -lcore \
-     -L$(GS_DIR)/lib -lgs \
+LIBS=-L${CEED_LIBS_DIR} $(addprefix -l,$(BS8_CEED_LIBS)) \
+		 -L$(GS_DIR)/lib -lgs \
      ${CEED_LIBS}
 
 #link flags
@@ -109,61 +106,33 @@ SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all libcore libmesh libogs libgs libblas clean clean-libs \
+.PHONY: all ceed_libs clean clean-libs \
 		clean-kernels realclean help info BS8
 
 all: BS8
 
-BS8:$(OBJS) bs8Main.o | libmesh
+ceed_libs:
 ifneq (,${verbose})
-	$(LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	${MAKE} -C ${CEED_LIBS_DIR} $(BS8_CEED_LIBS) verbose=${verbose}
+else
+	@${MAKE} -C ${CEED_LIBS_DIR} $(BS8_CEED_LIBS) --no-print-directory
+endif
+
+BS8:$(OBJS) bs8Main.o ceed_libs
+ifneq (,${verbose})
+	$(CEED_LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
-endif
-
-libmesh: libogs libgs libblas libcore
-ifneq (,${verbose})
-	${MAKE} -C ${MESH_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${MESH_DIR} lib --no-print-directory
-endif
-
-libogs: libcore
-ifneq (,${verbose})
-	${MAKE} -C ${OGS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${OGS_DIR} lib --no-print-directory
-endif
-
-libcore: libgs
-ifneq (,${verbose})
-	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
-endif
-
-libgs: libblas
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
-libblas:
-ifneq (,${verbose})
-	${MAKE} -C ${BLAS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${BLAS_DIR} lib --no-print-directory
+	@$(CEED_LD) -o BS8 bs8Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 endif
 
 # rule for .cpp files
-%.o: %.cpp $(DEPS) | libmesh
+%.o: %.cpp $(DEPS) | ceed_libs
 ifneq (,${verbose})
-	$(CXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
+	$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
+	@$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS8_CXXFLAGS)
 endif
 
 #cleanup
@@ -171,16 +140,13 @@ clean:
 	rm -f src/*.o *.o BS8
 
 clean-libs: clean
-	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${MESH_DIR} clean
-	${MAKE} -C ${LIBS_DIR} clean
+	${MAKE} -C ${CEED_LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ~/.occa/
 
-realclean: clean-libs
-	${MAKE} -C ${GS_DIR} clean
-	${MAKE} -C ${BLAS_DIR} clean
+realclean: clean
+	${MAKE} -C ${CEED_LIBS_DIR} realclean
 
 help:
 	$(info $(value BS8_HELP_MSG))

@@ -27,7 +27,6 @@ SOFTWARE.
 #ifndef BS7_HPP
 #define BS7_HPP 1
 
-#include "core.hpp"
 #include "mesh.hpp"
 
 #define DBS7 CEED_DIR"/BS/BS7/"
