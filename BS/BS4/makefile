@@ -74,7 +74,7 @@ endif
 
 #libraries
 BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-CORE_DIR     =${CEED_DIR}/core
+LIBS_DIR     =${CEED_DIR}/libs
 
 #includes
 INCLUDES=${CEED_INCLUDES} \
@@ -90,7 +90,7 @@ DEFINES =${CEED_DEFINES} \
 BS4_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${CORE_DIR} -lcore \
+LIBS=-L${LIBS_DIR} -lcore \
      ${CEED_LIBS}
 
 #link flags
@@ -120,9 +120,9 @@ endif
 
 libcore: libblas
 ifneq (,${verbose})
-	${MAKE} -C ${CORE_DIR} lib verbose=${verbose}
+	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
 else
-	@${MAKE} -C ${CORE_DIR} lib --no-print-directory
+	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
 endif
 
 libblas:
@@ -146,7 +146,7 @@ clean:
 	rm -f src/*.o *.o BS4
 
 clean-libs: clean
-	${MAKE} -C ${CORE_DIR} clean
+	${MAKE} -C ${LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ~/.occa/

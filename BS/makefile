@@ -81,9 +81,9 @@ endif
 #libraries
 GS_DIR       =${CEED_TPL_DIR}/gslib
 BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-CORE_DIR     =${CEED_DIR}/core
-OGS_DIR      =${CORE_DIR}/ogs
-MESH_DIR     =${CORE_DIR}/mesh
+LIBS_DIR     =${CEED_DIR}/libs
+OGS_DIR      =${LIBS_DIR}/ogs
+MESH_DIR     =${LIBS_DIR}/mesh
 
 .PHONY: all BS \
 				BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8 \
@@ -176,9 +176,9 @@ endif
 
 libcore: libgs
 ifneq (,${verbose})
-	${MAKE} -C ${CORE_DIR} lib verbose=${verbose}
+	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
 else
-	@${MAKE} -C ${CORE_DIR} lib --no-print-directory
+	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
 endif
 
 libgs: libblas
@@ -225,7 +225,7 @@ clean-BS8:
 clean-libs: clean
 	${MAKE} -C ${MESH_DIR} clean
 	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${CORE_DIR} clean
+	${MAKE} -C ${LIBS_DIR} clean
 
 realclean: clean-libs
 	${MAKE} -C ${GS_DIR} clean

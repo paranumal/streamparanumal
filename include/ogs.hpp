@@ -181,7 +181,7 @@ SOFTWARE.
 #include "core.hpp"
 
 //ogs defs
-#include "../core/ogs/include/ogsDefs.h"
+#include "../libs/ogs/include/ogsDefs.h"
 
 /* type enum */
 #define LIST OGS_FOR_EACH_TYPE(ITEM) ogs_type_n
@@ -214,7 +214,7 @@ public:
   /* TW Bits */
   dlong *flatMap;
   occa::memory o_flatMap;
-  
+
   occa::memory o_blockRowStarts;
   occa::memory o_rowStarts;
   occa::memory o_colIds;

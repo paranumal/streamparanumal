@@ -86,7 +86,7 @@ void bs7_t::Run(){
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){
-#if 0 
+#if 0
     printf("BS7 (scatter): %d, " hlongFormat "," hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, NlocalTotal, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
            mesh.N,
            Ndofs,
@@ -97,12 +97,10 @@ void bs7_t::Run(){
            Nflops/(1.0e9 * elapsedTime),
            Ndofs/(mesh.size*elapsedTime));
 #else
-    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
-    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
-    
+
     printf("7, "  hlongFormat ", %5.4le, %5.4le, %5.4le, %5.4le, %5.4le, %d, %lld, %1.5le, %1.5le, %1.5le, %1.5le; %%%% BS7 scatter: BPid, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time, N, bytes moved,Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz)  \n",
-           Ndofs,	   
+           Ndofs,
            elapsedTime,
            elapsedTime/(Ndofs),
            bytes/(1.0e9 * elapsedTime),
@@ -112,7 +110,7 @@ void bs7_t::Run(){
 	   bytes,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
 #endif
-    
+
   }
 
   o_q.free();

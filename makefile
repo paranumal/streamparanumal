@@ -29,7 +29,6 @@ define CEED_HELP_MSG
 CEED Benchmarks makefile targets:
 
 	 make all (default)
-	 make BP/BK/BS
 	 make clean
 	 make clean-libs
 	 make realclean
@@ -40,12 +39,8 @@ Usage:
 
 make all
 	 Builds all benchmark executables.
-make BP/BK/BS
-	 Builds Bakeoff Problems, Kernels, or Streaming executables,
 make clean
 	 Cleans all executables and object files.
-make clean-BP/BK/BS
-	 Cleans BP, BK, or BS executables and object files.
 make clean-libs
 	 In addition to "make clean", also clean the core, mesh, and ogs libraries.
 make realclean
@@ -59,9 +54,7 @@ Can use "make verbose=true" for verbose output.
 
 endef
 
-ifeq (,$(filter BP BK BS \
-				clean-BP clean-BK clean-BS \
-				clean clean-libs \
+ifeq (,$(filter all clean clean-libs \
 				realclean info help,$(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
 $(error ${CEED_HELP_MSG})
@@ -79,32 +72,15 @@ endif
 #libraries
 GS_DIR       =${CEED_TPL_DIR}/gslib
 BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-CORE_DIR     =${CEED_DIR}/core
-OGS_DIR      =${CORE_DIR}/ogs
-MESH_DIR     =${CORE_DIR}/mesh
+LIBS_DIR     =${CEED_DIR}/libs
+OGS_DIR      =${LIBS_DIR}/ogs
+MESH_DIR     =${LIBS_DIR}/mesh
 
-.PHONY: all BP BK BS \
-		clean-BP clean-BK clean-BS \
+.PHONY: all BS \
 		clean clean-libs \
 		realclean info help
 
-all: BP BK BS
-
-BP: libmesh
-ifneq (,${verbose})
-	${MAKE} -C $(@F) verbose=${verbose}
-else
-	@printf "%b" "$(SOL_COLOR)Building $(@F) benchmark $(NO_COLOR)\n";
-	@${MAKE} -C $(@F) --no-print-directory
-endif
-
-BK: libmesh
-ifneq (,${verbose})
-	${MAKE} -C $(@F) verbose=${verbose}
-else
-	@printf "%b" "$(SOL_COLOR)Building $(@F) benchmark $(NO_COLOR)\n";
-	@${MAKE} -C $(@F) --no-print-directory
-endif
+all: BS
 
 BS: libmesh
 ifneq (,${verbose})
@@ -130,9 +106,9 @@ endif
 
 libcore: libgs
 ifneq (,${verbose})
-	${MAKE} -C ${CORE_DIR} lib verbose=${verbose}
+	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
 else
-	@${MAKE} -C ${CORE_DIR} lib --no-print-directory
+	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
 endif
 
 libgs: libblas
@@ -150,21 +126,13 @@ else
 endif
 
 #cleanup
-clean: clean-BP clean-BK clean-BS
-
-clean-BP:
-	${MAKE} -C BP clean
-
-clean-BK:
-	${MAKE} -C BK clean
-
-clean-BS:
+clean:
 	${MAKE} -C BS clean
 
 clean-libs: clean
 	${MAKE} -C ${MESH_DIR} clean
 	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${CORE_DIR} clean
+	${MAKE} -C ${LIBS_DIR} clean
 
 realclean: clean-libs
 	${MAKE} -C ${GS_DIR} clean

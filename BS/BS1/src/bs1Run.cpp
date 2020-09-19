@@ -49,7 +49,7 @@ void bs1_t::Run(){
   Nmin = Bmin/sc;
   Nmax = Bmax/sc;
   N = Nmax;
-  
+
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
 
@@ -68,42 +68,40 @@ void bs1_t::Run(){
     int Nattempts = 5;
 
     for(int att=0;att<Nattempts;++att){
-      
+
       // tic
       device.finish();
       dfloat tic = MPI_Wtime();
-      
+
       /* COPY Test */
       int Ntests = 20;
       for(int n=0;n<Ntests;++n){
 	kernel(Nrun, o_a, o_b); //b = a
       }
-      
+
       device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
 
       minElapsedTime = mymin(minElapsedTime, elapsedTime);
     }
-    
+
     size_t bytesIn  = Nrun*sizeof(dfloat);
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
-    
+
     //    printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5lef ;\n",
     //	   Nrun, minElapsedTime, minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, bytes/(1e9*minElapsedTime));
 
-    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
-    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
-    
+
     printf("1, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
 	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
 
     //    fflush(stdout);
   }
-  
+
   o_a.free();
   o_b.free();
 }

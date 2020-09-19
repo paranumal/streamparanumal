@@ -38,14 +38,14 @@ void bs0_t::Run(){
   int Nwarm = 100;
   for(int w=0;w<Nwarm;++w){
     Nave = (w<10) ? 1:10;
-    
+
     double elapsed = 0;
     for(int a=0;a<Nave;++a){
       device.finish();
       double tic = MPI_Wtime();
-      
+
       kernel(N, o_a, o_b);
-      
+
       device.finish();
       double toc = MPI_Wtime();
       elapsed += toc-tic;
@@ -65,17 +65,17 @@ void bs0_t::Run(){
 
       device.finish();
       double tic = MPI_Wtime();
-      
+
       for(int n=0;n<Ntests;++n){
-	kernel(N, o_a, o_b);
+        kernel(N, o_a, o_b);
       }
-      
+
       device.finish();
       double toc = MPI_Wtime();
-      
+
       elapsed += toc-tic;
     }
-    
+
     elapsed /= (Ntests*Nave);
 
     printf("%5.4E %5.4e %%%% Ntests, time per test, elapsed\n", Ntests, elapsed/Ntests, elapsed);
@@ -86,7 +86,7 @@ void bs0_t::Run(){
   printf("];\n");
 
 
-  
+
   o_a.free();
   o_b.free();
 }

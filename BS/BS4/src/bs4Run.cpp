@@ -49,7 +49,7 @@ void bs4_t::Run(){
   Nmin = Bmin/sc;
   Nmax = Bmax/sc;
   N = Nmax;
-  
+
   occa::memory o_a = device.malloc(N*sizeof(dfloat));
   occa::memory o_b = device.malloc(N*sizeof(dfloat));
   occa::memory o_tmp = device.malloc(blockSize*sizeof(dfloat));
@@ -58,7 +58,7 @@ void bs4_t::Run(){
   {
     int Nwarm = 5;
     int Nblock = (N+blockSize-1)/blockSize;
-    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries 
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
     for(int n=0;n<Nwarm;++n){ //warmup
       kernel1(Nblock, N, o_a, o_b, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_dot); //finish reduction
@@ -74,48 +74,46 @@ void bs4_t::Run(){
     // rest gpu (do here to avoid clock drop after warm up)
     //    device.finish();
     //    usleep(1e6);
-    
+
     int Nblock = (Nrun+blockSize-1)/blockSize;
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
 
     double minElapsedTime = 1e9;
     int Nattempts = 5;
-    
+
     for(int att=0;att<Nattempts;++att){
       device.finish();
       dfloat tic = MPI_Wtime();
-      
+
       /* DOT Test */
       int Ntests = 20;
       for(int n=0;n<Ntests;++n){
 	kernel1(Nblock, Nrun, o_a, o_b, o_tmp); //partial reduction
 	kernel2(Nblock, o_tmp, o_dot); //finish reduction
       }
-      
+
       device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
       minElapsedTime = mymin(minElapsedTime, elapsedTime);
     }
-    
+
     size_t bytesIn  = 2*Nrun*sizeof(dfloat);
     size_t bytesOut = 0;
     size_t bytes = bytesIn + bytesOut;
-    
+
     //    printf("4, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le ;\n",
     //	   Nrun, elapsedTime, elapsedTime/Nrun, ((dfloat) Nrun)/elapsedTime, bytes/(1e9*elapsedTime));
     //    fflush(stdout);
 
-    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
-    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
-    
+
     printf("4, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
 	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
 	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
 
   }
-  
+
     o_a.free();
   o_tmp.free();
   o_dot.free();

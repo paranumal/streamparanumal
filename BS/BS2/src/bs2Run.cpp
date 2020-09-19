@@ -73,20 +73,20 @@ void bs2_t::Run(){
     int Nattempts = 5;
 
     for(int att=0;att<Nattempts;++att){
-    
+
       device.finish();
       dfloat tic = MPI_Wtime();
-      
+
       /* AXPY Test */
       int Ntests = 20;
       for(int n=0;n<Ntests;++n){
 	kernel(Nrun, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
       }
-      
+
       device.finish();
       dfloat toc = MPI_Wtime();
       double elapsedTime = (toc-tic)/Ntests;
-      
+
       minElapsedTime = mymin(minElapsedTime, elapsedTime);
     }
 
@@ -94,9 +94,7 @@ void bs2_t::Run(){
     size_t bytesOut = Nrun*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
 
-    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
-    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
 
     printf("2, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
 	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,

@@ -75,9 +75,9 @@ endif
 #libraries
 GS_DIR       =${CEED_TPL_DIR}/gslib
 BLAS_DIR     =${CEED_TPL_DIR}/BlasLapack
-CORE_DIR     =${CEED_DIR}/core
-OGS_DIR      =${CORE_DIR}/ogs
-MESH_DIR     =${CORE_DIR}/mesh
+LIBS_DIR     =${CEED_DIR}/libs
+OGS_DIR      =${LIBS_DIR}/ogs
+MESH_DIR     =${LIBS_DIR}/mesh
 
 #includes
 INCLUDES=${CEED_INCLUDES} \
@@ -93,7 +93,7 @@ DEFINES =${CEED_DEFINES} \
 BS7_CXXFLAGS=${CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${CORE_DIR} -lmesh -logs -lcore \
+LIBS=-L${LIBS_DIR} -lmesh -logs -lcore \
      -L$(GS_DIR)/lib -lgs \
      ${CEED_LIBS}
 
@@ -138,9 +138,9 @@ endif
 
 libcore: libgs
 ifneq (,${verbose})
-	${MAKE} -C ${CORE_DIR} lib verbose=${verbose}
+	${MAKE} -C ${LIBS_DIR} lib verbose=${verbose}
 else
-	@${MAKE} -C ${CORE_DIR} lib --no-print-directory
+	@${MAKE} -C ${LIBS_DIR} lib --no-print-directory
 endif
 
 libgs: libblas
@@ -173,7 +173,7 @@ clean:
 clean-libs: clean
 	${MAKE} -C ${OGS_DIR} clean
 	${MAKE} -C ${MESH_DIR} clean
-	${MAKE} -C ${CORE_DIR} clean
+	${MAKE} -C ${LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ~/.occa/

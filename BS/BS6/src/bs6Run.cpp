@@ -40,7 +40,7 @@ void bs6_t::Run(){
   }
 
   int Ntests = 50;
-  
+
   mesh.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
@@ -79,12 +79,10 @@ void bs6_t::Run(){
 
   if ((mesh.rank==0)){
 
-    void hipReadTemperatures(int dev, double *Tlist, double *freqList);
     double Tlist[3], freqList[3];
-    hipReadTemperatures(9,Tlist, freqList); // hard coded for gpu
-    
+
     printf("6, "  hlongFormat ", %5.4le, %5.4le, %5.4le, %5.4le, %5.4le, %d, %lld, %1.5le, %1.5le, %1.5le, %1.5le; %%%% BS6 gather: BPid, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time, N, bytes moved,Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz)  \n",
-           Ndofs,	   
+           Ndofs,
            elapsedTime,
            elapsedTime/(Ndofs),
            bytes/(1.0e9 * elapsedTime),

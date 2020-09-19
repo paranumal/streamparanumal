@@ -31,8 +31,8 @@ CEED_ARCH=GNU
 export CEED_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 export CEED_INCLUDE_DIR=${CEED_DIR}/include
-export CEED_CORE_DIR=${CEED_DIR}/core
-export CEED_TPL_DIR=${CEED_DIR}/core/3rdParty
+export CEED_CORE_DIR=${CEED_DIR}/libs
+export CEED_TPL_DIR=${CEED_DIR}/3rdParty
 
 #include OCCA
 ifndef OCCA_DIR
@@ -63,7 +63,7 @@ export CEED_DEFINES=-DUSE_OCCA_MEM_BYTE_ALIGN=32
 export CEED_INCLUDES=-I${CEED_INCLUDE_DIR} -I${OCCA_DIR}/include
 
 ifeq (GNU,${CEED_ARCH})
-  CXXFLAGS+=-DUSE_OCCA_MEM_BYTE_ALIGN=32 -O2 -mavx2 -ftree-vectorize -march=native
+  #CXXFLAGS+=-DUSE_OCCA_MEM_BYTE_ALIGN=32 -O2 -mavx2 -ftree-vectorize -march=native
   #-funroll-all-loops
   #CEED_LIBS+=-L/opt/apps/gcc5_2/atlas/3.10.2/lib/ -llapack -latlas  -lf77blas -lcblas -lptcblas -lptf77blas -lsatlas  -lgfortran  -L../../../libxsmm/lib -lxsmm -ldl
 else ifeq (INTEL,${CEED_ARCH})

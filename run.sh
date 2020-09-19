@@ -44,9 +44,6 @@ export OCCA_DIR=${PWD}/../occa
 make -j `nproc`
 
 cd BS; ./runBS.sh -m $mode; cd ..
-cd BK; ./runBK.sh -m $mode; cd ..
-cd BP; ./runBP.sh -m $mode; cd ..
-
 
 #
 # Noel Chalmers
