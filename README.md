@@ -61,28 +61,38 @@ Overview of microbenchmarks:
 
 ---
 ### 4. OCCA dependency
-`git clone https://github.com/libocca/occa`
+```
+git clone https://github.com/libocca/occa
+```
 
 #### 4-1. Build OCCA
-`cd occa`
-`export OCCA_DIR=${PWD}`
-```make -j `nproc` ```
-`cd ../  `
+```
+cd occa
+export OCCA_DIR=${PWD}
+make -j `nproc` 
+cd ../
+```
 
 ---
 ### 5. Required Libraries
 streamParanumal requires installed BLAS and LAPACK libraries. By default, the build system will look for `libblas` and `liblapack` in your default library search paths. The library paths can also be manually specified in `make.top` with the `CEED_BLAS_DIR` and `CEED_LAPACK_DIR` variables.
 
 Some Linux distributions will package BLAS and LAPACK libraries. For example, on Ubuntu systems these libraries can be installed via
-```sudo apt install libblas-dev liblapack-dev```
+```
+sudo apt install libblas-dev liblapack-dev
+```
 
 ---
 ### 6. Clone: streamParanumal
-`git clone https://github.com/paranumal/streamparanumal`
+```
+git clone https://github.com/paranumal/streamparanumal
+```
 
 #### 6-1. Build all streamParanumal benchmarks
-`cd streamparanumal`
-```make -j `nproc` ```
+```
+cd streamparanumal`
+make -j `nproc` 
+```
 
 ---
 ### 7. Running the benchmarks:
@@ -90,11 +100,15 @@ Some Linux distributions will package BLAS and LAPACK libraries. For example, on
 Each benchmark is contained in is respective sobfolder in `BS/` .Each benchmark sub-directory includes makefile, src directory, and run script.
 
 Once build, each benchmark can be run with/without MPI directly, e.g.:
-```mpirun -np 1 ./BS1 -m <mode>```
+```
+mpirun -np 1 ./BS1 -m <mode>
+```
 where `<mode>` is the desrired parallel programming model, i.e. Serial, OpenMP, CUDA, OpenCL, or HIP.
 
 Each benchmark folder contains a run script which runs a more stressful version of each test over many vector/problem sizes. This can be run similarly to the executablies themselves:
-```./runBS1 -m <mode>```
+```
+./runBS1 -m <mode>
+```
 
 The run scripts in the root and `BS/` folder can also be used to quickly run one instance of each test.
 
