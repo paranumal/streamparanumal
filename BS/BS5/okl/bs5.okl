@@ -25,13 +25,13 @@
 */
 
 @kernel void bs5_1(const int NB,
-		   const int N,
-		   @restrict const dfloat *p,
-		   @restrict const dfloat *Ap,
-		   const dfloat alpha,
-		   @restrict       dfloat *x,
-		   @restrict       dfloat *r,
-		   @restrict       dfloat *rdotr){
+                   const int N,
+                   @restrict const dfloat *p,
+                   @restrict const dfloat *Ap,
+                   const dfloat alpha,
+                   @restrict       dfloat *x,
+                   @restrict       dfloat *r,
+                   @restrict       dfloat *rdotr){
 
 #if USE_HIP==1
 #define p_SIMD 64
@@ -44,45 +44,45 @@
   for(int b=0;b<NB;++b;@outer(0)){
 
     @shared dfloat s_rdotr[p_NW];
-    
+
     // assume NT is a multiple of p_WARP
     for(int w=0;w<p_NW;++w;@inner(1)){
       for(int t=0;t<p_SIMD;++t;@inner(0)){
-	int n =  t + p_SIMD*w + b*p_blockSize;
+        int n =  t + p_SIMD*w + b*p_blockSize;
 
-	// do this first
-	while(n<N){
-	  x[n] += alpha*p[n];
-	  n += p_blockSize*NB;
-	}
+        // do this first
+        while(n<N){
+          x[n] += alpha*p[n];
+          n += p_blockSize*NB;
+        }
 
-	dfloat res = 0;
-	n =  t + p_SIMD*w + b*p_blockSize;
+        dfloat res = 0;
+        n =  t + p_SIMD*w + b*p_blockSize;
 
-	// do this second
-	while(n<N){
-	  r[n] -= alpha*Ap[n];
-	  res += r[n]*r[n];
-	  n += p_blockSize*NB;
-	}
+        // do this second
+        while(n<N){
+          r[n] -= alpha*Ap[n];
+          res += r[n]*r[n];
+          n += p_blockSize*NB;
+        }
 
 #if USE_HIP==1
-	res += __shfl_down(res, 32, p_SIMD);
-	res += __shfl_down(res, 16, p_SIMD);
-	res += __shfl_down(res,  8, p_SIMD);
-	res += __shfl_down(res,  4, p_SIMD);
-	res += __shfl_down(res,  2, p_SIMD);
-	res += __shfl_down(res,  1, p_SIMD);
+        res += __shfl_down(res, 32, p_SIMD);
+        res += __shfl_down(res, 16, p_SIMD);
+        res += __shfl_down(res,  8, p_SIMD);
+        res += __shfl_down(res,  4, p_SIMD);
+        res += __shfl_down(res,  2, p_SIMD);
+        res += __shfl_down(res,  1, p_SIMD);
 #else
-	res += __shfl_down_sync(0xFFFFFFFF, res, 16, p_SIMD);
-	res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
-	res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
-	res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
-	res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res, 16, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
 #endif
 
-	if(t==0)
-	  s_rdotr[w] = res;
+        if(t==0)
+          s_rdotr[w] = res;
 
       }
     }
@@ -94,20 +94,20 @@
     for(int w=0;w<p_NW;++w;@inner(1)){
       for(int t=0;t<p_SIMD;++t;@inner(0)){
 
-	if(w==0){
-	  dfloat res = s_rdotr[t];
-	  // assume p_NW = 4
+        if(w==0){
+          dfloat res = s_rdotr[t];
+          // assume p_NW = 4
 #if USE_HIP==1
-	  res += __shfl_down(res,  2, p_SIMD);
-	  res += __shfl_down(res,  1, p_SIMD);
+          res += __shfl_down(res,  2, p_SIMD);
+          res += __shfl_down(res,  1, p_SIMD);
 #else
-	  res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
-	  res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
 #endif
 
-	  if(t==0)
-	    rdotr[b] = res;
-	}
+          if(t==0)
+            rdotr[b] = res;
+        }
       }
     }
   }
