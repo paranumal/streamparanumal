@@ -45,7 +45,7 @@ Overview of microbenchmarks:
     - Vector dot product.
 
 5. CG Update:
-    - Fused Congugate gradient vector update
+    - Fused Conjugate Gradient vector update
       * `x += alpha*p`
       * `r -= alpha*Ap`
       * `rdotr = r^T*r`
@@ -97,20 +97,20 @@ make -j `nproc`
 ---
 ### 7. Running the benchmarks:
 
-Each benchmark is contained in is respective sobfolder in `BS/` .Each benchmark sub-directory includes makefile, src directory, and run script.
+Each benchmark is contained in its respective subfolder in `BS/`. Each benchmark sub-directory includes a makefile, a src directory, and a run script.
 
-Once build, each benchmark can be run with/without MPI directly, e.g.:
+Once built, each benchmark can be run with/without MPI directly, e.g.:
 ```
 mpirun -np 1 ./BS1 -m <mode>
 ```
-where `<mode>` is the desrired parallel programming model, i.e. Serial, OpenMP, CUDA, OpenCL, or HIP.
+where `<mode>` is the desrired parallel programming model, i.e. Serial, OpenMP, CUDA, OpenCL, or HIP. Use `./BS1 --help` for a list of options which can be specified at runtime.
 
-Each benchmark folder contains a run script which runs a more stressful version of each test over many vector/problem sizes. This can be run similarly to the executablies themselves:
+The run script in each benchmark folder runs a more stressful version of each test looping over many vector/problem sizes. This can be run similarly to the executables themselves:
 ```
 ./runBS1 -m <mode>
 ```
 
-The run scripts in the root and `BS/` folder can also be used to quickly run one instance of each test.
+Finally, the run scripts in the root and `BS/` folders can also be used to quickly run one instance of each test.
 
 ### 8. License
 
@@ -138,5 +138,5 @@ SOFTWARE.
 
 ### 10. References
 
-Portable high-order finite element kernels I: Streaming Operation: [arXiv version](): `Chalmers, N., and Warburton, T., 2020. Portable high-order finite element kernels I: Streaming Operation.`
+StreamParanumal: [arXiv version](): `Chalmers, N., and Warburton, T., 2020. Portable high-order finite element kernels I: Streaming Operation.`
 
