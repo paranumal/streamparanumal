@@ -28,16 +28,6 @@ SOFTWARE.
 
 void bs0_t::Run(){
 
-  //create arrays buffers
-  int N = 1;
-  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_b = platform.malloc(N*sizeof(dfloat));
-
-  int Nwarm = 100;
-  for(int w=0;w<Nwarm;++w){
-    kernel(N, o_a, o_b);
-  }
-
   int Nlaunches=10;
   int NlaunchMin=1;
   int NlaunchMax=1024;
@@ -51,8 +41,31 @@ void bs0_t::Run(){
   if (!(Nlaunches | NlaunchMin | NlaunchMax))
     Nlaunches = 10;
 
+  //create arrays buffers
+  int N = 1;
+  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
+  occa::memory o_b = platform.malloc(N*sizeof(dfloat));
+
+  //warmup
+  int Nwarm = 100;
+  for(int w=0;w<Nwarm;++w){
+    kernel(N, o_a, o_b);
+  }
+
   if (Nlaunches) {
     //single test
+    NlaunchMin = Nlaunches;
+    NlaunchMax = Nlaunches;
+    printf("BS0 = [");
+  } else {
+    //sweep test
+    printf("%%[Nlaunches, time per launch, elapsed]\n");
+    printf("BS0 = [\n");
+  }
+
+  //test
+  for(Nlaunches=NlaunchMin;Nlaunches<=NlaunchMax;Nlaunches+=NlaunchStep){
+
     platform.device.finish();
     double tic = MPI_Wtime();
 
@@ -65,29 +78,9 @@ void bs0_t::Run(){
 
     double elapsed = toc-tic;
 
-    printf("BS0 = [%d %5.4e %5.4e] %%[Nlaunches, time per launch, elapsed]\n",
-            Nlaunches, elapsed/Nlaunches, elapsed);
-
-  } else {
-    //sweep test
-    printf("%%[Nlaunches, time per launch, elapsed]\n");
-    printf("BS0 = [\n");
-    for(Nlaunches=NlaunchMin;Nlaunches<=NlaunchMax;Nlaunches+=NlaunchStep){
-
-      platform.device.finish();
-      double tic = MPI_Wtime();
-
-      for(int n=0;n<Nlaunches;++n){
-        kernel(N, o_a, o_b);
-      }
-
-      platform.device.finish();
-      double toc = MPI_Wtime();
-
-      double elapsed = toc-tic;
-
-      printf("%d %5.4e %5.4e; \n", Nlaunches, elapsed/Nlaunches, elapsed);
-    }
-    printf("];\n");
+    printf("%d %5.4e %5.4e", Nlaunches, elapsed/Nlaunches, elapsed);
+    if (Nlaunches<NlaunchMax) printf(";\n");
   }
+
+  printf("]; %%[Nlaunches, time per launch, elapsed]\n");
 }
