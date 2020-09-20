@@ -90,7 +90,7 @@ git clone https://github.com/paranumal/streamparanumal
 
 #### 6-1. Build all streamParanumal benchmarks
 ```
-cd streamparanumal`
+cd streamparanumal
 make -j `nproc` 
 ```
 
