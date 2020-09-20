@@ -82,7 +82,7 @@ Some Linux distributions will package BLAS and LAPACK libraries. For example, on
 sudo apt install libblas-dev liblapack-dev
 ```
 
-streamParanumal also depends on the [gslib](https://github.com/Nek5000/gslib) library for gather-scatter operations. For more information on gslib also [Henry Tufo's thesis](https://dl.acm.org/doi/book/10.5555/926758) and a more recent reference [Fischer et al.](https://iopscience.iop.org/article/10.1088/1742-6596/125/1/012076/meta)
+streamParanumal also depends on the [gslib](https://github.com/Nek5000/gslib) library for gather-scatter operations. For more information on gslib see [Henry Tufo's thesis](https://dl.acm.org/doi/book/10.5555/926758) and a more recent reference [Fischer et al.](https://iopscience.iop.org/article/10.1088/1742-6596/125/1/012076/meta). The source code for gslib is included in this repository.
 
 ---
 ### 6. Clone: streamParanumal
