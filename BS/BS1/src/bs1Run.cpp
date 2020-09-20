@@ -62,7 +62,7 @@ void bs1_t::Run(){
     printf("BS1 = [");
   } else {
     //sweep test
-    printf("%%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+    printf("%%Copy [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
     printf("BS1 = [\n");
   }
 
@@ -89,5 +89,5 @@ void bs1_t::Run(){
             N, elapsedTime, N/elapsedTime, (double)(bytes/1.e9)/elapsedTime);
     if (N<Nmax) printf(";\n");
   }
-  printf("]; %%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+  printf("]; %%Copy [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
 }

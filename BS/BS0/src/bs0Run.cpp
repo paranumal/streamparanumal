@@ -59,7 +59,7 @@ void bs0_t::Run(){
     printf("BS0 = [");
   } else {
     //sweep test
-    printf("%%[Nlaunches, time per launch, elapsed]\n");
+    printf("%%Launch Latency [Nlaunches, time per launch, elapsed]\n");
     printf("BS0 = [\n");
   }
 
@@ -82,5 +82,5 @@ void bs0_t::Run(){
     if (Nlaunches<NlaunchMax) printf(";\n");
   }
 
-  printf("]; %%[Nlaunches, time per launch, elapsed]\n");
+  printf("]; %%Launch Latency [Nlaunches, time per launch, elapsed]\n");
 }

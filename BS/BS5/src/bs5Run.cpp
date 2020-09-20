@@ -73,7 +73,7 @@ void bs5_t::Run(){
     printf("BS5 = [");
   } else {
     //sweep test
-    printf("%%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+    printf("%%CG Update [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
     printf("BS5 = [\n");
   }
 
@@ -103,5 +103,5 @@ void bs5_t::Run(){
             N, elapsedTime, N/elapsedTime, (double)(bytes/1.e9)/elapsedTime);
     if (N<Nmax) printf(";\n");
   }
-  printf("]; %%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+  printf("]; %%CG Update [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
 }

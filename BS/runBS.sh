@@ -24,34 +24,23 @@ while getopts :m:h FLAG; do
   esac
 done
 
-if [ -z $mode ]
-then
+if [ -z "$OCCA_DIR" ]; then
+  echo "Error: OCCA_DIR not set."
+  exit 2
+fi
+
+# Build the code
+make -j `nproc`
+
+if [ -z $mode ]; then
     echo "No mode supplied, defaulting to HIP"
     mode=HIP
 fi
 
-# Build the code
-
-if [ ! -d "../../occa" ]; then
-  cd ../../
-  git clone https://github.com/libocca/occa
-  cd occa; make -j `nproc`
-  cd ../CEED/BS
-fi
-
-export OCCA_DIR=${PWD}/../../occa
-
-make -j `nproc`
-
-outBase=../results/testBS
-outModel=MI60
-outSystem=Corona
-
-for bs in `seq 1 8`
+for bs in `seq 0 8`
 do
-cd BS${bs}; ./runBS${bs}.sh -m $mode > ${outBase}${bs}_${mode}_${outModel}_${outSystem}.out; cd ..; sleep 90
+BS${bs}/BS${bs} -m $mode
 done
-
 
 #
 # Noel Chalmers

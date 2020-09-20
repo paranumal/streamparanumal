@@ -24,24 +24,18 @@ while getopts :m:h FLAG; do
   esac
 done
 
-if [ -z $mode ]
-then
-    echo "No mode supplied, defaulting to HIP"
-    mode=HIP
+if [ -z "$OCCA_DIR" ]; then
+  echo "Error: OCCA_DIR not set."
+  exit 2
 fi
 
 # Build the code
-
-if [ ! -d "../../../occa" ]; then
-  cd ../../../
-  git clone https://github.com/libocca/occa
-  cd occa; make -j `nproc`
-  cd ../CEED/BS/BS6
-fi
-
-export OCCA_DIR=${PWD}/../../../occa
-
 make -j `nproc`
+
+if [ -z $mode ]; then
+    echo "No mode supplied, defaulting to HIP"
+    mode=HIP
+fi
 
 echo "Running BS6..."
 

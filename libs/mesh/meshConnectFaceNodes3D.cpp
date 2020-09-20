@@ -68,15 +68,18 @@ void mesh3D::ConnectFaceNodes(){
 
   //check if we're connecting a periodic box mesh
   int periodicFlag = 0;
-  if (settings.compareSetting("MESH FILE","BOX") &&
-      settings.compareSetting("BOX BOUNDARY FLAG","-1"))
-    periodicFlag = 1;
+  // if (settings.compareSetting("MESH FILE","BOX") &&
+  //     settings.compareSetting("BOX BOUNDARY FLAG","-1"))
+  //   periodicFlag = 1;
 
   //box dimensions
   dfloat DIMX, DIMY, DIMZ;
-  settings.getSetting("BOX DIMX", DIMX);
-  settings.getSetting("BOX DIMY", DIMY);
-  settings.getSetting("BOX DIMZ", DIMZ);
+  // settings.getSetting("BOX DIMX", DIMX);
+  // settings.getSetting("BOX DIMY", DIMY);
+  // settings.getSetting("BOX DIMZ", DIMZ);
+
+  //Hard code to 2x2x2
+  DIMX=2.0; DIMY=2.0; DIMZ=2.0;
 
   //box is centered at the origin
   DIMX /= 2.0;

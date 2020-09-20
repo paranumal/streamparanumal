@@ -34,13 +34,13 @@ void bs8_t::Run(){
   dlong N = mesh.Np*mesh.Nelements;
   occa::memory o_q = platform.malloc(N*sizeof(dfloat));
 
-  /* Gather Scatter test */
+  /* Warmup */
   for(int n=0;n<5;++n){
     mesh.ogsMasked->GatherScatter(o_q, ogs_dfloat, ogs_add, ogs_sym); //dry run
   }
 
+  /* Gather Scatter test */
   int Ntests = 50;
-
   platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
@@ -87,15 +87,12 @@ void bs8_t::Run(){
   hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
 
   if ((mesh.rank==0)){
-    printf("BS8 (gatherScatter): %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS8 = [%d, " hlongFormat ", %5.4le, %5.4le, %6.2f, %6.2f]; %% GatherScatter [N, DOFs, elapsed, DOFs/(ranks*s), avg BW (GB/s), avg GFLOPs] \n",
            mesh.N,
            Ndofs,
            elapsedTime,
-           elapsedTime/(Ndofs),
+           Ndofs/(mesh.size*elapsedTime),
            bytes/(1.0e9 * elapsedTime),
-           NflopsGlobal/(1.0e9 * elapsedTime),
-           Ndofs/(mesh.size*elapsedTime));
+           NflopsGlobal/(1.0e9 * elapsedTime));
   }
-
-  o_q.free();
 }

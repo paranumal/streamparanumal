@@ -36,13 +36,13 @@ void bs6_t::Run(){
   occa::memory o_q = platform.malloc(N*sizeof(dfloat));
   occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
 
-  /* Gather test */
+  /* Warmup */
   for(int n=0;n<5;++n){
     mesh.ogsMasked->Gather(o_gq, o_q, ogs_dfloat, ogs_add, ogs_trans); //dry run
   }
 
-  int Ntests = 50;
-
+  /* Gather test */
+  int Ntests = 20;
   platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
@@ -80,21 +80,12 @@ void bs6_t::Run(){
   size_t Nflops = NunMaskedGlobal;
 
   if ((mesh.rank==0)){
-
-    double Tlist[3], freqList[3];
-
-    printf("6, "  hlongFormat ", %5.4le, %5.4le, %5.4le, %5.4le, %5.4le, %d, %lld, %1.5le, %1.5le, %1.5le, %1.5le; %%%% BS6 gather: BPid, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time, N, bytes moved,Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz)  \n",
+    printf("BS6 = [%d, " hlongFormat ", %5.4le, %5.4le, %6.2f, %6.2f]; %% Gather [N, DOFs, elapsed, DOFs/(ranks*s), avg BW (GB/s), avg GFLOPs] \n",
+           mesh.N,
            Ndofs,
            elapsedTime,
-           elapsedTime/(Ndofs),
-           bytes/(1.0e9 * elapsedTime),
-           Nflops/(1.0e9 * elapsedTime),
            Ndofs/(mesh.size*elapsedTime),
-	   mesh.N,
-	   bytes,
-	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
+           bytes/(1.0e9 * elapsedTime),
+           Nflops/(1.0e9 * elapsedTime));
   }
-
-  o_q.free();
-  o_gq.free();
 }

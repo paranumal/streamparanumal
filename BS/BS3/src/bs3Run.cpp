@@ -67,7 +67,7 @@ void bs3_t::Run(){
     printf("BS3 = [");
   } else {
     //sweep test
-    printf("%%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+    printf("%%Norm [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
     printf("BS3 = [\n");
   }
 
@@ -97,5 +97,5 @@ void bs3_t::Run(){
             N, elapsedTime, N/elapsedTime, (double)(bytes/1.e9)/elapsedTime);
     if (N<Nmax) printf(";\n");
   }
-  printf("]; %%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+  printf("]; %%Norm [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
 }

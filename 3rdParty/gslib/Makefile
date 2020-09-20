@@ -92,10 +92,10 @@ G+=-DGLOBAL_LONG_LONG
 #G+=-DPRINT_MALLOCS=1
 #G+=-DGS_TIMING -DGS_BARRIER
 
-CCCMD=$(CC) $(CFLAGS) -I$(INCDIR) $(G)
+CCCMD=$(CEED_MPICC) $(CFLAGS) -I$(INCDIR) $(G)
 FCCMD=$(FC) $(FFLAGS)
 
-LINKCMD=$(CC) $(CFLAGS) -I$(INCDIR) $(G) $^ -o $@ -L$(SRCDIR) \
+LINKCMD=$(CEED_MPICC) $(CFLAGS) -I$(INCDIR) $(G) $^ -o $@ -L$(SRCDIR) \
         -l$(LIBNAME) -lm $(LDFLAGS)
 
 TESTS=$(TESTDIR)/sort_test $(TESTDIR)/sort_test2 $(TESTDIR)/sarray_sort_test \

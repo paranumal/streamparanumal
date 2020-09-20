@@ -31,34 +31,28 @@ SOFTWARE.
 mesh_t& mesh_t::Setup(platform_t& platform, settings_t& settings,
                       MPI_Comm comm){
 
+  string eType;
   string fileName;
-  int N, dim, elementType;
+  int N, elementType = HEXAHEDRA;
 
-  settings.getSetting("MESH FILE", fileName);
+  // settings.getSetting("MESH FILE", fileName);
   settings.getSetting("POLYNOMIAL DEGREE", N);
-  settings.getSetting("ELEMENT TYPE", elementType);
-  settings.getSetting("MESH DIMENSION", dim);
+  settings.getSetting("ELEMENT TYPE", eType);
+  // settings.getSetting("MESH DIMENSION", dim);
 
-  mesh_t *mesh=NULL;
-  switch(elementType){
-  case TRIANGLES:
-    if(dim==2)
-      mesh = new meshTri2D(platform, settings, comm);
-    else
-      mesh = new meshTri3D(platform, settings, comm);
-    break;
-  case QUADRILATERALS:
-    if(dim==2)
-      mesh = new meshQuad2D(platform, settings, comm);
-    else
-      mesh = new meshQuad3D(platform, settings, comm);
-    break;
-  case TETRAHEDRA:
+  mesh_t *mesh=nullptr;
+  if (eType.compare("Tri")==0) {
+    mesh = new meshTri2D(platform, settings, comm);
+    elementType = TRIANGLES;
+  } else if (eType.compare("Quad")==0) {
+    mesh = new meshQuad2D(platform, settings, comm);
+    elementType = QUADRILATERALS;
+  } else if (eType.compare("Tet")==0) {
     mesh = new meshTet3D(platform, settings, comm);
-    break;
-  case HEXAHEDRA:
+    elementType = TETRAHEDRA;
+  } else if (eType.compare("Hex")==0) {
     mesh = new meshHex3D(platform, settings, comm);
-    break;
+    elementType = HEXAHEDRA;
   }
 
   mesh->elementType = elementType;

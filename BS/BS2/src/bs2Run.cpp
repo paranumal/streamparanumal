@@ -65,7 +65,7 @@ void bs2_t::Run(){
     printf("BS2 = [");
   } else {
     //sweep test
-    printf("%%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+    printf("%%AXPY [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
     printf("BS2 = [\n");
   }
 
@@ -92,5 +92,5 @@ void bs2_t::Run(){
             N, elapsedTime, N/elapsedTime, (double)(bytes/1.e9)/elapsedTime);
     if (N<Nmax) printf(";\n");
   }
-  printf("]; %%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+  printf("]; %%AXPY [DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
 }

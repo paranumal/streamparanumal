@@ -36,13 +36,13 @@ void bs7_t::Run(){
   occa::memory o_q = platform.malloc(N*sizeof(dfloat));
   occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
 
-  /* Scatter test */
+  /* Warmup */
   for(int n=0;n<5;++n){
     mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans); //dry run
   }
 
-  int Ntests = 50;
-
+  /* Scatter test */
+  int Ntests = 20;
   platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
@@ -66,55 +66,20 @@ void bs7_t::Run(){
 
   hlong NgatherGlobal = mesh.ogsMasked->NgatherGlobal;
 
-#if 0
-  hlong NunMasked = N - mesh.Nmasked;
-  hlong NunMaskedGlobal;
-  MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
-  size_t bytesIn=0;
-  size_t bytesOut=0;
-  bytesIn += (NblocksGlobal+1)*sizeof(dlong); //block starts
-  bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
-  bytesIn += NunMaskedGlobal*sizeof(dlong); //local Ids
-  bytesIn += NgatherGlobal*sizeof(dfloat); //values
-  bytesOut+= NunMaskedGlobal*sizeof(dfloat);
-#else
   size_t bytesIn  = NgatherGlobal*sizeof(dfloat)+NtotalGlobal*sizeof(dlong);
   size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
-#endif
   size_t bytes = bytesIn + bytesOut;
 
   hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){
-#if 0
-    printf("BS7 (scatter): %d, " hlongFormat "," hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f, %1.2e; N, NlocalTotal, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time \n",
+    printf("BS7 = [%d, " hlongFormat ", %5.4le, %5.4le, %6.2f, %6.2f]; %% Scatter [N, DOFs, elapsed, DOFs/(ranks*s), avg BW (GB/s), avg GFLOPs] \n",
            mesh.N,
            Ndofs,
-	   NtotalGlobal,
            elapsedTime,
-           elapsedTime/(Ndofs),
-           bytes/(1.0e9 * elapsedTime),
-           Nflops/(1.0e9 * elapsedTime),
-           Ndofs/(mesh.size*elapsedTime));
-#else
-    double Tlist[3], freqList[3];
-
-    printf("7, "  hlongFormat ", %5.4le, %5.4le, %5.4le, %5.4le, %5.4le, %d, %lld, %1.5le, %1.5le, %1.5le, %1.5le; %%%% BS7 scatter: BPid, DOFs, elapsed, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs/ranks*time, N, bytes moved,Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz)  \n",
-           Ndofs,
-           elapsedTime,
-           elapsedTime/(Ndofs),
-           bytes/(1.0e9 * elapsedTime),
-           Nflops/(1.0e9 * elapsedTime),
            Ndofs/(mesh.size*elapsedTime),
-	   mesh.N,
-	   bytes,
-	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
-#endif
-
+           bytes/(1.0e9 * elapsedTime),
+           Nflops/(1.0e9 * elapsedTime));
   }
-
-  o_q.free();
-  o_gq.free();
 }
