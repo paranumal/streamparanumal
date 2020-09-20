@@ -41,7 +41,7 @@ void bs0_t::Run(){
   if (!(Nlaunches | NlaunchMin | NlaunchMax))
     Nlaunches = 10;
 
-  //create arrays buffers
+  //create array buffers
   int N = 1;
   occa::memory o_a = platform.malloc(N*sizeof(dfloat));
   occa::memory o_b = platform.malloc(N*sizeof(dfloat));

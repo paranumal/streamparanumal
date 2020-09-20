@@ -28,103 +28,80 @@
 
 void bs5_t::Run(){
 
-  //create arrays buffers
-
-  int N = 0;
-  int Nmin = 0, Nmax = 0, Nsamples = 1;
-  int B = 0, Bmin = 0, Bmax = 0;
+  //create array buffers
+  size_t B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
   settings.getSetting("BYTES", B);
-  if(B){
-    Bmin = B;
-    Bmax = B;
-    Nsamples = 1;
-  }
-  else{
-    settings.getSetting("BMIN", Bmin);
-    settings.getSetting("BMAX", Bmax);
-    settings.getSetting("NSAMPLES", Nsamples);
-  }
+  settings.getSetting("BMIN", Bmin);
+  settings.getSetting("BMAX", Bmax);
+  settings.getSetting("BSTEP", Bstep);
+
+  //If nothing provide by user, default to single test with 1 GB of data
+  if (!(B | Bmin | Bmax))
+    B = 1073741824;
+
+  if(B) Bmax = B;
 
   int sc = 6*sizeof(dfloat);  // bytes moved per entry
-  Nmin = mymax(1,Bmin/sc);
-  Nmax = Bmax/sc;
-  N = Nmax;
+  int Nmin = Bmin/sc;
+  int Nmax = Bmax/sc;
+  int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  printf("Nmin = %d, Nmax = %d, N = %d\n", Nmin, Nmax, N);
+  occa::memory o_p  = platform.malloc(Nmax*sizeof(dfloat));
+  occa::memory o_Ap = platform.malloc(Nmax*sizeof(dfloat));
+  occa::memory o_x  = platform.malloc(Nmax*sizeof(dfloat));
+  occa::memory o_r  = platform.malloc(Nmax*sizeof(dfloat));
 
-  occa::memory o_p  = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_Ap = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_x  = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_r  = platform.malloc(N*sizeof(dfloat));
-
+  occa::memory o_tmp = platform.malloc(blockSize*sizeof(dfloat));
   occa::memory o_rdotr = platform.malloc(1*sizeof(dfloat));
-
-  int maxNblock = (Nmax+blockSize-1)/(blockSize);
-  maxNblock = (maxNblock>blockSize) ? blockSize : maxNblock; //limit to blockSize entries
-
-  occa::memory o_tmp = platform.malloc(maxNblock*sizeof(dfloat));
 
   const dfloat alpha = 1.0;
 
   // warm up
-  {
-    int Nwarm = 5;
-    int Nblock = (N+blockSize-1)/(blockSize);
-    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  int Nwarm = 5;
+  int Nblock = (Nmax+blockSize-1)/(blockSize);
+  Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  for(int n=0;n<Nwarm;++n){ //warmup
+    kernel1(Nblock, Nmax, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+    kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
+  }
 
-    for(int n=0;n<Nwarm;++n){ //warmup
+  if (B) {
+    //single test
+    int N = B/sc;
+    Nmin = N;
+    Nmax = N;
+    printf("BS5 = [");
+  } else {
+    //sweep test
+    printf("%%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
+    printf("BS5 = [\n");
+  }
+
+  //test
+  for(int N=Nmin;N<=Nmax;N+=Nstep){
+    platform.device.finish();
+    dfloat tic = MPI_Wtime();
+
+    /* CGupdate Test */
+    int Ntests = 20;
+    Nblock = (N+blockSize-1)/blockSize;
+    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+    for(int n=0;n<Ntests;++n){ //warmup
       kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
     }
-  }
 
+    platform.device.finish();
+    dfloat toc = MPI_Wtime();
+    double elapsedTime = (toc-tic)/Ntests;
 
-  printf("%%%% BS id, dofs, elapsed, time per DOF, DOFs/time, BW (GB/s), Tgpu(C), Tjunction (C), Tmem (C), Freq. (GHz) \n");
-  for(int samp=1;samp<=Nsamples;++samp){
-    int Nrun = mymin(Nmax, Nmin + (Nmax-Nmin)*((samp+1)*(samp+2)/(double)((Nsamples+1)*(Nsamples+2))));
-
-    int Nblock = (Nrun+blockSize-1)/(blockSize);
-    Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
-
-    double minElapsedTime = 1e9;
-    int Nattempts = 5;
-
-    for(int att=0;att<Nattempts;++att){
-
-      platform.device.finish();
-      dfloat tic = MPI_Wtime();
-
-      /* CGupdate Test */
-      int Ntests = 20;
-      for(int n=0;n<Ntests;++n){
-	kernel1(Nblock, Nrun, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
-	kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
-      }
-
-      //  occa::streamTag end = device.tagStream();
-      platform.device.finish();
-      dfloat toc = MPI_Wtime();
-      double elapsedTime = (toc-tic)/Ntests;
-
-      minElapsedTime = mymin(minElapsedTime, elapsedTime);
-    }
-
-    size_t bytesIn  = 4*Nrun*sizeof(dfloat);
-    size_t bytesOut = 2*Nrun*sizeof(dfloat);
+    size_t bytesIn  = 4*N*sizeof(dfloat);
+    size_t bytesOut = 2*N*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
 
-    double Tlist[3], freqList[3];
-
-    printf("2, " dlongFormat ", %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le, %1.5le ;\n",
-	   Nrun, (double)minElapsedTime, (double)minElapsedTime/Nrun, ((dfloat) Nrun)/minElapsedTime, (double)(bytes/1.e9)/minElapsedTime,
-	   Tlist[0], Tlist[1], Tlist[2], freqList[0]);
-
+    printf("%d %5.4e %5.4e %6.2f",
+            N, elapsedTime, N/elapsedTime, (double)(bytes/1.e9)/elapsedTime);
+    if (N<Nmax) printf(";\n");
   }
-
-  o_tmp.free();
-  o_p.free();
-  o_Ap.free();
-  o_r.free();
-  o_x.free();
-  o_rdotr.free();
+  printf("]; %%[DOFs, elapsed, DOFs/s, BW (GB/s)]\n");
 }

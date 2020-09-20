@@ -34,34 +34,29 @@ bs5Settings_t::bs5Settings_t(const int argc, char** argv, MPI_Comm &_comm):
 
   newSetting("-b", "--bytes",
              "BYTES",
-             "0",
+             "0", // "1073741824",
              "Array size in bytes");
+
+  newSetting("-bmin", "--bmin",
+             "BMIN",
+             "0",
+             "Minimum array size in bytes");
+
+  newSetting("-bmax", "--bmax",
+             "BMAX",
+             "0",
+             "Maximum array size in bytes");
+
+  newSetting("-s", "--bstep",
+             "BSTEP",
+             "1048576",
+             "Array step size in bytes");
 
   newSetting("-v", "--verbose",
              "VERBOSE",
              "FALSE",
              "Enable verbose output",
              {"TRUE", "FALSE"});
-
-  newSetting("-bmin", "--bmin",
-             "BMIN",
-             "1024",
-             "Minimum array size in bytes");
-
-  newSetting("-bmax", "--bmax",
-             "BMAX",
-             "1073741824",
-             "Maximum array size in bytes");
-
-  newSetting("-bstep", "--bstep",
-             "BSTEP",
-             "819200",
-             "Array step size in bytes");
-
-  newSetting("-nsamp", "--nsamp",
-             "NSAMPLES",
-             "1",
-             "Array step size in bytes");
 
   parseSettings(argc, argv);
 }

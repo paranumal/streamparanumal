@@ -28,7 +28,7 @@ SOFTWARE.
 
 void bs1_t::Run(){
 
-  //create arrays buffers
+  //create array buffers
   size_t B = 0, Bmin = 0, Bmax = 0, Bstep = 0;
   settings.getSetting("BYTES", B);
   settings.getSetting("BMIN", Bmin);
