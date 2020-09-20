@@ -30,25 +30,25 @@ Please submit feature requests as an [Issue](https://github.com/paranumal/stream
 Overview of microbenchmarks:
 
 0. Kernel Launch Latency:
-  - Launches a set of minimal kernels, timing their execution.
+    - Launches a set of minimal kernels, timing their execution.
 
 1. Copy:
-  - Copy one array to another.
+    - Copy one array to another.
 
 2. AXPY:
-  - Vector addition, `y = alpha*x + beta*y`.
+    - Vector addition, `y = alpha*x + beta*y`.
 
 3. Norm:
-  - Vector L2 norm.
+    - Vector L2 norm.
 
 4. Dot:
-  - Vector dot product.
+    - Vector dot product.
 
 5. CG Update:
-  - Fused Congugate gradient vector update
-    * `x += alpha*p`
-    * `r -= alpha*Ap`
-    * `rdotr = r^T*r`
+    - Fused Congugate gradient vector update
+      * `x += alpha*p`
+      * `r -= alpha*Ap`
+      * `rdotr = r^T*r`
 
 6. Gather:
    - Global finite-element assembly via summation at repeated local nodes.
