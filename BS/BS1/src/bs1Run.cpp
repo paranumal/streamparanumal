@@ -68,7 +68,6 @@ void bs1_t::Run(){
 
   //test
   for(int N=Nmin;N<=Nmax;N+=Nstep){
-    // tic
     platform.device.finish();
     dfloat tic = MPI_Wtime();
 

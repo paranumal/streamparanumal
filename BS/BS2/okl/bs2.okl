@@ -30,23 +30,7 @@ SOFTWARE.
                  const dfloat beta,
                  @restrict dfloat* y){
 
-#if 0
-  for(dlong bb=0;bb<(N+2*p_blockSize-1)/(2*p_blockSize);++bb;@outer){
-    for(dlong tt=0;tt<p_blockSize;++tt;@inner){
-      dlong n = tt + bb*p_blockSize*2;
-
-      if(n<N)
-	c[n] = a[n]+b[n];
-
-      n+=p_blockSize;
-      if(n<N)
-	c[n] = a[n]+b[n];
-    }
-  }
-#else
   for(dlong n=0;n<N;++n;@tile(p_blockSize,@outer,@inner)){
     y[n] = alpha*x[n]+beta*y[n];
   }
-
-#endif
 }
