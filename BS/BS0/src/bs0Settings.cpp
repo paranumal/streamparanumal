@@ -32,10 +32,25 @@ bs0Settings_t::bs0Settings_t(const int argc, char** argv, MPI_Comm &_comm):
 
   platformAddSettings(*this);
 
-  newSetting("-b", "--bytes",
-             "BYTES",
-             "0", // "1073741824",
-             "Array size in bytes");
+  newSetting("-n", "--Nlaunch",
+             "NLAUNCHES",
+             "0",
+             "Number of small kernels to launch");
+
+  newSetting("-nmin", "--NlaunchMin",
+             "NLAUNCHMIN",
+             "0",
+             "Minimum number of small kernels to launch");
+
+  newSetting("-nmax", "--NlaunchMax",
+             "NLAUNCHMAX",
+             "0",
+             "Maximum number of small kernels to launch");
+
+  newSetting("-s", "--step",
+             "NLAUNCHSTEP",
+             "1",
+             "Step size of small kernels to launch");
 
   newSetting("-v", "--verbose",
              "VERBOSE",
@@ -43,20 +58,6 @@ bs0Settings_t::bs0Settings_t(const int argc, char** argv, MPI_Comm &_comm):
              "Enable verbose output",
              {"TRUE", "FALSE"});
 
-  newSetting("-bmin", "--bmin",
-             "BMIN",
-             "1024",
-             "Minimum array size in bytes");
-
-  newSetting("-bmax", "--bmax",
-             "BMAX",
-             "1073741824",
-             "Maximum array size in bytes");
-
-  newSetting("-bstep", "--bstep",
-             "BSTEP",
-             "819200",
-             "Array step size in bytes");
 
   parseSettings(argc, argv);
 }

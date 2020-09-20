@@ -25,69 +25,69 @@ SOFTWARE.
 */
 
 #include "bs0.hpp"
-#include <unistd.h>
 
 void bs0_t::Run(){
 
   //create arrays buffers
   int N = 1;
-
   occa::memory o_a = platform.malloc(N*sizeof(dfloat));
   occa::memory o_b = platform.malloc(N*sizeof(dfloat));
 
-  int Nave = 10;
   int Nwarm = 100;
   for(int w=0;w<Nwarm;++w){
-    Nave = (w<10) ? 1:10;
-
-    double elapsed = 0;
-    for(int a=0;a<Nave;++a){
-      platform.device.finish();
-      double tic = MPI_Wtime();
-
-      kernel(N, o_a, o_b);
-
-      platform.device.finish();
-      double toc = MPI_Wtime();
-      elapsed += toc-tic;
-    }
-    elapsed /= Nave;
-
-    printf("%d %E %E %%%% warm up\n", w, elapsed, elapsed);
-
-    usleep(10000);
+    kernel(N, o_a, o_b);
   }
 
+  int Nlaunches=10;
+  int NlaunchMin=1;
+  int NlaunchMax=1024;
+  int NlaunchStep=1;
+  settings.getSetting("NLAUNCHES", Nlaunches);
+  settings.getSetting("NLAUNCHMIN", NlaunchMin);
+  settings.getSetting("NLAUNCHMAX", NlaunchMax);
+  settings.getSetting("NLAUNCHSTEP", NlaunchStep);
 
-  for(int Ntests=1;Ntests<1024;Ntests+=(Ntests<2)?1:2){
+  //If nothing provide by user, default to single test of 10 launches
+  if (!(Nlaunches | NlaunchMin | NlaunchMax))
+    Nlaunches = 10;
 
-    double elapsed = 0;
-    for(int a=0;a<Nave;++a){
+  if (Nlaunches) {
+    //single test
+    platform.device.finish();
+    double tic = MPI_Wtime();
+
+    for(int n=0;n<Nlaunches;++n){
+      kernel(N, o_a, o_b);
+    }
+
+    platform.device.finish();
+    double toc = MPI_Wtime();
+
+    double elapsed = toc-tic;
+
+    printf("BS0 = [%d %5.4e %5.4e] %%[Nlaunches, time per launch, elapsed]\n",
+            Nlaunches, elapsed/Nlaunches, elapsed);
+
+  } else {
+    //sweep test
+    printf("%%[Nlaunches, time per launch, elapsed]\n");
+    printf("BS0 = [\n");
+    for(Nlaunches=NlaunchMin;Nlaunches<=NlaunchMax;Nlaunches+=NlaunchStep){
 
       platform.device.finish();
       double tic = MPI_Wtime();
 
-      for(int n=0;n<Ntests;++n){
+      for(int n=0;n<Nlaunches;++n){
         kernel(N, o_a, o_b);
       }
 
       platform.device.finish();
       double toc = MPI_Wtime();
 
-      elapsed += toc-tic;
+      double elapsed = toc-tic;
+
+      printf("%d %5.4e %5.4e; \n", Nlaunches, elapsed/Nlaunches, elapsed);
     }
-
-    elapsed /= (Ntests*Nave);
-
-    printf("%5.4E %5.4e %%%% Ntests, time per test, elapsed\n", Ntests, elapsed/Ntests, elapsed);
-
-    usleep(10000);
+    printf("];\n");
   }
-
-  printf("];\n");
-
-
-
-  o_a.free();
-  o_b.free();
 }

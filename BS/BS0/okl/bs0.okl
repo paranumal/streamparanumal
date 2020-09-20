@@ -25,14 +25,14 @@ SOFTWARE.
 */
 
 @kernel void bs0(const int N,
-		 const dfloat *a,
-		       dfloat *b){
-  
-#define p_NLOOP 1024  
+                 const dfloat *a,
+                       dfloat *b){
+
+  //one block with one thread
   for(int bb=0;bb<1;++bb;@outer(0)){
     for(int t=0;t<1;++t;@inner(0)){
       if(t==N && bb==N){
-	b[0] = 0;
+        b[0] = 0; //keep the compiler form optimizing out everything
       }
     }
   }
