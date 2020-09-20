@@ -30,19 +30,6 @@ then
     mode=HIP
 fi
 
-# Build the code
-
-if [ ! -d "../occa" ]; then
-  cd ../
-  git clone https://github.com/libocca/occa
-  cd occa; make -j `nproc`
-  cd ../CEED
-fi
-
-export OCCA_DIR=${PWD}/../occa
-
-make -j `nproc`
-
 cd BS; ./runBS.sh -m $mode; cd ..
 
 #
