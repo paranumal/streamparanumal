@@ -44,11 +44,6 @@ export CEED_LAPACK_LIB=-L${CEED_LAPACK_DIR} -llapack
 ifndef OCCA_DIR
   $(error environment variable [OCCA_DIR] is not set)
 endif
-ifeq (,$(wildcard ${OCCA_DIR}/scripts/Makefile))
-  $(error cannot locate {OCCA_DIR}/scripts/Makefile)
-else
-  include ${OCCA_DIR}/scripts/Makefile
-endif
 
 #compilers to use for C/C++
 export CEED_MPICC = mpicc
@@ -66,7 +61,7 @@ export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu/
 
 export CEED_LIBS= ${CEED_BLAS_LIB} \
                   ${CEED_LAPACK_LIB} \
-                  -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca $(links)
+                  -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
 
 export CEED_DEFINES=-DUSE_OCCA_MEM_BYTE_ALIGN=32
 

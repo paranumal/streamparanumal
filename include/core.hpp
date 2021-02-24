@@ -30,6 +30,7 @@ SOFTWARE.
 #include <mpi.h>
 #include <occa.h>
 #include <string>
+#include <cstring>
 #include <math.h>
 #include <stdlib.h>
 #include "utils.hpp"

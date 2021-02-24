@@ -84,9 +84,9 @@ public:
                    const void *src,
                    occa::memory &h_mem){
     occa::properties prop;
-    prop["mapped"] = true;
+    prop["host"] = true;
     h_mem = device.malloc(bytes, prop);
-    return h_mem.ptr(prop);
+    return h_mem.ptr();
   }
 
 private:
