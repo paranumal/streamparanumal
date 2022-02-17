@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2021 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,183 +25,285 @@ SOFTWARE.
 */
 
 #include "ogs.hpp"
-#include "ogs/ogsKernels.hpp"
+#include "ogs/ogsUtils.hpp"
+#include "ogs/ogsOperator.hpp"
+#include "ogs/ogsExchange.hpp"
 
-// Host buffer versions
-void ogs_t::GatherScatter    (void  *v,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGatherScatter(v, 1, 1, 0, type, op, trans, *this); }
+namespace libp {
 
-void ogs_t::GatherScatterVec (void  *v, const int k,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGatherScatter(v, k, 1, 0, type, op, trans, *this); }
+namespace ogs {
 
-void ogs_t::GatherScatterMany(void  *v, const int k, const dlong stride,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGatherScatter(v, 1, k, stride, type, op, trans, *this); }
-
-void ogs_t::Gather    (void  *gv, void  *v,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGather(gv, v, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherVec (void  *gv, void  *v, const int k,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGather(gv, v, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherMany(void  *gv, void  *v, const int k,
-                       const dlong gstride, const dlong stride,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostGather(gv, v, 1, k, gstride, stride, type, op, trans, *this); }
-
-void ogs_t::Scatter    (void  *v, void  *gv,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostScatter(v, gv, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterVec (void  *v, void  *gv, const int k,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostScatter(v, gv, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterMany(void  *v, void  *gv, const int k,
-                        const dlong stride, const dlong gstride,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::hostScatter(v, gv, 1, k, stride, gstride, type, op, trans, *this); }
-
-
-// Synchronous device buffer versions
-void ogs_t::GatherScatter    (occa::memory&  o_v,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherScatterStart (o_v, 1, 1, 0, type, op, trans, *this);
-  ogs::occaGatherScatterFinish(o_v, 1, 1, 0, type, op, trans, *this);
+/********************************
+ * Scalar GatherScatter
+ ********************************/
+void ogs_t::GatherScatter(occa::memory&  o_v,
+                          const int k,
+                          const Type type,
+                          const Op op,
+                          const Transpose trans){
+  GatherScatterStart (o_v, k, type, op, trans);
+  GatherScatterFinish(o_v, k, type, op, trans);
 }
 
-void ogs_t::GatherScatterVec (occa::memory&  o_v, const int k,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherScatterStart (o_v, k, 1, 0, type, op, trans, *this);
-  ogs::occaGatherScatterFinish(o_v, k, 1, 0, type, op, trans, *this);
+void ogs_t::GatherScatterStart(occa::memory& o_v,
+                               const int k,
+                               const Type type,
+                               const Op op,
+                               const Transpose trans){
+  exchange->AllocBuffer(k*Sizeof(type));
+
+  //collect halo buffer
+  gatherHalo->Gather(exchange->o_haloBuf, o_v,
+                     k, type, op, trans);
+
+  //prepare MPI exchange
+  exchange->Start(k, type, op, trans);
 }
 
-void ogs_t::GatherScatterMany(occa::memory&  o_v, const int k,
-                              const dlong stride,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherScatterStart (o_v, 1, k, stride, type, op, trans, *this);
-  ogs::occaGatherScatterFinish(o_v, 1, k, stride, type, op, trans, *this);
+void ogs_t::GatherScatterFinish(occa::memory& o_v,
+                                const int k,
+                                const Type type,
+                                const Op op,
+                                const Transpose trans){
+
+  //queue local gs operation
+  gatherLocal->GatherScatter(o_v, k, type, op, trans);
+
+  //finish MPI exchange
+  exchange->Finish(k, type, op, trans);
+
+  //write exchanged halo buffer back to vector
+  gatherHalo->Scatter(o_v, exchange->o_haloBuf,
+                      k, type, op, trans);
 }
 
-void ogs_t::Gather    (occa::memory&  o_gv, occa::memory&  o_v,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherStart (o_gv, o_v, 1, 1, 0, 0, type, op, trans, *this);
-  ogs::occaGatherFinish(o_gv, o_v, 1, 1, 0, 0, type, op, trans, *this);
+void ogs_t::GatherScatter(void* v,
+                          const int k,
+                          const Type type,
+                          const Op op,
+                          const Transpose trans){
+  exchange->AllocBuffer(k*Sizeof(type));
+
+  //collect halo buffer
+  gatherHalo->Gather(exchange->haloBuf, v,
+                     k, type, op, trans);
+
+  //prepare MPI exchange
+  exchange->Start(k, type, op, trans, true);
+
+  //queue local gs operation
+  gatherLocal->GatherScatter(v, k, type, op, trans);
+
+  //finish MPI exchange
+  exchange->Finish(k, type, op, trans, true);
+
+  //write exchanged halo buffer back to vector
+  gatherHalo->Scatter(v, exchange->haloBuf,
+                      k, type, op, trans);
 }
 
-void ogs_t::GatherVec (occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherStart (o_gv, o_v, k, 1, 0, 0, type, op, trans, *this);
-  ogs::occaGatherFinish(o_gv, o_v, k, 1, 0, 0, type, op, trans, *this);
+/********************************
+ * Scalar Gather
+ ********************************/
+void ogs_t::Gather(occa::memory&  o_gv,
+                   occa::memory&  o_v,
+                   const int k,
+                   const Type type,
+                   const Op op,
+                   const Transpose trans){
+  GatherStart (o_gv, o_v, k, type, op, trans);
+  GatherFinish(o_gv, o_v, k, type, op, trans);
 }
 
-void ogs_t::GatherMany(occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                       const dlong gstride, const dlong stride,
-                       const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaGatherStart (o_gv, o_v, 1, k, gstride, stride, type, op, trans, *this);
-  ogs::occaGatherFinish(o_gv, o_v, 1, k, gstride, stride, type, op, trans, *this);
+void ogs_t::GatherStart(occa::memory&  o_gv,
+                        occa::memory&  o_v,
+                        const int k,
+                        const Type type,
+                        const Op op,
+                        const Transpose trans){
+  AssertGatherDefined();
+
+  if (trans==Trans) { //if trans!=ogs::Trans theres no comms required
+    exchange->AllocBuffer(k*Sizeof(type));
+
+    //collect halo buffer
+    gatherHalo->Gather(exchange->o_haloBuf, o_v,
+                       k, type, op, Trans);
+
+    //prepare MPI exchange
+    exchange->Start(k, type, op, Trans);
+  } else {
+    //gather halo
+    occa::memory o_gvHalo = o_gv + k*NlocalT*Sizeof(type);
+    gatherHalo->Gather(o_gvHalo, o_v,
+                       k, type, op, trans);
+  }
 }
 
-void ogs_t::Scatter    (occa::memory&  o_v, occa::memory&  o_gv,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaScatterStart (o_v, o_gv, 1, 1, 0, 0, type, op, trans, *this);
-  ogs::occaScatterFinish(o_v, o_gv, 1, 1, 0, 0, type, op, trans, *this);
+void ogs_t::GatherFinish(occa::memory&  o_gv,
+                         occa::memory&  o_v,
+                         const int k,
+                         const Type type,
+                         const Op op,
+                         const Transpose trans){
+  AssertGatherDefined();
+
+  //queue local g operation
+  gatherLocal->Gather(o_gv, o_v,
+                      k, type, op, trans);
+
+  if (trans==Trans) { //if trans!=ogs::Trans theres no comms required
+    //finish MPI exchange
+    exchange->Finish(k, type, op, Trans);
+
+    //put the result at the end of o_gv
+    if (NhaloP)
+      exchange->o_haloBuf.copyTo(o_gv + k*NlocalT*Sizeof(type),
+                                 k*NhaloP*Sizeof(type), 0, 0, "async: true");
+  }
 }
 
-void ogs_t::ScatterVec (occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaScatterStart (o_v, o_gv, k, 1, 0, 0, type, op, trans, *this);
-  ogs::occaScatterFinish(o_v, o_gv, k, 1, 0, 0, type, op, trans, *this);
+//host versions
+void ogs_t::Gather(void*  gv,
+                   const void*  v,
+                   const int k,
+                   const Type type,
+                   const Op op,
+                   const Transpose trans){
+  AssertGatherDefined();
+
+  if (trans==Trans) { //if trans!=ogs::Trans theres no comms required
+    exchange->AllocBuffer(k*Sizeof(type));
+
+    //collect halo buffer
+    gatherHalo->Gather(exchange->haloBuf, v,
+                       k, type, op, Trans);
+
+    //prepare MPI exchange
+    exchange->Start(k, type, op, Trans, true);
+
+    //local gather
+    gatherLocal->Gather(gv, v, k, type, op, Trans);
+
+    //finish MPI exchange
+    exchange->Finish(k, type, op, Trans, true);
+
+    //put the result at the end of o_gv
+    std::memcpy(static_cast<char*>(gv) + k*NlocalT*Sizeof(type),
+                exchange->haloBuf,
+                k*NhaloP*Sizeof(type));
+  } else {
+    //local gather
+    gatherLocal->Gather(gv, v, k, type, op, trans);
+
+    //gather halo
+    gatherHalo->Gather(static_cast<char*>(gv) + k*NlocalT*Sizeof(type),
+                       v, k, type, op, trans);
+  }
 }
 
-void ogs_t::ScatterMany(occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                        const dlong stride, const dlong gstride,
-                        const ogs_type type, const ogs_op op, const ogs_transpose trans) {
-  ogs::occaScatterStart (o_v, o_gv, 1, k, stride, gstride, type, op, trans, *this);
-  ogs::occaScatterFinish(o_v, o_gv, 1, k, stride, gstride, type, op, trans, *this);
+
+/********************************
+ * Scalar Scatter
+ ********************************/
+void ogs_t::Scatter(occa::memory&  o_v,
+                    occa::memory&  o_gv,
+                    const int k,
+                    const Type type,
+                    const Op op,
+                    const Transpose trans){
+  ScatterStart (o_v, o_gv, k, type, op, trans);
+  ScatterFinish(o_v, o_gv, k, type, op, trans);
 }
 
-// Asynchronous device buffer versions
-void ogs_t::GatherScatterStart     (occa::memory&  o_v,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterStart (o_v, 1, 1, 0, type, op, trans, *this); }
+void ogs_t::ScatterStart(occa::memory&  o_v,
+                         occa::memory&  o_gv,
+                         const int k,
+                         const Type type,
+                         const Op op,
+                         const Transpose trans){
+  AssertGatherDefined();
 
-void ogs_t::GatherScatterFinish    (occa::memory&  o_v,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterFinish(o_v, 1, 1, 0, type, op, trans, *this); }
+  if (trans==NoTrans) { //if trans!=ogs::NoTrans theres no comms required
+    exchange->AllocBuffer(k*Sizeof(type));
 
-void ogs_t::GatherScatterVecStart  (occa::memory&  o_v, const int k,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterStart (o_v, k, 1, 0, type, op, trans, *this); }
+    //collect halo buffer
+    if (NhaloP)
+      exchange->o_haloBuf.copyFrom(o_gv + k*NlocalT*Sizeof(type),
+                                   k*NhaloP*Sizeof(type), 0, 0, "async: true");
 
-void ogs_t::GatherScatterVecFinish (occa::memory&  o_v, const int k,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterFinish(o_v, k, 1, 0, type, op, trans, *this); }
-
-void ogs_t::GatherScatterManyStart (occa::memory&  o_v, const int k, const dlong stride,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterStart (o_v, 1, k, stride, type, op, trans, *this); }
-
-void ogs_t::GatherScatterManyFinish(occa::memory&  o_v, const int k, const dlong stride,
-                                    const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherScatterFinish(o_v, 1, k, stride, type, op, trans, *this); }
-
-void ogs_t::GatherStart     (occa::memory&  o_gv, occa::memory&  o_v,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherStart (o_gv, o_v, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherFinish    (occa::memory&  o_gv, occa::memory&  o_v,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherFinish(o_gv, o_v, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherVecStart  (occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherStart (o_gv, o_v, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherVecFinish (occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherFinish(o_gv, o_v, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::GatherManyStart (occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                             const dlong gstride, const dlong stride,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherStart (o_gv, o_v, 1, k, gstride, stride, type, op, trans, *this); }
-
-void ogs_t::GatherManyFinish(occa::memory&  o_gv, occa::memory&  o_v, const int k,
-                             const dlong gstride, const dlong stride,
-                             const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaGatherFinish(o_gv, o_v, 1, k, gstride, stride, type, op, trans, *this); }
-
-void ogs_t::ScatterStart     (occa::memory&  o_v, occa::memory&  o_gv,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterStart (o_v, o_gv, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterFinish    (occa::memory&  o_v, occa::memory&  o_gv,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterFinish(o_v, o_gv, 1, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterVecStart  (occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterStart (o_v, o_gv, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterVecFinish (occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterFinish(o_v, o_gv, k, 1, 0, 0, type, op, trans, *this); }
-
-void ogs_t::ScatterManyStart (occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                              const dlong stride, const dlong gstride,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterStart (o_v, o_gv, 1, k, stride, gstride, type, op, trans, *this); }
-
-void ogs_t::ScatterManyFinish(occa::memory&  o_v, occa::memory&  o_gv, const int k,
-                              const dlong stride, const dlong gstride,
-                              const ogs_type type, const ogs_op op, const ogs_transpose trans)
-{ ogs::occaScatterFinish(o_v, o_gv, 1, k, stride, gstride, type, op, trans, *this); }
-
-void ogs_t::Unique(hlong *ids, dlong _N, MPI_Comm _comm) {
-  ogs::gsUnique(ids, _N, _comm);
+    //prepare MPI exchange
+    exchange->Start(k, type, op, NoTrans);
+  }
 }
+
+
+void ogs_t::ScatterFinish(occa::memory&  o_v,
+                          occa::memory&  o_gv,
+                          const int k,
+                          const Type type,
+                          const Op op,
+                          const Transpose trans){
+  AssertGatherDefined();
+
+  //queue local s operation
+  gatherLocal->Scatter(o_v, o_gv, k, type, op, trans);
+
+  if (trans==NoTrans) { //if trans!=ogs::NoTrans theres no comms required
+    //finish MPI exchange (and put the result at the end of o_gv)
+    exchange->Finish(k, type, op, NoTrans);
+
+    //scatter halo buffer
+    gatherHalo->Scatter(o_v, exchange->o_haloBuf,
+                        k, type, op, NoTrans);
+  } else {
+    //scatter halo
+    occa::memory o_gvHalo = o_gv + k*NlocalT*Sizeof(type);
+    gatherHalo->Scatter(o_v, o_gvHalo, k, type, op, trans);
+  }
+}
+
+//host versions
+void ogs_t::Scatter(void*  v,
+                    const void*  gv,
+                    const int k,
+                    const Type type,
+                    const Op op,
+                    const Transpose trans){
+  AssertGatherDefined();
+
+  if (trans==NoTrans) { //if trans!=ogs::NoTrans theres no comms required
+    exchange->AllocBuffer(k*Sizeof(type));
+
+    //collect halo buffer
+    std::memcpy(exchange->haloBuf,
+                static_cast<const char*>(gv) + k*NlocalT*Sizeof(type),
+                k*NhaloP*Sizeof(type));
+
+    //prepare MPI exchange
+    exchange->Start(k, type, op, NoTrans, true);
+
+    //local scatter
+    gatherLocal->Scatter(v, gv, k, type, op, NoTrans);
+
+    //finish MPI exchange (and put the result at the end of o_gv)
+    exchange->Finish(k, type, op, NoTrans, true);
+
+    //scatter halo buffer
+    gatherHalo->Scatter(v, exchange->haloBuf,
+                        k, type, op, NoTrans);
+  } else {
+    //local scatter
+    gatherLocal->Scatter(v, gv, k, type, op, trans);
+
+    //scatter halo
+    gatherHalo->Scatter(v,
+                        static_cast<const char*>(gv)
+                            + k*NlocalT*Sizeof(type),
+                        k, type, op, trans);
+  }
+}
+
+} //namespace ogs
+
+} //namespace libp
