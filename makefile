@@ -24,9 +24,9 @@
 #
 #####################################################################################
 
-define CEED_HELP_MSG
+define STREAM_HELP_MSG
 
-CEED Benchmarks makefile targets:
+streamParanumal Benchmarks makefile targets:
 
 	 make all (default)
 	 make clean
@@ -43,8 +43,10 @@ make clean
 	 Cleans all executables and object files.
 make clean-libs
 	 In addition to "make clean", also clean the core, mesh, and ogs libraries.
+make clean-kernels
+   In addition to "make clean-libs", also cleans the cached OCCA kernels.
 make realclean
-	 In addition to "make clean-libs", also clean 3rd party libraries.
+	 In addition to "make clean-kernels", also clean 3rd party libraries.
 make info
 	 List directories and compiler flags in use.
 make help
@@ -57,11 +59,11 @@ endef
 ifeq (,$(filter all clean clean-libs \
 				realclean info help,$(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
-$(error ${CEED_HELP_MSG})
+$(error ${STREAM_HELP_MSG})
 endif
 endif
 
-ifndef CEED_MAKETOP_LOADED
+ifndef STREAM_MAKETOP_LOADED
 ifeq (,$(wildcard make.top))
 $(error cannot locate ${PWD}/make.top)
 else
@@ -70,22 +72,22 @@ endif
 endif
 
 #libraries
-BS_CEED_LIBS=mesh ogs linAlg core
+STREAM_LIBP_LIBS=mesh ogs core
 
-.PHONY: all BS ceed_libs \
-		clean clean-libs \
+.PHONY: all BS libp_libs \
+		clean clean-libs clean-kernels \
 		realclean info help
 
 all: BS
 
-ceed_libs:
+libp_libs:
 ifneq (,${verbose})
-	${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) verbose=${verbose}
+	${MAKE} -C ${STREAM_LIBS_DIR} $(STREAM_LIBP_LIBS) verbose=${verbose}
 else
-	@${MAKE} -C ${CEED_LIBS_DIR} $(BS_CEED_LIBS) --no-print-directory
+	@${MAKE} -C ${STREAM_LIBS_DIR} $(STREAM_LIBP_LIBS) --no-print-directory
 endif
 
-BS: ceed_libs
+BS: libp_libs
 ifneq (,${verbose})
 	${MAKE} -C $(@F) verbose=${verbose}
 else
@@ -98,18 +100,21 @@ clean:
 	${MAKE} -C BS clean
 
 clean-libs: clean
-	${MAKE} -C ${CEED_LIBS_DIR} clean
+	${MAKE} -C ${STREAM_LIBS_DIR} clean
+
+clean-kernels: clean-libs
+	rm -rf ${STREAM_DIR}/.occa/
 
 realclean: clean
-	${MAKE} -C ${CEED_LIBS_DIR} realclean
+	${MAKE} -C ${STREAM_LIBS_DIR} realclean
 
 help:
-	$(info $(value CEED_HELP_MSG))
+	$(info $(value STREAM_HELP_MSG))
 	@true
 
 info:
+	$(info STREAM_DIR  = $(STREAM_DIR))
 	$(info OCCA_DIR  = $(OCCA_DIR))
-	$(info CEED_DIR  = $(CEED_DIR))
-	$(info CEED_ARCH = $(CEED_ARCH))
-	$(info CXXFLAGS  = $(CXXFLAGS))
+	$(info LIBP_ARCH = $(LIBP_ARCH))
+	$(info LIBP_CXXFLAGS  = $(LIBP_CXXFLAGS))
 	@true

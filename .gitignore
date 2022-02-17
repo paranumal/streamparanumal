@@ -55,7 +55,6 @@ dkms.conf
 \#*
 .\#*
 
-occa/
 .occa/
 BS/BS0/BS0
 BS/BS1/BS1
