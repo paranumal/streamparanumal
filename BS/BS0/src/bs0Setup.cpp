@@ -26,18 +26,13 @@ SOFTWARE.
 
 #include "bs0.hpp"
 
-bs0_t& bs0_t::Setup(platform_t &platform, settings_t& settings) {
+void bs0_t::Setup(platform_t &_platform, settings_t& _settings) {
 
-  bs0_t* bs0 = new bs0_t(platform, settings);
+  platform = _platform;
+  settings = _settings;
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props; //copy base occa properties
+  occa::properties kernelInfo = platform.props(); //copy base occa properties
 
-  bs0->kernel = platform.buildKernel(DBS0 "/okl/bs0.okl", "bs0", kernelInfo);
-
-  return *bs0;
-}
-
-bs0_t::~bs0_t() {
-  kernel.free();
+  kernel = platform.buildKernel(DBS0 "/okl/bs0.okl", "bs0", kernelInfo);
 }

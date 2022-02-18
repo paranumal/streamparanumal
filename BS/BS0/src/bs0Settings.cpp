@@ -67,5 +67,8 @@ void bs0Settings_t::report() {
   std::cout << "Settings:\n\n";
   platformReportSettings(*this);
 
-  reportSetting("BYTES");
+  reportSetting("NLAUNCHES");
+  reportSetting("NLAUNCHMIN");
+  reportSetting("NLAUNCHMAX");
+  reportSetting("NLAUNCHSTEP");
 }
