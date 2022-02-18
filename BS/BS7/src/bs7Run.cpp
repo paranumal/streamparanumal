@@ -28,17 +28,15 @@ SOFTWARE.
 
 void bs7_t::Run(){
 
-  platform_t &platform = mesh.platform;
-
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
-  dlong Ngather = mesh.ogs->Ngather;
+  dlong Ngather = mesh.ogs.Ngather;
   occa::memory o_q = platform.malloc(N*sizeof(dfloat));
   occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
 
   /* Warmup */
   for(int n=0;n<5;++n){
-    mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans); //dry run
+    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::Dfloat, ogs::Add, ogs::NoTrans); //dry run
   }
 
   /* Scatter test */
@@ -48,7 +46,7 @@ void bs7_t::Run(){
   double startTime = MPI_Wtime();
 
   for(int n=0;n<Ntests;++n){
-    mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans);
+    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::Dfloat, ogs::Add, ogs::NoTrans);
   }
 
   platform.device.finish();
@@ -60,17 +58,13 @@ void bs7_t::Run(){
   hlong NtotalGlobal;
   MPI_Allreduce(&Ntotal, &NtotalGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
-  hlong Nblocks = mesh.ogs->localScatter.NrowBlocks+mesh.ogs->haloScatter.NrowBlocks;
-  hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
-  hlong NgatherGlobal = mesh.ogsMasked->NgatherGlobal;
+  hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
 
   size_t bytesIn  = NgatherGlobal*sizeof(dfloat)+NtotalGlobal*sizeof(dlong);
   size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
   size_t bytes = bytesIn + bytesOut;
 
-  hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
+  hlong Ndofs = mesh.ogs.NgatherGlobal;
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){

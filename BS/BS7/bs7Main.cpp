@@ -31,25 +31,27 @@ int main(int argc, char **argv){
   // start up MPI
   MPI_Init(&argc, &argv);
 
-  MPI_Comm comm = MPI_COMM_WORLD;
+  {
+    MPI_Comm comm = MPI_COMM_WORLD;
 
-  bs7Settings_t settings(argc, argv, comm);
-  if (settings.compareSetting("VERBOSE", "TRUE"))
-    settings.report();
+    bs7Settings_t settings(argc, argv, comm);
+    if (settings.compareSetting("VERBOSE", "TRUE"))
+      settings.report();
 
-  // set up platform
-  platform_t platform(settings);
+    // set up platform
+    platform_t platform(settings);
 
-  // set up mesh
-  mesh_t& mesh = mesh_t::Setup(platform, settings, comm);
+    // set up mesh
+    mesh_t mesh(platform, settings, comm);
 
-  // set up bs solver
-  bs7_t& bs = bs7_t::Setup(mesh);
+    // set up bs solver
+    bs7_t bs(platform, settings, mesh);
 
-  // run
-  bs.Run();
+    // run
+    bs.Run();
+  }
 
   // close down MPI
   MPI_Finalize();
-  return CEED_SUCCESS;
+  return LIBP_SUCCESS;
 }

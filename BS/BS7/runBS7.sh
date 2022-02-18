@@ -24,13 +24,8 @@ while getopts :m:h FLAG; do
   esac
 done
 
-if [ -z "$OCCA_DIR" ]; then
-  echo "Error: OCCA_DIR not set."
-  exit 2
-fi
-
 # Build the code
-make -j `nproc`
+# make -j `nproc`
 
 if [ -z $mode ]; then
     echo "No mode supplied, defaulting to HIP"

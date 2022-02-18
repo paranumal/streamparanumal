@@ -26,15 +26,9 @@ SOFTWARE.
 
 #include "bs7.hpp"
 
-bs7_t& bs7_t::Setup(mesh_t& mesh){
-
-  bs7_t* bs7 = new bs7_t(mesh);
-
-  //make masked ogs
-  int Nfields=1;
-  mesh.BoundarySetup(Nfields);
-
-  return *bs7;
+void bs7_t::Setup(platform_t &_platform, settings_t& _settings,
+                  mesh_t& _mesh){
+  platform = _platform;
+  settings = _settings;
+  mesh = _mesh;
 }
-
-bs7_t::~bs7_t() {}
