@@ -29,7 +29,9 @@ SOFTWARE.
 
 #include "platform.hpp"
 
-#define DBS1 CEED_DIR"/BS/BS1/"
+#define DBS1 STREAM_DIR"/BS/BS1/"
+
+using namespace libp;
 
 class bs1Settings_t: public settings_t {
 public:
@@ -39,19 +41,20 @@ public:
 
 class bs1_t {
 public:
-  platform_t &platform;
-  settings_t &settings;
+  platform_t platform;
+  settings_t settings;
 
   occa::kernel kernel;
 
-  bs1_t() = delete;
-  bs1_t(platform_t &_platform, settings_t& _settings):
-    platform(_platform), settings(_settings) {}
+  bs1_t() = default;
+  bs1_t(platform_t &_platform, settings_t& _settings) {
+    Setup(_platform, _settings);
+  }
 
-  ~bs1_t();
+  ~bs1_t() = default;
 
   //setup
-  static bs1_t& Setup(platform_t &_platform, settings_t& _settings);
+  void Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };
