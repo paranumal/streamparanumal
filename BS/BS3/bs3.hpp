@@ -29,7 +29,9 @@ SOFTWARE.
 
 #include "platform.hpp"
 
-#define DBS3 CEED_DIR"/BS/BS3/"
+#define DBS3 STREAM_DIR"/BS/BS3/"
+
+using namespace libp;
 
 class bs3Settings_t: public settings_t {
 public:
@@ -39,21 +41,23 @@ public:
 
 class bs3_t {
 public:
-  platform_t &platform;
-  settings_t &settings;
+  platform_t platform;
+  settings_t settings;
 
   int blockSize;
 
-  occa::kernel kernel1, kernel2;
+  occa::kernel kernel1;
+  occa::kernel kernel2;
 
-  bs3_t() = delete;
-  bs3_t(platform_t &_platform, settings_t& _settings):
-    platform(_platform), settings(_settings) {}
+  bs3_t() = default;
+  bs3_t(platform_t &_platform, settings_t& _settings) {
+    Setup(_platform, _settings);
+  }
 
-  ~bs3_t();
+  ~bs3_t() = default;
 
   //setup
-  static bs3_t& Setup(platform_t &_platform, settings_t& _settings);
+  void Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };

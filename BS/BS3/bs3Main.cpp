@@ -31,22 +31,24 @@ int main(int argc, char **argv){
   // start up MPI
   MPI_Init(&argc, &argv);
 
-  MPI_Comm comm = MPI_COMM_WORLD;
+  {
+    MPI_Comm comm = MPI_COMM_WORLD;
 
-  bs3Settings_t settings(argc, argv, comm);
-  if (settings.compareSetting("VERBOSE", "TRUE"))
-    settings.report();
+    bs3Settings_t settings(argc, argv, comm);
+    if (settings.compareSetting("VERBOSE", "TRUE"))
+      settings.report();
 
-  // set up platform
-  platform_t platform(settings);
+    // set up platform
+    platform_t platform(settings);
 
-  // set up bs solver
-  bs3_t& bs = bs3_t::Setup(platform, settings);
+    // set up bs solver
+    bs3_t bs(platform, settings);
 
-  // run
-  bs.Run();
+    // run
+    bs.Run();
+  }
 
   // close down MPI
   MPI_Finalize();
-  return CEED_SUCCESS;
+  return LIBP_SUCCESS;
 }
