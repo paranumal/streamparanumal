@@ -26,20 +26,15 @@ SOFTWARE.
 
 #include "bs2.hpp"
 
-bs2_t& bs2_t::Setup(platform_t &platform, settings_t& settings) {
+void bs2_t::Setup(platform_t& _platform, settings_t& _settings) {
 
-  bs2_t* bs2 = new bs2_t(platform, settings);
+  platform = _platform;
+  settings = _settings;
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props; //copy base occa properties
+  occa::properties kernelInfo = platform.props(); //copy base occa properties
 
   kernelInfo["defines/" "p_blockSize"] = (int)256;
 
-  bs2->kernel = platform.buildKernel(DBS2 "/okl/bs2.okl", "bs2", kernelInfo);
-
-  return *bs2;
-}
-
-bs2_t::~bs2_t() {
-  kernel.free();
+  kernel = platform.buildKernel(DBS2 "/okl/bs2.okl", "bs2", kernelInfo);
 }
