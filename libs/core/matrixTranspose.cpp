@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "core.hpp"
 
+namespace libp {
+
 template<typename T>
 inline
 void matrixTranspose_t(const int M, const int N,
@@ -77,3 +79,5 @@ void matrixTranspose(const int M, const int N,
                            long long int *AT, const int LDAT) {
   matrixTranspose_t(M, N, A, LDA, AT, LDAT);
 }
+
+} //namespace libp

@@ -24,7 +24,7 @@
 #
 #####################################################################################
 
-ifndef HIPBONE_MAKETOP_LOADED
+ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard ../make.top))
 $(error cannot locate ${PWD}/../make.top)
 else
@@ -33,31 +33,31 @@ endif
 endif
 
 #libraries
-LIBCORE_DIR=${HIPBONE_LIBS_DIR}/core
-LIBMESH_DIR=${HIPBONE_LIBS_DIR}/mesh
-LIBOGS_DIR=${HIPBONE_LIBS_DIR}/ogs
+LIBCORE_DIR=${LIBP_LIBS_DIR}/core
+LIBMESH_DIR=${LIBP_LIBS_DIR}/mesh
+LIBOGS_DIR=${LIBP_LIBS_DIR}/ogs
 
 #includes
-INCLUDES=${HIPBONE_INCLUDES}
-LIBOGS_INCLUDES= -I${HIPBONE_INCLUDES}/ogs
+INCLUDES=${LIBP_INCLUDES}
+LIBOGS_INCLUDES= -I${LIBP_INCLUDES}/ogs
 
 #defines
-LIBCORE_DEFINES=${HIPBONE_DEFINES} -DHIPBONE_DIR='"${HIPBONE_DIR}"'
-LIBMESH_DEFINES=${HIPBONE_DEFINES} -DMESH_DIR='"${LIBMESH_DIR}"'
-LIBOGS_DEFINES=${HIPBONE_DEFINES} -DHIPBONE_DIR='"${HIPBONE_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
+LIBCORE_DEFINES=${LIBP_DEFINES} -DLIBP_DIR='"${LIBP_DIR}"'
+LIBMESH_DEFINES=${LIBP_DEFINES}
+LIBOGS_DEFINES=${LIBP_DEFINES} -DOGS_DIR='"${LIBOGS_DIR}"'
 
 ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
 endif
 
 #.cpp compilation flags
-LIB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
+LIB_CXXFLAGS=${LIBP_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #object dependancies
-LIB_DEPS=$(wildcard $(HIPBONE_INCLUDE_DIR)/*.h) \
-         $(wildcard $(HIPBONE_INCLUDE_DIR)/*.hpp)
+LIB_DEPS=$(wildcard $(LIBP_INCLUDE_DIR)/*.h) \
+         $(wildcard $(LIBP_INCLUDE_DIR)/*.hpp)
 LIBOGS_DEPS=${LIB_DEPS} \
-            $(wildcard $(HIPBONE_INCLUDE_DIR)/ogs/*.hpp)
+            $(wildcard $(LIBP_INCLUDE_DIR)/ogs/*.hpp)
 
 LIBCORE_SRC =$(wildcard core/*.cpp)
 LIBMESH_SRC =$(wildcard mesh/*.cpp)
@@ -113,34 +113,34 @@ silentUpdate-mesh:
 # rule for .cpp files
 %.o: %.cpp $(DEPS)
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
+	$(LIBP_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
+	@$(LIBP_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
 endif
 
 core/%.o: core/%.cpp $(LIB_DEPS)
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 endif
 
 mesh/%.o: mesh/%.cpp $(LIB_DEPS) | libogs.a
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
+	$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 endif
 
 ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
 endif
 
 #cleanup

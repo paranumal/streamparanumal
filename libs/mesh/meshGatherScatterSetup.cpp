@@ -25,36 +25,22 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh2D.hpp"
 
-void mesh2D::OccaSetup(){
+namespace libp {
 
-  this->mesh_t::OccaSetup();
+void mesh_t::GatherScatterSetup() {
 
-  // o_x = platform.malloc(Nelements*Np*sizeof(dfloat), x);
-  // o_y = platform.malloc(Nelements*Np*sizeof(dfloat), y);
-  // o_z = o_y; // dummy z variable
+  //use the masked ids to make another gs handle (signed so the gather is defined)
+  bool verbose = platform.settings().compareSetting("VERBOSE", "TRUE");
+  bool unique = true; //flag a unique node in every gather node
+  ogs.Setup(Nelements*Np, globalIds.ptr(),
+            comm, ogs::Signed, ogs::Auto,
+            unique, verbose, platform);
 
-  props["defines/" "p_NXID"]= NXID;
-  props["defines/" "p_NYID"]= NYID;
-  props["defines/" "p_SJID"]= SJID;
-  props["defines/" "p_IJID"]= IJID;
-  props["defines/" "p_IHID"]= IHID;
-  props["defines/" "p_WIJID"]= WIJID;
-  props["defines/" "p_WSJID"]= WSJID;
+  GlobalToLocal.malloc(Nelements*Np);
+  ogs.SetupGlobalToLocalMapping(GlobalToLocal.ptr());
 
-  props["defines/" "p_G00ID"]= G00ID;
-  props["defines/" "p_G01ID"]= G01ID;
-  props["defines/" "p_G11ID"]= G11ID;
-  props["defines/" "p_GWJID"]= GWJID;
-
-  props["defines/" "p_RXID"]= RXID;
-  props["defines/" "p_SXID"]= SXID;
-  props["defines/" "p_RYID"]= RYID;
-  props["defines/" "p_SYID"]= SYID;
-
-  props["defines/" "p_JID"]= JID;
-  props["defines/" "p_JWID"]= JWID;
-  props["defines/" "p_IJWID"]= IJWID;
-
+  o_GlobalToLocal = platform.malloc(GlobalToLocal);
 }
+
+} //namespace libp

@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2021 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,21 +24,54 @@ SOFTWARE.
 
 */
 
-#include "mesh.hpp"
-#include "mesh/mesh2D.hpp"
+#ifndef OGS_UTILS_HPP
+#define OGS_UTILS_HPP
 
-void meshQuad2D::OccaSetup(){
+#include "ogs.hpp"
 
-  this->mesh2D::OccaSetup();
+namespace libp {
 
-  // o_D = platform.malloc(Nq*Nq*sizeof(dfloat), D);
+namespace ogs {
 
-  // o_S    = o_D; //dummy
-  // o_MM   = o_D; //dummy
-  // o_sM   = o_D; //dummy
-  // o_LIFT = o_D; //dummy
+extern MPI_Datatype MPI_PARALLELNODE_T;
 
-  // o_vgeo = platform.malloc((Nelements+totalHaloPairs)*Nvgeo*Np*sizeof(dfloat), vgeo);
-  // o_sgeo = platform.malloc(Nelements*Nfaces*Nfp*Nsgeo*sizeof(dfloat), sgeo);
-  // o_ggeo = platform.malloc(Nelements*Np*Nggeo*sizeof(dfloat), ggeo);
+void InitMPIType();
+void DestroyMPIType();
+
+struct parallelNode_t{
+
+  dlong localId;    // local node id
+  hlong baseId;     // original global index
+
+  dlong newId;         // new global id
+  int sign;
+
+  int rank; //original rank
+  int destRank; //destination rank
+
+};
+
+size_t Sizeof(const Type type);
+MPI_Datatype MPI_Type(const Type type);
+
+//permute an array A, according to the ordering returned by P
+// i.e. for all n, A[P(n)] <- A[n]
+template<typename T, class Order>
+void permute(const dlong N, libp::memory<T> A, Order P) {
+
+  for(dlong n=0;n<N;++n) {
+    //get what index A[n] should move to
+    dlong pn = P(A[n]);
+    while (pn!=n) {
+      //swap
+      std::swap(A[n], A[pn]);
+      pn = P(A[n]);
+    }
+  }
 }
+
+} //namespace ogs
+
+} //namespace libp
+
+#endif

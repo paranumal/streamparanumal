@@ -458,7 +458,7 @@ void ogsOperator_t::setupRowBlocks() {
       std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
          << " in ogsOperator_t::setupRowBlocks is too large.";
-      HIPBONE_ABORT(ss.str())
+      LIBP_ABORT(ss.str())
     }
 
     const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
@@ -468,7 +468,7 @@ void ogsOperator_t::setupRowBlocks() {
       std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
          << " in ogsOperator_t::setupRowBlocks is too large.";
-      HIPBONE_ABORT(ss.str())
+      LIBP_ABORT(ss.str())
     }
 
     if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block

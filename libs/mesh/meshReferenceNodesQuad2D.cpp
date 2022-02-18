@@ -25,65 +25,30 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh2D.hpp"
-#include "mesh/mesh3D.hpp"
 
-void meshQuad3D::ReferenceNodes(int N_){
-  mesh_t *mesh_p = (mesh_t*) this;
-  meshQuad2D* quadmesh = (meshQuad2D*) mesh_p;
-  quadmesh->meshQuad2D::ReferenceNodes(N_);
-}
+namespace libp {
 
-void meshQuad2D::ReferenceNodes(int N_){
+void mesh_t::ReferenceNodesQuad2D(){
 
-  N = N_;
   Nfp = N+1;
   Nq = (N+1);
   Np = (N+1)*(N+1);
 
   /* Nodal Data */
-  r = (dfloat *) malloc(Np*sizeof(dfloat));
-  s = (dfloat *) malloc(Np*sizeof(dfloat));
-  NodesQuad2D(N, r, s);
+  r.malloc(Np);
+  s.malloc(Np);
+  NodesQuad2D(N, r.ptr(), s.ptr());
 
-  faceNodes = (int *) malloc(Nfaces*Nfp*sizeof(int));
-  FaceNodesQuad2D(N, r, s, faceNodes);
+  faceNodes.malloc(Nfaces*Nfp);
+  FaceNodesQuad2D(N, r.ptr(), s.ptr(), faceNodes.ptr());
 
-  vertexNodes = (int*) calloc(Nverts, sizeof(int));
-  VertexNodesQuad2D(N, r, s, vertexNodes);
+  vertexNodes.malloc(Nverts);
+  VertexNodesQuad2D(N, r.ptr(), s.ptr(), vertexNodes.ptr());
 
   //GLL quadrature
-  dfloat *gllz = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  w = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  JacobiGLL(N, gllz, w);
-
-  //Lumped Mass matrix
-  // MM    = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // LumpedMassMatrixQuad2D(N, w, MM);
-  // invLumpedMassMatrixQuad2D(N, w, invMM);
-
-  // D matrix
-  // D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
-  // Dmatrix1D(N, Nq, gllz, Nq, gllz, D);
-  // free(gllz);
-
-  /* Plotting data */
-  int plotN = N_ + 3; //enriched interpolation space for plotting
-  int plotNq = plotN + 1;
-  plotNp = plotNq*plotNq;
-
-  /* Plotting nodes */
-  // plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  // plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  // EquispacedNodesQuad2D(plotN, plotR, plotS);
-
-  // plotNelements = 2*plotN*plotN;
-  // plotNverts = 3;
-  // plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
-  // EquispacedEToVQuad2D(plotN, plotEToV);
-
-  // plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
-  // InterpolationMatrixQuad2D(N, Np, r, s, plotNp, plotR, plotS, plotInterp);
+  gllz.malloc(Nq);
+  gllw.malloc(Nq);
+  JacobiGLL(N, gllz.ptr(), gllw.ptr());
 }
 
+} //namespace libp

@@ -33,6 +33,8 @@ extern "C" {
               double *VL, int *LDVL, double *VR, int *LDVR, double *WORK, int *LWORK, int *INFO );
 }
 
+namespace libp {
+
 // compute right eigenvectors
 void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI){
 
@@ -63,7 +65,7 @@ void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI){
   if(INFO) {
     std::stringstream ss;
     ss << "dgeev_ reports info = " << INFO;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   for(int n=0;n<N;++n){
@@ -107,7 +109,7 @@ void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI){
   if(INFO) {
     std::stringstream ss;
     ss << "sgeev_ reports info = " << INFO;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   for(int n=0;n<N;++n){
@@ -143,7 +145,7 @@ void matrixEigenValues(int N, double *A, double *WR, double *WI){
   if(INFO) {
     std::stringstream ss;
     ss << "dgeev_ reports info = " << INFO;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   free(WORK);
@@ -171,8 +173,10 @@ void matrixEigenValues(int N, float *A, float *WR, float *WI){
   if(INFO) {
     std::stringstream ss;
     ss << "sgeev_ reports info = " << INFO;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   free(WORK);
 }
+
+} //namespace libp

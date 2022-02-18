@@ -25,60 +25,31 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh3D.hpp"
 
-void meshHex3D::ReferenceNodes(int N_){
+namespace libp {
 
-  N = N_;
+void mesh_t::ReferenceNodesHex3D(){
+
   Nq = N+1;
   Nfp = Nq*Nq;
   Np = Nq*Nq*Nq;
 
   /* Nodal Data */
-  r = (dfloat *) malloc(Np*sizeof(dfloat));
-  s = (dfloat *) malloc(Np*sizeof(dfloat));
-  t = (dfloat *) malloc(Np*sizeof(dfloat));
-  NodesHex3D(N, r, s, t);
+  r.malloc(Np);
+  s.malloc(Np);
+  t.malloc(Np);
+  NodesHex3D(N, r.ptr(), s.ptr(), t.ptr());
 
-  faceNodes = (int *) malloc(Nfaces*Nfp*sizeof(int));
-  FaceNodesHex3D(N, r, s, t, faceNodes);
+  faceNodes.malloc(Nfaces*Nfp);
+  FaceNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), faceNodes.ptr());
 
-  vertexNodes = (int*) calloc(Nverts, sizeof(int));
-  VertexNodesHex3D(N, r, s, t, vertexNodes);
+  vertexNodes.malloc(Nverts);
+  VertexNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), vertexNodes.ptr());
 
   //GLL quadrature
-  dfloat *gllz = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  w = (dfloat *) malloc((N+1)*sizeof(dfloat));
-  JacobiGLL(N, gllz, w);
-
-  //Lumped Mass matrix
-  // MM    = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // LumpedMassMatrixHex3D(N, w, MM);
-  // invLumpedMassMatrixHex3D(N, w, invMM);
-
-  // D matrix
-  // D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
-  // Dmatrix1D(N, Nq, gllz, Nq, gllz, D);
-  // free(gllz);
-
-  /* Plotting data */
-  int plotN = N_ + 3; //enriched interpolation space for plotting
-  int plotNq = plotN + 1;
-  plotNp = plotNq*plotNq*plotNq;
-
-  /* Plotting nodes */
-  // plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  // plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  // plotT = (dfloat *) malloc(plotNp*sizeof(dfloat));
-  // EquispacedNodesHex3D(plotN, plotR, plotS, plotT);
-
-  // plotNelements = 6*plotN*plotN*plotN;
-  // plotNverts = 4;
-  // plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
-  // EquispacedEToVHex3D(plotN, plotEToV);
-
-  // plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
-  // InterpolationMatrixHex3D(N, Np, r, s, t, plotNp, plotR, plotS, plotT, plotInterp);
+  gllz.malloc(Nq);
+  gllw.malloc(Nq);
+  JacobiGLL(N, gllz.ptr(), gllw.ptr());
 }
 
+} //namespace libp

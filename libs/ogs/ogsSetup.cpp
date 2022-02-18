@@ -91,7 +91,7 @@ void ogsBase_t::Setup(const dlong _N,
   //sanity check options
   if (   (kind==Unsigned && unique==true)
       || (kind==Halo && unique==true) )
-    HIPBONE_ABORT("Invalid ogs setup requested");
+    LIBP_ABORT("Invalid ogs setup requested");
 
   //count how many ids are non-zero
   dlong Nids=0;
@@ -279,7 +279,7 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
         std::stringstream ss;
         ss << "Found " << positiveCount << " positive Ids for baseId: "
            << abs(recvNodes[start].baseId)<< ".";
-        HIPBONE_ABORT(ss.str());
+        LIBP_ABORT(ss.str());
       }
 
       //determine if this node is shared via MPI,
@@ -868,7 +868,7 @@ void ogsBase_t::Free() {
 
 void ogsBase_t::AssertGatherDefined() {
   if (!gather_defined) {
-    HIPBONE_ABORT("Gather operation not well-defined.");
+    LIBP_ABORT("Gather operation not well-defined.");
   }
 }
 

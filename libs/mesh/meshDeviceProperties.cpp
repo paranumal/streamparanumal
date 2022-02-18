@@ -24,32 +24,19 @@ SOFTWARE.
 
 */
 
-#ifndef MESH_DEFINES2D_H
-#define MESH_DEFINES2D_H 1
+#include "mesh.hpp"
 
-/* offsets for geometric factors */
-#define RXID 0
-#define RYID 1
-#define SXID 2
-#define SYID 3
-#define  JID 4
-#define JWID 5
-#define IJWID 6
+namespace libp {
 
-/* offsets for second order geometric factors */
-#define G00ID 0
-#define G01ID 1
-#define G11ID 2
-#define GWJID 3
+void mesh_t::DeviceProperties(){
 
-/* offsets for nx, ny, sJ, 1/J */
-#define NXID 0
-#define NYID 1
-#define SJID 2
-#define IJID 3
-#define IHID 4
-#define WSJID 5
-#define WIJID 6
+  props["defines/" "p_dim"]= dim;
+  props["defines/" "p_N"]= N;
+  props["defines/" "p_Nq"]= N+1;
+  props["defines/" "p_Np"]= Np;
+  props["defines/" "p_Nfp"]= Nfp;
+  props["defines/" "p_Nfaces"]= Nfaces;
+  props["defines/" "p_NfacesNfp"]= Nfp*Nfaces;
+}
 
-#endif
-
+} //namespace libp

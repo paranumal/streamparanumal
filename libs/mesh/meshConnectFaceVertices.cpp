@@ -26,39 +26,47 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
-void mesh_t::PrintPartitionStatistics(){
+namespace libp {
 
-  /* now gather statistics on connectivity between processes */
-  int *comms = (int*) calloc(size, sizeof(int));
-  int Ncomms = 0;
+// serial face-vertex to face-vertex connection
+void mesh_t::ConnectFaceVertices(){
 
-  /* count elements with neighbors on each other rank ranks */
+  //allocate and fill a halo region in element-to-vertex mapping
+  EToV.realloc((Nelements+totalHaloPairs)*Nverts);
+  halo.Exchange(EToV.ptr(), Nverts, ogs::Hlong);
+
+  /* volume indices of the interior and exterior face vertices for each element */
+  VmapM.malloc(NfaceVertices*Nfaces*Nelements);
+  VmapP.malloc(NfaceVertices*Nfaces*Nelements);
+
+  /* assume elements already connected */
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int f=0;f<Nfaces;++f){
-      if(EToP[e*Nfaces+f]!=-1){
-        ++comms[EToP[e*Nfaces+f]];
-        ++Ncomms;
+      dlong eP = EToE[e*Nfaces+f];
+      int fP = EToF[e*Nfaces+f];
+      if(eP<0 || fP<0){ // fake connections for unconnected faces
+        eP = e;
+        fP = f;
+      }
+
+      /* for each vertex on this face find the neighbor vertex */
+      for(int n=0;n<NfaceVertices;++n){
+        dlong idM = faceVertices[f*NfaceVertices+n] + e*Nverts;
+        hlong vM  = EToV[idM];
+
+        dlong idP=idM;
+        for(int m=0;m<NfaceVertices;++m){
+          idP = faceVertices[fP*NfaceVertices+m] + eP*Nverts;
+          if (EToV[idP]==vM) break;
+        }
+
+        dlong id = Nfaces*NfaceVertices*e + f*NfaceVertices + n;
+        VmapM[id] = idM;
+        VmapP[id] = idP;
       }
     }
   }
-
-  int Nmessages = 0;
-  for(int rr=0;rr<size;++rr)
-    if(comms[rr]>0)
-      ++Nmessages;
-
-  for(int rr=0;rr<size;++rr){
-    MPI_Barrier(comm);
-    if(rr==rank){
-      fflush(stdout);
-      printf("r: %02d [", rank);
-      for(int ss=0;ss<size;++ss){
-        printf(" %04d", comms[ss]);
-      }
-      printf("] (Nelements=" dlongFormat ", Nmessages=%d, Ncomms=%d)\n", Nelements,Nmessages, Ncomms);
-      fflush(stdout);
-    }
-  }
-
-  free(comms);
 }
+
+} //namespace libp

@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "core.hpp"
 
+#include "core.hpp"
+
 extern "C" {
   void dgesv_ ( int     *N, int     *NRHS, double  *A,
                 int     *LDA,
@@ -33,6 +35,7 @@ extern "C" {
                 double  *B,
                 int     *LDB,
                 int     *INFO );
+
   void sgesv_ ( int     *N, int     *NRHS, float  *A,
                 int     *LDA,
                 int     *IPIV,
@@ -40,6 +43,8 @@ extern "C" {
                 int     *LDB,
                 int     *INFO );
 }
+
+namespace libp {
 
 // C = A/B  = trans(trans(B)\trans(A))
 // assume row major
@@ -75,7 +80,7 @@ void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB,
   if(info) {
     std::stringstream ss;
     ss << "dgesv_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   for(int n=0;n<NrowsY*NcolsY;++n){
@@ -122,7 +127,7 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
   if(info) {
     std::stringstream ss;
     ss << "sgesv_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   for(int n=0;n<NrowsY*NcolsY;++n){
@@ -134,3 +139,5 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
   free(tmpX);
   free(tmpY);
 }
+
+} //namespace libp

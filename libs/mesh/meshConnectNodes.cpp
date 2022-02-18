@@ -26,43 +26,34 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
 
 // uniquely label each node with a global index, used for gatherScatter
-void mesh_t::ParallelConnectNodes(){
+void mesh_t::ConnectNodes(){
 
-  hlong localNodeCount = Np*Nelements;
-  hlong *allLocalNodeCounts = (hlong*) calloc(size, sizeof(hlong));
+  dlong localNodeCount = Np*Nelements;
+  libp::memory<dlong> allLocalNodeCounts(platform.size);
 
-  MPI_Allgather(&localNodeCount,    1, MPI_HLONG,
-                allLocalNodeCounts, 1, MPI_HLONG,
+  MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
+                allLocalNodeCounts.ptr(), 1, MPI_DLONG,
                 comm);
 
   hlong gatherNodeStart = 0;
   for(int rr=0;rr<rank;++rr)
     gatherNodeStart += allLocalNodeCounts[rr];
 
-  free(allLocalNodeCounts);
+  allLocalNodeCounts.free();
 
   // form continuous node numbering (local=>virtual gather)
-  int *baseRank = (int *) malloc((totalHaloPairs+Nelements)*Np*sizeof(int));
-  globalIds = (hlong *) malloc((totalHaloPairs+Nelements)*Np*sizeof(hlong));
+  globalIds.malloc((totalHaloPairs+Nelements)*Np);
 
   // use local numbering
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int n=0;n<Np;++n){
       dlong id = e*Np+n;
-
-      baseRank[id] = rank;
-      // globalIds[id] = 1 + id + Nnodes + gatherNodeStart;
       globalIds[id] = 1 + id + gatherNodeStart;
     }
-
-    // use vertex ids for vertex nodes to reduce iterations
-    // for(int v=0;v<Nverts;++v){
-    //   hlong id = e*Np + vertexNodes[v];
-    //   hlong gid = EToV[e*Nverts+v] + 1;
-    //   globalIds[id] = gid;
-    // }
   }
 
   hlong localChange = 0, gatherChange = 1;
@@ -74,10 +65,10 @@ void mesh_t::ParallelConnectNodes(){
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(baseRank, Np, ogs_int);
-    halo->Exchange(globalIds, Np, ogs_hlong);
+    halo.Exchange(globalIds.ptr(), Np, ogs::Hlong);
 
     // compare trace nodes
+    #pragma omp parallel for collapse(2)
     for(dlong e=0;e<Nelements;++e){
       for(int n=0;n<Nfp*Nfaces;++n){
         dlong id  = e*Nfp*Nfaces + n;
@@ -86,26 +77,16 @@ void mesh_t::ParallelConnectNodes(){
         hlong gidM = globalIds[idM];
         hlong gidP = globalIds[idP];
 
-        int baseRankM = baseRank[idM];
-        int baseRankP = baseRank[idP];
-
-        if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
+        if(gidP<gidM){
           ++localChange;
-          baseRank[idP]  = baseRank[idM];
-          globalIds[idP] = globalIds[idM];
-        }
-
-        if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
-          ++localChange;
-          baseRank[idM]  = baseRank[idP];
-          globalIds[idM] = globalIds[idP];
+          globalIds[idM] = gidP;
         }
       }
     }
 
     // sum up changes
-    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_MAX, comm);
+    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_SUM, comm);
   }
-
-  free(baseRank);
 }
+
+} //namespace libp

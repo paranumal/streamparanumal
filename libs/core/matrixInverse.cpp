@@ -34,6 +34,8 @@ extern "C" {
   void sgetri_(int* N, float* A, int* lda, int* IPIV, float* WORK, int* lwork, int* INFO);
 }
 
+namespace libp {
+
 void matrixInverse(int N, double *A){
   int lwork = N*N;
   int info;
@@ -47,7 +49,7 @@ void matrixInverse(int N, double *A){
   if(info) {
     std::stringstream ss;
     ss << "dgetrf_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   dgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
@@ -55,7 +57,7 @@ void matrixInverse(int N, double *A){
   if(info) {
     std::stringstream ss;
     ss << "dgetri_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   free(work);
@@ -75,7 +77,7 @@ void matrixInverse(int N, float *A){
   if(info) {
     std::stringstream ss;
     ss << "sgetrf_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   sgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
@@ -83,9 +85,11 @@ void matrixInverse(int N, float *A){
   if(info) {
     std::stringstream ss;
     ss << "sgetri_ reports info = " << info;
-    CEED_ABORT(ss.str());
+    LIBP_ABORT(ss.str());
   }
 
   free(work);
   free(ipiv);
 }
+
+} //namespace libp

@@ -25,76 +25,25 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh3D.hpp"
 
-void meshTet3D::ReferenceNodes(int N_){
+namespace libp {
 
-  N = N_;
+void mesh_t::ReferenceNodesTet3D(){
+
   Nfp = ((N+1)*(N+2))/2;
   Np = ((N+1)*(N+2)*(N+3))/6;
 
   /* Nodal Data */
-  r = (dfloat *) malloc(Np*sizeof(dfloat));
-  s = (dfloat *) malloc(Np*sizeof(dfloat));
-  t = (dfloat *) malloc(Np*sizeof(dfloat));
-  NodesTet3D(N, r, s, t);
+  r.malloc(Np);
+  s.malloc(Np);
+  t.malloc(Np);
+  NodesTet3D(N, r.ptr(), s.ptr(), t.ptr());
 
-  faceNodes = (int *) malloc(Nfaces*Nfp*sizeof(int));
-  FaceNodesTet3D(N, r, s, t, faceNodes);
+  faceNodes.malloc(Nfaces*Nfp);
+  FaceNodesTet3D(N, r.ptr(), s.ptr(), t.ptr(), faceNodes.ptr());
 
-  vertexNodes = (int*) calloc(Nverts, sizeof(int));
-  VertexNodesTet3D(N, r, s, t, vertexNodes);
-
-  // dfloat *V = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // VandermondeTet3D(N, Np, r, s, t, V);
-
-  //Mass matrix
-  // MM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // invMM = (dfloat *) malloc(Np*Np*sizeof(dfloat));
-  // MassMatrixTet3D(Np, V, MM);
-  // invMassMatrixTet3D(Np, V, invMM);
-  // free(V);
-
-  //packed D matrices
-  // D  = (dfloat *) malloc(3*Np*Np*sizeof(dfloat));
-  // Dr = D + 0*Np*Np;
-  // Ds = D + 1*Np*Np;
-  // Dt = D + 2*Np*Np;
-  // DmatrixTet3D(N, Np, r, s, t, Dr, Ds, Dt);
-
-  // LIFT = (dfloat *) malloc(Np*Nfaces*Nfp*sizeof(dfloat));
-  // LIFTmatrixTet3D(N, faceNodes, r, s, t, LIFT);
-
-  // sM = (dfloat *) calloc(Np*Nfaces*Nfp,sizeof(dfloat));
-  // SurfaceMassMatrixTet3D(N, MM, LIFT, sM);
-
-  //packed stiffness matrices
-  // S = (dfloat*) calloc(6*Np*Np, sizeof(dfloat));
-  // Srr = S + 0*Np*Np;
-  // Srs = S + 1*Np*Np;
-  // Srt = S + 2*Np*Np;
-  // Sss = S + 3*Np*Np;
-  // Sst = S + 4*Np*Np;
-  // Stt = S + 5*Np*Np;
-  // SmatrixTet3D(N, Dr, Ds, Dt, MM, Srr, Srs, Srt, Sss, Sst, Stt);
-
-  /* Plotting data */
-  int plotN = N + 3; //enriched interpolation space for plotting
-  plotNp = (plotN+1)*(plotN+2)*(plotN+3)/6;
-
-  /* Plotting nodes */
-//   plotR = (dfloat *) malloc(plotNp*sizeof(dfloat));
-//   plotS = (dfloat *) malloc(plotNp*sizeof(dfloat));
-//   plotT = (dfloat *) malloc(plotNp*sizeof(dfloat));
-//   EquispacedNodesTet3D(plotN, plotR, plotS, plotT);
-
-//   plotNelements = plotN*plotN*plotN;
-//   plotNverts = 4;
-//   plotEToV = (int*) malloc(plotNelements*plotNverts*sizeof(int));
-//   EquispacedEToVTet3D(plotN, plotEToV);
-
-//   plotInterp = (dfloat *) malloc(Np*plotNp*sizeof(dfloat));
-//   InterpolationMatrixTet3D(N, Np, r, s, t, plotNp, plotR, plotS, plotT, plotInterp);
+  vertexNodes.malloc(Nverts);
+  VertexNodesTet3D(N, r.ptr(), s.ptr(), t.ptr(), vertexNodes.ptr());
 }
 
-
+} //namespace libp

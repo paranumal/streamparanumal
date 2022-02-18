@@ -27,39 +27,28 @@ SOFTWARE.
 #ifndef SOLVER_HPP
 #define SOLVER_HPP
 
-#include "mesh.hpp"
-#include "linAlg.hpp"
+#include "platform.hpp"
+
+namespace libp {
 
 class solver_t {
 public:
-  mesh_t& mesh;
+  platform_t platform;
 
-  MPI_Comm& comm;
-  occa::device& device;
-  settings_t& settings;
-  occa::properties& props;
-  linAlg_t& linAlg;
-
-  solver_t() = delete;
-
-  solver_t(mesh_t& _mesh, linAlg_t& _linAlg):
-    mesh(_mesh),
-    comm(_mesh.comm),
-    device(_mesh.device),
-    settings(_mesh.settings),
-    props(_mesh.props),
-    linAlg(_linAlg) {};
-
+  solver_t()=default;
+  solver_t(platform_t& _platform):
+    platform(_platform) {}
   virtual ~solver_t(){}
 
+  settings_t& settings() { return platform.settings(); }
+
   virtual void Run()=0;
-  virtual void Report(dfloat time=0.0, int tstep=0) {
-    CEED_ABORT(string("Report not implemented in this solver"))
-  }
 
   virtual void Operator(occa::memory& o_q, occa::memory& o_Aq) {
-    CEED_ABORT(string("Operator not implemented in this solver"))
+    LIBP_ABORT(std::string("Operator not implemented in this solver"))
   }
 };
+
+} //namespace libp
 
 #endif
