@@ -29,7 +29,9 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
-#define DBS8 CEED_DIR"/BS/BS8/"
+#define DBS8 STREAM_DIR"/BS/BS8/"
+
+using namespace libp;
 
 class bs8Settings_t: public settings_t {
 public:
@@ -39,16 +41,21 @@ public:
 
 class bs8_t {
 public:
-  mesh_t& mesh;
+  platform_t platform;
+  settings_t settings;
+  mesh_t mesh;
 
-  bs8_t() = delete;
-  bs8_t(mesh_t& _mesh):
-    mesh(_mesh) {}
+  bs8_t() = default;
+  bs8_t(platform_t &_platform, settings_t& _settings,
+        mesh_t& _mesh) {
+    Setup(_platform, _settings, _mesh);
+  }
 
-  ~bs8_t();
+  ~bs8_t() = default;
 
   //setup
-  static bs8_t& Setup(mesh_t& mesh);
+  void Setup(platform_t &_platform, settings_t& _settings,
+             mesh_t& _mesh);
 
   void Run();
 };

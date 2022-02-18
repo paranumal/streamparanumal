@@ -28,15 +28,13 @@ SOFTWARE.
 
 void bs8_t::Run(){
 
-  platform_t &platform = mesh.platform;
-
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   occa::memory o_q = platform.malloc(N*sizeof(dfloat));
 
   /* Warmup */
   for(int n=0;n<5;++n){
-    mesh.ogsMasked->GatherScatter(o_q, ogs_dfloat, ogs_add, ogs_sym); //dry run
+    mesh.ogs.GatherScatter(o_q, 1, ogs::Dfloat, ogs::Add, ogs::Sym); //dry run
   }
 
   /* Gather Scatter test */
@@ -46,7 +44,7 @@ void bs8_t::Run(){
   double startTime = MPI_Wtime();
 
   for(int n=0;n<Ntests;++n){
-    mesh.ogsMasked->GatherScatter(o_q, ogs_dfloat, ogs_add, ogs_sym);
+    mesh.ogs.GatherScatter(o_q, 1, ogs::Dfloat, ogs::Add, ogs::Sym);
   }
 
   platform.device.finish();
@@ -54,24 +52,14 @@ void bs8_t::Run(){
   double endTime = MPI_Wtime();
   double elapsedTime = (endTime - startTime)/Ntests;
 
-  hlong Nblocks =    mesh.ogsMasked->symGatherScatter.NrowBlocks
-                  +2*mesh.ogsMasked->haloScatter.NrowBlocks;
-  hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
-  hlong Ngather =    mesh.ogsMasked->symGatherScatter.Nrows
-                  +2*mesh.ogsMasked->haloScatter.Nrows;
-  hlong NgatherGlobal;
-  MPI_Allreduce(&Ngather, &NgatherGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
-  hlong NLocal  =    mesh.ogsMasked->symGatherScatter.nnz
-                  +2*mesh.ogsMasked->haloScatter.nnz;
+  hlong NLocal  = N;
   hlong NGlobal;
   MPI_Allreduce(&NLocal, &NGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
+  hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
+
   size_t bytesIn=0;
   size_t bytesOut=0;
-  bytesIn += (NblocksGlobal+1)*sizeof(dlong); //block starts
   bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
   bytesIn += NGlobal*sizeof(dlong); //local Ids
   bytesIn += NGlobal*sizeof(dfloat); //values
@@ -79,12 +67,11 @@ void bs8_t::Run(){
 
   size_t bytes = bytesIn + bytesOut;
 
-  hlong Nflops =    mesh.ogsMasked->symGatherScatter.nnz
-                  + mesh.ogsMasked->haloScatter.nnz;
+  hlong Nflops = N;
   hlong NflopsGlobal;
   MPI_Allreduce(&Nflops, &NflopsGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
-  hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
+  hlong Ndofs = mesh.ogs.NgatherGlobal;
 
   if ((mesh.rank==0)){
     printf("BS8 = [%d, " hlongFormat ", %5.4le, %5.4le, %6.2f, %6.2f]; %% GatherScatter [N, DOFs, elapsed, DOFs/(ranks*s), avg BW (GB/s), avg GFLOPs] \n",

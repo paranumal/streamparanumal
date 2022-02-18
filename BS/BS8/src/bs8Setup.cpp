@@ -26,15 +26,9 @@ SOFTWARE.
 
 #include "bs8.hpp"
 
-bs8_t& bs8_t::Setup(mesh_t& mesh){
-
-  bs8_t* bs8 = new bs8_t(mesh);
-
-  //make masked ogs
-  int Nfields=1;
-  mesh.BoundarySetup(Nfields);
-
-  return *bs8;
+void bs8_t::Setup(platform_t &_platform, settings_t& _settings,
+                  mesh_t& _mesh){
+  platform = _platform;
+  settings = _settings;
+  mesh = _mesh;
 }
-
-bs8_t::~bs8_t() {}
