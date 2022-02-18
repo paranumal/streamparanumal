@@ -26,15 +26,9 @@ SOFTWARE.
 
 #include "bs6.hpp"
 
-bs6_t& bs6_t::Setup(mesh_t& mesh){
-
-  bs6_t* bs6 = new bs6_t(mesh);
-
-  //make masked ogs
-  int Nfields=1;
-  mesh.BoundarySetup(Nfields);
-
-  return *bs6;
+void bs6_t::Setup(platform_t &_platform, settings_t& _settings,
+                  mesh_t& _mesh){
+  platform = _platform;
+  settings = _settings;
+  mesh = _mesh;
 }
-
-bs6_t::~bs6_t() {}

@@ -64,7 +64,7 @@ $(error ${BS6_HELP_MSG})
 endif
 endif
 
-ifndef CEED_MAKETOP_LOADED
+ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard ../../make.top))
 $(error cannot locate ${PWD}/../../make.top)
 else
@@ -72,67 +72,66 @@ include ../../make.top
 endif
 endif
 
-#gslib
-GS_DIR=${CEED_TPL_DIR}/gslib
-
 #libraries
-BS6_CEED_LIBS=mesh ogs linAlg core
+BS6_LIBP_LIBS=mesh ogs core
 
 #includes
-INCLUDES=${CEED_INCLUDES} \
+INCLUDES=${LIBP_INCLUDES} \
          -I.
 
 #defines
-DEFINES =${CEED_DEFINES} \
-         -DCEED_DIR='"${CEED_DIR}"'
+DEFINES =${LIBP_DEFINES} \
+         -DSTREAM_DIR='"${STREAM_DIR}"'
 
 #.cpp compilation flags
-BS6_CXXFLAGS=${CEED_CXXFLAGS} ${DEFINES} ${INCLUDES}
+BS6_CXXFLAGS=${LIBP_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${CEED_LIBS_DIR} $(addprefix -l,$(BS6_CEED_LIBS)) \
-		 -L$(GS_DIR)/lib -lgs \
-     ${CEED_LIBS}
+LIBS=-L${LIBP_LIBS_DIR} $(addprefix -l,$(BS6_LIBP_LIBS)) \
+     ${LIBP_LIBS}
 
 #link flags
 LFLAGS=${BS6_CXXFLAGS} ${LIBS}
 
 #object dependancies
 DEPS=$(wildcard *.hpp) \
-     $(wildcard $(CEED_INCLUDE_DIR)/*.h) \
-     $(wildcard $(CEED_INCLUDE_DIR)/*.hpp)
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.h) \
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.hpp)
 
 SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all ceed_libs clean clean-libs \
+.PHONY: all libp_libs clean clean-libs \
 		clean-kernels realclean help info BS6
 
 all: BS6
 
-ceed_libs:
+${OCCA_DIR}/lib/libocca.so:
+	${MAKE} -C ${OCCA_DIR}
+
+libp_libs: ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
-	${MAKE} -C ${CEED_LIBS_DIR} $(BS6_CEED_LIBS) verbose=${verbose}
+	${MAKE} -C ${LIBP_LIBS_DIR} $(BS6_LIBP_LIBS) verbose=${verbose}
 else
-	@${MAKE} -C ${CEED_LIBS_DIR} $(BS6_CEED_LIBS) --no-print-directory
+	@${MAKE} -C ${LIBP_LIBS_DIR} $(BS6_LIBP_LIBS) --no-print-directory
 endif
 
-BS6:$(OBJS) bs6Main.o ceed_libs
+BS6:$(OBJS) bs6Main.o libp_libs
 ifneq (,${verbose})
-	$(CEED_LD) -o BS6 bs6Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	$(LIBP_LD) -o BS6 bs6Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(CEED_LD) -o BS6 bs6Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	@$(LIBP_LD) -o BS6 bs6Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 endif
 
 # rule for .cpp files
-%.o: %.cpp $(DEPS) | ceed_libs
+%.o: %.cpp $(DEPS) | libp_libs
 ifneq (,${verbose})
-	$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS6_CXXFLAGS)
+	$(LIBP_CXX) -o $*.o -c $*.cpp $(BS6_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS6_CXXFLAGS)
+	@$(LIBP_CXX) -o $*.o -c $*.cpp $(BS6_CXXFLAGS)
 endif
 
 #cleanup
@@ -140,22 +139,22 @@ clean:
 	rm -f src/*.o *.o BS6
 
 clean-libs: clean
-	${MAKE} -C ${CEED_LIBS_DIR} clean
+	${MAKE} -C ${LIBP_LIBS_DIR} clean
 
 clean-kernels: clean-libs
-	rm -rf ~/.occa/
+	rm -rf ${STREAM_DIR}/.occa/
 
-realclean: clean
-	${MAKE} -C ${CEED_LIBS_DIR} realclean
+realclean: clean-kernels
+	${MAKE} -C ${OCCA_DIR} clean
 
 help:
 	$(info $(value BS6_HELP_MSG))
 	@true
 
 info:
+	$(info STREAM_DIR  = $(STREAM_DIR))
 	$(info OCCA_DIR  = $(OCCA_DIR))
-	$(info CEED_DIR  = $(CEED_DIR))
-	$(info CEED_ARCH = $(CEED_ARCH))
-	$(info CXXFLAGS  = $(BS6_CXXFLAGS))
+	$(info LIBP_ARCH = $(LIBP_ARCH))
+	$(info LIBP_CXXFLAGS  = $(BS6_CXXFLAGS))
 	$(info LIBS      = $(LIBS))
 	@true
