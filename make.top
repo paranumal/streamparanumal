@@ -29,6 +29,7 @@ LIBP_ARCH=GNU
 
 #absolute path to StreamParanumal
 export STREAM_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+export LIBP_DIR=${STREAM_DIR}
 
 export LIBP_INCLUDE_DIR=${STREAM_DIR}/include
 export LIBP_LIBS_DIR=${STREAM_DIR}/libs

@@ -31,6 +31,7 @@ streamParanumal Benchmarks makefile targets:
 	 make all (default)
 	 make clean
 	 make clean-libs
+	 make clean-kernels
 	 make realclean
 	 make info
 	 make help
@@ -63,7 +64,7 @@ $(error ${STREAM_HELP_MSG})
 endif
 endif
 
-ifndef STREAM_MAKETOP_LOADED
+ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard make.top))
 $(error cannot locate ${PWD}/make.top)
 else
@@ -80,11 +81,11 @@ STREAM_LIBP_LIBS=mesh ogs core
 
 all: BS
 
-libp_libs:
+libp_libs: ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
-	${MAKE} -C ${STREAM_LIBS_DIR} $(STREAM_LIBP_LIBS) verbose=${verbose}
+	${MAKE} -C ${LIBP_LIBS_DIR} $(STREAM_LIBP_LIBS) verbose=${verbose}
 else
-	@${MAKE} -C ${STREAM_LIBS_DIR} $(STREAM_LIBP_LIBS) --no-print-directory
+	@${MAKE} -C ${LIBP_LIBS_DIR} $(STREAM_LIBP_LIBS) --no-print-directory
 endif
 
 BS: libp_libs
@@ -95,18 +96,21 @@ else
 	@${MAKE} -C $(@F) --no-print-directory
 endif
 
+${OCCA_DIR}/lib/libocca.so:
+	${MAKE} -C ${OCCA_DIR}
+
 #cleanup
 clean:
 	${MAKE} -C BS clean
 
 clean-libs: clean
-	${MAKE} -C ${STREAM_LIBS_DIR} clean
+	${MAKE} -C ${LIBP_LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ${STREAM_DIR}/.occa/
 
-realclean: clean
-	${MAKE} -C ${STREAM_LIBS_DIR} realclean
+realclean: clean-kernels
+	${MAKE} -C ${OCCA_DIR} clean
 
 help:
 	$(info $(value STREAM_HELP_MSG))
