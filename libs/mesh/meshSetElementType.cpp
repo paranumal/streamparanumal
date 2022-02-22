@@ -67,7 +67,7 @@ void mesh_t::SetElementType(const int eType) {
     NfaceVertices = 3; // number of vertices per face
 
     // vertices on each face
-    int _faceVertices[4][3] = {{0,1,2},{0,1,3},{1,2,3},{2,0,3}};
+    int _faceVertices[4][3] = {{0,1,2},{0,3,1},{1,3,2},{0,2,3}};
 
     faceVertices.malloc(NfaceVertices*Nfaces);
     faceVertices.copyFrom(_faceVertices[0]);

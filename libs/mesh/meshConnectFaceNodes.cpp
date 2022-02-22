@@ -32,7 +32,8 @@ namespace libp {
 void mesh_t::ConnectFaceNodes(){
 
   /* Build the permutation array R */
-  libp::memory<int> R(Nfaces*Nfaces*Nverts*Nfp);
+  libp::memory<int> R(Nfaces*Nfaces*NfaceVertices*Nfp);
+
   switch (elementType) {
     case TRIANGLES:
       FaceNodeMatchingTri2D(N, r.ptr(), s.ptr(),
@@ -90,20 +91,6 @@ void mesh_t::ConnectFaceNodes(){
           const dlong id = eM*Nfaces*Nfp + fM*Nfp + nM;
           vmapM[id] = idM + eM*Np;
           vmapP[id] = idP + eP*Np;
-
-      #if 0
-        /*Sanity check*/
-        dfloat xnM = x[idM + eM*Np];
-        dfloat ynM = y[idM + eM*Np];
-        dfloat znM = z[idM + eM*Np];
-        dfloat xnP = x[idP + eP*Np];
-        dfloat ynP = y[idP + eP*Np];
-        dfloat znP = z[idP + eP*Np];
-        const dfloat dist = pow(xnM-xnP,2) + pow(ynM-ynP,2) + pow(znM-znP,2);
-        if (dist>NODETOL)
-          printf("Mismatch?: Element %d, face %d, node %d, xM = (%f, %f, %f), xP = (%f, %f, %f)\n",
-                  eM, fM, nM, xnM, ynM, znM, xnP, ynP, znP);
-      #endif
         }
       }
     }

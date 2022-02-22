@@ -173,7 +173,7 @@ void mesh_t::FaceNodeMatchingHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]
     }
 
     for (int fP=0;fP<Nfaces;fP++) { /*For each neighbor face */
-      for (int rot=0;rot<Nfaces;rot++) { /* For each face rotation */
+      for (int rot=0;rot<NfaceVertices;rot++) { /* For each face rotation */
         // Zero vertices
         for (int v=0;v<Nverts;v++) {
           EX1[v] = 0.0; EY1[v] = 0.0;
