@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs6.hpp"
 
 //settings for bs6 solver
-bs6Settings_t::bs6Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs6Settings_t::bs6Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);

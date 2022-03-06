@@ -31,33 +31,28 @@ void bs6_t::Run(){
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   dlong Ngather = mesh.ogs.Ngather;
-  occa::memory o_q = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
+  deviceMemory<dfloat> o_q  = platform.malloc<dfloat>(N);
+  deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(Ngather);
 
   /* Warmup */
   for(int n=0;n<5;++n){
-    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Dfloat, ogs::Add, ogs::Trans); //dry run
+    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Add, ogs::Trans); //dry run
   }
 
   /* Gather test */
   int Ntests = 20;
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double startTime = MPI_Wtime();
+  timePoint_t start = GlobalPlatformTime(platform);
 
   for(int n=0;n<Ntests;++n){
-    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Add, ogs::Trans);
   }
 
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double endTime = MPI_Wtime();
-  double elapsedTime = (endTime - startTime)/Ntests;
+  timePoint_t end = GlobalPlatformTime(platform);
+  double elapsedTime = ElapsedTime(start, end)/Ntests;
 
   hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
-  hlong Nlocal = N;
-  hlong NGlobal;
-  MPI_Allreduce(&Nlocal, &NGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  hlong NGlobal = N;
+  mesh.comm.Allreduce(NGlobal);
 
   size_t bytesIn=0;
   size_t bytesOut=0;

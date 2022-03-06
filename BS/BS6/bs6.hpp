@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS6_HPP 1
 
 #include "mesh.hpp"
+#include "timer.hpp"
 
 #define DBS6 STREAM_DIR"/BS/BS6/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs6Settings_t: public settings_t {
 public:
-  bs6Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs6Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
