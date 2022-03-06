@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS1_HPP 1
 
 #include "platform.hpp"
+#include "timer.hpp"
 
 #define DBS1 STREAM_DIR"/BS/BS1/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs1Settings_t: public settings_t {
 public:
-  bs1Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs1Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
@@ -44,7 +45,7 @@ public:
   platform_t platform;
   settings_t settings;
 
-  occa::kernel kernel;
+  kernel_t kernel;
 
   bs1_t() = default;
   bs1_t(platform_t &_platform, settings_t& _settings) {

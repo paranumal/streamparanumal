@@ -46,8 +46,10 @@ void bs1_t::Run(){
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  occa::memory o_a = platform.device.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_b = platform.device.malloc(Nmax*sizeof(dfloat));
+  deviceMemory<dfloat> o_a = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_b = platform.malloc<dfloat>(Nmax);
+
+  std::cout << o_a.dtype().name() << std::endl;
 
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
@@ -68,8 +70,7 @@ void bs1_t::Run(){
 
   //test
   for(int N=Nmin;N<=Nmax;N+=Nstep){
-    platform.device.finish();
-    dfloat tic = MPI_Wtime();
+    timePoint_t start = GlobalPlatformTime(platform);
 
     /* COPY Test */
     int Ntests = 20;
@@ -77,9 +78,8 @@ void bs1_t::Run(){
       kernel(N, o_a, o_b); //b = a
     }
 
-    platform.device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
+    timePoint_t end = GlobalPlatformTime(platform);
+    double elapsedTime = ElapsedTime(start, end)/Ntests;
 
     size_t bytesIn  = N*sizeof(dfloat);
     size_t bytesOut = N*sizeof(dfloat);
