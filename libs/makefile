@@ -2,7 +2,7 @@
 #
 #The MIT License (MIT)
 #
-#Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+#Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,46 @@
 #
 #####################################################################################
 
+define LIB_HELP_MSG
+
+Libraries makefile targets:
+
+	 make all (default)
+	 make lib{}
+	 make clean
+	 make clean-kernels
+	 make realclean
+	 make info
+	 make help
+
+Usage:
+
+make all
+	 Build core, mesh, ogs, and parAdogs libraries.
+make {lib}
+	 Build only {lib} library.
+make clean
+	 Clean all libraries, and object files.
+make clean-kernels
+	 In addition to "make clean", also cleans the cached OCCA kernels.
+make realclean
+	 In addition to "make clean-kernels", also clean 3rd party libraries.
+make info
+	 List directories and compiler flags in use.
+make help
+	 Display this help message.
+
+Can use "make verbose=true" for verbose output.
+
+endef
+
+ifeq (,$(filter core mesh ogs \
+								clean clean-libs clean-kernels realclean info help, $(MAKECMDGOALS)))
+ifneq (,$(MAKECMDGOALS))
+$(error ${LIB_HELP_MSG})
+endif
+endif
+
 ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard ../make.top))
 $(error cannot locate ${PWD}/../make.top)
@@ -39,25 +79,29 @@ LIBOGS_DIR=${LIBP_LIBS_DIR}/ogs
 
 #includes
 INCLUDES=${LIBP_INCLUDES}
-LIBOGS_INCLUDES= -I${LIBP_INCLUDES}/ogs
 
 #defines
-LIBCORE_DEFINES=${LIBP_DEFINES} -DLIBP_DIR='"${LIBP_DIR}"'
-LIBMESH_DEFINES=${LIBP_DEFINES}
-LIBOGS_DEFINES=${LIBP_DEFINES} -DOGS_DIR='"${LIBOGS_DIR}"'
+LIBCORE_DEFINES=-DLIBP_DIR='"${LIBP_DIR}"'
+LIBMESH_DEFINES=-DMESH_DIR='"${LIBMESH_DIR}"'
+LIBOGS_DEFINES=-DLIBP_DIR='"${LIBP_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
 
 ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
 endif
 
 #.cpp compilation flags
-LIB_CXXFLAGS=${LIBP_CXXFLAGS} ${DEFINES} ${INCLUDES}
+LIB_CXXFLAGS=${LIBP_DEFINES} ${LIBP_CXXFLAGS} ${INCLUDES}
 
 #object dependancies
-LIB_DEPS=$(wildcard $(LIBP_INCLUDE_DIR)/*.h) \
-         $(wildcard $(LIBP_INCLUDE_DIR)/*.hpp)
-LIBOGS_DEPS=${LIB_DEPS} \
-            $(wildcard $(LIBP_INCLUDE_DIR)/ogs/*.hpp)
+LIB_DEPS=$(wildcard $(LIBP_INCLUDE_DIR)/*.h)  \
+				 $(wildcard ${LIBP_INCLUDE_DIR}/*.hpp)
+
+LIBOGS_DEPS=$(wildcard ${LIBP_INCLUDE_DIR}/ogs/*.hpp) \
+						${LIB_DEPS}
+
+LIBMESH_DEPS=$(wildcard ${LIBP_INCLUDE_DIR}/mesh/*.h)   \
+						 $(wildcard ${LIBP_INCLUDE_DIR}/mesh/*.hpp) \
+						 ${LIBPARADOGS_DEPS}
 
 LIBCORE_SRC =$(wildcard core/*.cpp)
 LIBMESH_SRC =$(wildcard mesh/*.cpp)
@@ -68,8 +112,9 @@ LIBMESH_OBJS=$(LIBMESH_SRC:.cpp=.o)
 LIBOGS_OBJS=$(LIBOGS_SRC:.cpp=.o)
 
 .PHONY: all core mesh ogs \
-        clean realclean silentUpdate-core  \
-        silentUpdate-ogs silentUpdate-mesh
+				clean clean-kernels realclean silentUpdate-core  \
+				silentUpdate-mesh
+
 
 all: core mesh ogs
 
@@ -93,7 +138,7 @@ else
 	@ar -cr libogs.a $(LIBOGS_OBJS)
 endif
 
-libmesh.a: $(LIBMESH_OBJS) | libogs.a
+libmesh.a: $(LIBMESH_OBJS) | libcore.a libogs.a
 ifneq (,${verbose})
 	ar -cr libmesh.a $(LIBMESH_OBJS)
 else
@@ -110,16 +155,11 @@ silentUpdate-ogs:
 silentUpdate-mesh:
 	@true
 
-# rule for .cpp files
-%.o: %.cpp $(DEPS)
-ifneq (,${verbose})
-	$(LIBP_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
-else
-	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(LIBP_CXX) -o $*.o -c $*.cpp $(CORE_CXXFLAGS)
-endif
+${OCCA_DIR}/lib/libocca.so:
+	${MAKE} -C ${OCCA_DIR}
 
-core/%.o: core/%.cpp $(LIB_DEPS)
+# rule for .cpp files
+core/%.o: core/%.cpp $(LIB_DEPS) ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
 	$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 else
@@ -127,7 +167,15 @@ else
 	@$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-mesh/%.o: mesh/%.cpp $(LIB_DEPS) | libogs.a
+ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
+ifneq (,${verbose})
+	$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
+else
+	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
+	@$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
+endif
+
+mesh/%.o: mesh/%.cpp $(LIBMESH_DEPS) | libcore.a libogs.a
 ifneq (,${verbose})
 	$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 else
@@ -135,14 +183,24 @@ else
 	@$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
-ifneq (,${verbose})
-	$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
-else
-	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
-endif
-
 #cleanup
 clean:
-	rm -f core/*.o mesh/*.o ogs/*.o *.a
+	rm -f core/*.o ogs/*.o mesh/*.o *.a
+
+clean-kernels: clean
+	rm -rf ${LIBP_DIR}/.occa
+
+realclean: clean
+	${MAKE} -C ${OCCA_DIR} clean
+
+help:
+	$(info $(value LIB_HELP_MSG))
+	@true
+
+info:
+	$(info OCCA_DIR  = $(OCCA_DIR))
+	$(info LIBP_DIR  = $(LIBP_DIR))
+	$(info LIBP_ARCH = $(LIBP_ARCH))
+	$(info CXXFLAGS  = $(LIB_CXXFLAGS))
+	$(info LIBS      = $(LIBS))
+	@true
