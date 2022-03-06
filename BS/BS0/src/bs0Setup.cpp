@@ -32,7 +32,7 @@ void bs0_t::Setup(platform_t &_platform, settings_t& _settings) {
   settings = _settings;
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props(); //copy base occa properties
+  properties_t kernelInfo = platform.props(); //copy base occa properties
 
   kernel = platform.buildKernel(DBS0 "/okl/bs0.okl", "bs0", kernelInfo);
 }

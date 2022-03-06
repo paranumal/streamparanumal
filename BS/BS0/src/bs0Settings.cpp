@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs0.hpp"
 
 //settings for bs0 solver
-bs0Settings_t::bs0Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs0Settings_t::bs0Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);

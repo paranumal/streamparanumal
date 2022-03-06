@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include "bs0.hpp"
+#include "timer.hpp"
 
 void bs0_t::Run(){
 
@@ -43,8 +44,8 @@ void bs0_t::Run(){
 
   //create array buffers
   int N = 1;
-  occa::memory o_a = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_b = platform.malloc(N*sizeof(dfloat));
+  deviceMemory<dfloat> o_a = platform.malloc<dfloat>(N);
+  deviceMemory<dfloat> o_b = platform.malloc<dfloat>(N);
 
   //warmup
   int Nwarm = 100;
@@ -66,17 +67,12 @@ void bs0_t::Run(){
   //test
   for(Nlaunches=NlaunchMin;Nlaunches<=NlaunchMax;Nlaunches+=NlaunchStep){
 
-    platform.device.finish();
-    double tic = MPI_Wtime();
-
+    timePoint_t start = PlatformTime(platform);
     for(int n=0;n<Nlaunches;++n){
       kernel(N, o_a, o_b);
     }
-
-    platform.device.finish();
-    double toc = MPI_Wtime();
-
-    double elapsed = toc-tic;
+    timePoint_t end = PlatformTime(platform);
+    double elapsed = ElapsedTime(start, end);
 
     printf("%d %5.4e %5.4e", Nlaunches, elapsed/Nlaunches, elapsed);
     if (Nlaunches<NlaunchMax) printf(";\n");
