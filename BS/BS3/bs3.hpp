@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS3_HPP 1
 
 #include "platform.hpp"
+#include "timer.hpp"
 
 #define DBS3 STREAM_DIR"/BS/BS3/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs3Settings_t: public settings_t {
 public:
-  bs3Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs3Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
@@ -46,8 +47,8 @@ public:
 
   int blockSize;
 
-  occa::kernel kernel1;
-  occa::kernel kernel2;
+  kernel_t kernel1;
+  kernel_t kernel2;
 
   bs3_t() = default;
   bs3_t(platform_t &_platform, settings_t& _settings) {

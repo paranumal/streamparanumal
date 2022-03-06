@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs3.hpp"
 
 //settings for bs3 solver
-bs3Settings_t::bs3Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs3Settings_t::bs3Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);
