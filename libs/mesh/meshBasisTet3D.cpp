@@ -115,11 +115,11 @@ void mesh_t::FaceNodeMatchingTet3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]
   dfloat EX0[Nverts], EY0[Nverts];
   dfloat EX1[Nverts], EY1[Nverts];
 
-  libp::memory<dfloat> x0(_Nfp);
-  libp::memory<dfloat> y0(_Nfp);
+  memory<dfloat> x0(_Nfp);
+  memory<dfloat> y0(_Nfp);
 
-  libp::memory<dfloat> x1(_Nfp);
-  libp::memory<dfloat> y1(_Nfp);
+  memory<dfloat> x1(_Nfp);
+  memory<dfloat> y1(_Nfp);
 
 
   for (int fM=0;fM<Nfaces;fM++) {
@@ -211,16 +211,13 @@ void mesh_t::FaceNodeMatchingTet3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]
 
           /* distance between target and neighbor node */
           const dfloat dist = pow(xM-xP,2) + pow(yM-yP,2);
-          if(dist>NODETOL){
-            //This shouldn't happen
-            std::stringstream ss;
-            ss << "Unable to match face node, face: " << fM
-               << ", matching face: " << fP
-               << ", rotation: " << rot
-               << ", node: " << n
-               << ". Is the reference node set not symmetric?";
-            LIBP_ABORT(ss.str())
-          }
+          //This shouldn't happen
+          LIBP_ABORT("Unable to match face node, face: " << fM
+                     << ", matching face: " << fP
+                     << ", rotation: " << rot
+                     << ", node: " << n
+                     << ". Is the reference node set not symmetric?",
+                     dist>NODETOL);
         }
       }
     }
@@ -240,9 +237,9 @@ static void xyztorst(int Npoints, dfloat x[], dfloat y[], dfloat z[], dfloat r[]
   dfloat v3[3] = { 0.0,  2./sqrt(3.), -1./sqrt(6.)};
   dfloat v4[3] = { 0.0,  0.,           3./sqrt(6.)};
 
-  libp::memory<dfloat> XYZ(3*Npoints);
-  libp::memory<dfloat> RST(3*Npoints);
-  libp::memory<dfloat> A(3*3);
+  memory<dfloat> XYZ(3*Npoints);
+  memory<dfloat> RST(3*Npoints);
+  memory<dfloat> A(3*3);
 
   for (int i=0;i<3;i++) {
     A[0*3+i] = 0.5*(v2[i]-v1[i]);
@@ -271,13 +268,13 @@ void mesh_t::WarpShiftFace3D(int _N, int Npoints, dfloat alpha,
   // Compute scaled warp function at order N
   // based on rout interpolation nodes
 
-  libp::memory<dfloat> dL32(Npoints);
-  libp::memory<dfloat> dL13(Npoints);
-  libp::memory<dfloat> dL21(Npoints);
+  memory<dfloat> dL32(Npoints);
+  memory<dfloat> dL13(Npoints);
+  memory<dfloat> dL21(Npoints);
 
-  libp::memory<dfloat> warpf1(Npoints);
-  libp::memory<dfloat> warpf2(Npoints);
-  libp::memory<dfloat> warpf3(Npoints);
+  memory<dfloat> warpf1(Npoints);
+  memory<dfloat> warpf2(Npoints);
+  memory<dfloat> warpf3(Npoints);
 
   for (int n=0;n<Npoints;n++) {
     dL32[n] = L3[n]-L2[n];
@@ -344,18 +341,18 @@ void mesh_t::WarpBlendTransformTet3D(int _N, int _Npoints, dfloat _r[], dfloat _
   }
 
   // Convert r s coordinates to points in equilateral triangle
-  libp::memory<dfloat> L1(_Npoints);
-  libp::memory<dfloat> L2(_Npoints);
-  libp::memory<dfloat> L3(_Npoints);
-  libp::memory<dfloat> L4(_Npoints);
+  memory<dfloat> L1(_Npoints);
+  memory<dfloat> L2(_Npoints);
+  memory<dfloat> L3(_Npoints);
+  memory<dfloat> L4(_Npoints);
 
-  libp::memory<dfloat> _x(_Npoints);
-  libp::memory<dfloat> _y(_Npoints);
-  libp::memory<dfloat> _z(_Npoints);
+  memory<dfloat> _x(_Npoints);
+  memory<dfloat> _y(_Npoints);
+  memory<dfloat> _z(_Npoints);
 
-  libp::memory<dfloat> shiftx(_Npoints, 0.0);
-  libp::memory<dfloat> shifty(_Npoints, 0.0);
-  libp::memory<dfloat> shiftz(_Npoints, 0.0);
+  memory<dfloat> shiftx(_Npoints, 0.0);
+  memory<dfloat> shifty(_Npoints, 0.0);
+  memory<dfloat> shiftz(_Npoints, 0.0);
 
   for (int n=0;n<_Npoints;n++) {
     L1[n] =  0.5*(1.+_t[n]);
@@ -368,11 +365,11 @@ void mesh_t::WarpBlendTransformTet3D(int _N, int _Npoints, dfloat _r[], dfloat _
     _z[n] =  L3[n]*v1[2]+L4[n]*v2[2]+L2[n]*v3[2]+L1[n]*v4[2];
   }
 
-  libp::memory<dfloat> warp1(_Npoints, 0.0);
-  libp::memory<dfloat> warp2(_Npoints, 0.0);
+  memory<dfloat> warp1(_Npoints, 0.0);
+  memory<dfloat> warp2(_Npoints, 0.0);
 
   for (int f=0;f<4;f++) {
-    libp::memory<dfloat> La, Lb, Lc, Ld;
+    memory<dfloat> La, Lb, Lc, Ld;
     if(f==0) {La = L1; Lb = L2; Lc = L3; Ld = L4;}
     if(f==1) {La = L2; Lb = L1; Lc = L3; Ld = L4;}
     if(f==2) {La = L3; Lb = L1; Lc = L4; Ld = L2;}

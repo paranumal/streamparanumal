@@ -34,7 +34,7 @@ namespace libp {
 void mesh_t::NodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]){
   int _Nq = _N+1;
 
-  libp::memory<dfloat> r1D(_Nq);
+  memory<dfloat> r1D(_Nq);
   JacobiGLL(_N, r1D.ptr()); //Gauss-Legendre-Lobatto nodes
 
   //Tensor product
@@ -124,11 +124,11 @@ void mesh_t::FaceNodeMatchingHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]
   dfloat EX0[Nverts], EY0[Nverts];
   dfloat EX1[Nverts], EY1[Nverts];
 
-  libp::memory<dfloat> x0(_Nfp);
-  libp::memory<dfloat> y0(_Nfp);
+  memory<dfloat> x0(_Nfp);
+  memory<dfloat> y0(_Nfp);
 
-  libp::memory<dfloat> x1(_Nfp);
-  libp::memory<dfloat> y1(_Nfp);
+  memory<dfloat> x1(_Nfp);
+  memory<dfloat> y1(_Nfp);
 
 
   for (int fM=0;fM<Nfaces;fM++) {
@@ -240,16 +240,13 @@ void mesh_t::FaceNodeMatchingHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]
 
           /* distance between target and neighbor node */
           const dfloat dist = pow(xM-xP,2) + pow(yM-yP,2);
-          if(dist>NODETOL){
-            //This shouldn't happen
-            std::stringstream ss;
-            ss << "Unable to match face node, face: " << fM
-               << ", matching face: " << fP
-               << ", rotation: " << rot
-               << ", node: " << n
-               << ". Is the reference node set not symmetric?";
-            LIBP_ABORT(ss.str())
-          }
+          //This shouldn't happen
+          LIBP_ABORT("Unable to match face node, face: " << fM
+                     << ", matching face: " << fP
+                     << ", rotation: " << rot
+                     << ", node: " << n
+                     << ". Is the reference node set not symmetric?",
+                     dist>NODETOL);
         }
       }
     }

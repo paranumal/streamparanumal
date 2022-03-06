@@ -108,8 +108,8 @@ void mesh_t::FaceNodeMatchingTri2D(int _N, dfloat _r[], dfloat _s[],
   dfloat EX0[Nverts];
   dfloat EX1[Nverts];
 
-  libp::memory<dfloat> x0(_Nfp);
-  libp::memory<dfloat> x1(_Nfp);
+  memory<dfloat> x0(_Nfp);
+  memory<dfloat> x1(_Nfp);
 
   for (int fM=0;fM<Nfaces;fM++) {
 
@@ -185,16 +185,13 @@ void mesh_t::FaceNodeMatchingTri2D(int _N, dfloat _r[], dfloat _s[],
 
           /* distance between target and neighbor node */
           const dfloat dist = pow(xM-xP,2);
-          if(dist>NODETOL){
-            //This shouldn't happen
-            std::stringstream ss;
-            ss << "Unable to match face node, face: " << fM
-               << ", matching face: " << fP
-               << ", rotation: " << rot
-               << ", node: " << n
-               << ". Is the reference node set not symmetric?";
-            LIBP_ABORT(ss.str())
-          }
+          //This shouldn't happen
+          LIBP_ABORT("Unable to match face node, face: " << fM
+                     << ", matching face: " << fP
+                     << ", rotation: " << rot
+                     << ", node: " << n
+                     << ". Is the reference node set not symmetric?",
+                     dist>NODETOL);
         }
       }
     }
@@ -212,13 +209,13 @@ void mesh_t::Warpfactor(int _N, int Npoints, dfloat _r[], dfloat warp[]) {
   // based on rout interpolation nodes
 
   // Compute GLL and equidistant node distribution
-  libp::memory<dfloat> GLLr(_N+1);
-  libp::memory<dfloat> req (_N+1);
+  memory<dfloat> GLLr(_N+1);
+  memory<dfloat> req (_N+1);
   JacobiGLL(_N, GLLr.ptr());
   EquispacedNodes1D(_N, req.ptr());
 
   // Make interpolation from req to r
-  libp::memory<dfloat> I((_N+1)*Npoints);
+  memory<dfloat> I((_N+1)*Npoints);
   InterpolationMatrix1D(_N, _N+1, req.ptr(), Npoints, _r, I.ptr());
 
   // Compute warp factor
@@ -263,16 +260,16 @@ void mesh_t::WarpBlendTransformTri2D(int _N, int _Npoints, dfloat _r[], dfloat _
   }
 
   // Convert r s coordinates to points in equilateral triangle
-  libp::memory<dfloat> L1(_Npoints);
-  libp::memory<dfloat> L2(_Npoints);
-  libp::memory<dfloat> L3(_Npoints);
+  memory<dfloat> L1(_Npoints);
+  memory<dfloat> L2(_Npoints);
+  memory<dfloat> L3(_Npoints);
 
-  libp::memory<dfloat> dL32(_Npoints);
-  libp::memory<dfloat> dL13(_Npoints);
-  libp::memory<dfloat> dL21(_Npoints);
+  memory<dfloat> dL32(_Npoints);
+  memory<dfloat> dL13(_Npoints);
+  memory<dfloat> dL21(_Npoints);
 
-  libp::memory<dfloat> _x(_Npoints);
-  libp::memory<dfloat> _y(_Npoints);
+  memory<dfloat> _x(_Npoints);
+  memory<dfloat> _y(_Npoints);
 
   for (int n=0;n<_Npoints;n++) {
     L1[n] =  0.5*(1.+_s[n]);
@@ -286,9 +283,9 @@ void mesh_t::WarpBlendTransformTri2D(int _N, int _Npoints, dfloat _r[], dfloat _
     _x[n] = -L2[n]+L3[n]; _y[n] = (-L2[n]-L3[n]+2.*L1[n])/sqrt(3.0);
   }
 
-  libp::memory<dfloat> warpf1(_Npoints);
-  libp::memory<dfloat> warpf2(_Npoints);
-  libp::memory<dfloat> warpf3(_Npoints);
+  memory<dfloat> warpf1(_Npoints);
+  memory<dfloat> warpf2(_Npoints);
+  memory<dfloat> warpf3(_Npoints);
 
   Warpfactor(_N, _Npoints, dL32.ptr(), warpf1.ptr());
   Warpfactor(_N, _Npoints, dL13.ptr(), warpf2.ptr());

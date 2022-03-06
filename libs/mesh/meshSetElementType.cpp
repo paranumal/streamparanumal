@@ -87,9 +87,7 @@ void mesh_t::SetElementType(const int eType) {
     faceVertices.malloc(NfaceVertices*Nfaces);
     faceVertices.copyFrom(_faceVertices[0]);
   } else {
-    std::stringstream ss;
-    ss << "Unknown element type: " << eType;
-    LIBP_ABORT(ss.str())
+    LIBP_FORCE_ABORT("Unknown element type: " << eType);
   }
 }
 

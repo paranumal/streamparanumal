@@ -32,7 +32,7 @@ namespace libp {
 void mesh_t::ConnectFaceNodes(){
 
   /* Build the permutation array R */
-  libp::memory<int> R(Nfaces*Nfaces*NfaceVertices*Nfp);
+  memory<int> R(Nfaces*Nfaces*NfaceVertices*Nfp);
 
   switch (elementType) {
     case TRIANGLES:

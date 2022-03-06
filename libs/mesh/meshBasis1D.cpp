@@ -90,11 +90,11 @@ void mesh_t::InterpolationMatrix1D(int _N,
                                dfloat I[]){
 
   // need NpointsIn = (_N+1)
-  if (NpointsIn != _N+1)
-    LIBP_ABORT(std::string("Invalid Interplation operator requested."))
+  LIBP_ABORT("Invalid Interplation operator requested.",
+             NpointsIn != _N+1);
 
-  libp::memory<dfloat> VIn (NpointsIn*(_N+1));
-  libp::memory<dfloat> VOut(NpointsOut*(_N+1));
+  memory<dfloat> VIn (NpointsIn*(_N+1));
+  memory<dfloat> VOut(NpointsOut*(_N+1));
 
   Vandermonde1D(_N, NpointsIn,   rIn, VIn.ptr());
   Vandermonde1D(_N, NpointsOut, rOut, VOut.ptr());
@@ -115,7 +115,7 @@ dfloat mesh_t::JacobiP(dfloat a, dfloat alpha, dfloat beta, int _N){
 
   dfloat ax = a;
 
-  libp::memory<dfloat> P(_N+1);
+  memory<dfloat> P(_N+1);
 
   // Zero order
   dfloat gamma0 = pow(2,(alpha+beta+1))/(alpha+beta+1)*mygamma(1+alpha)*mygamma(1+beta)/mygamma(1+alpha+beta);
@@ -155,14 +155,14 @@ void mesh_t::JacobiGLL(int _N, dfloat _x[], dfloat _w[]){
   _x[_N] =  1.;
 
   if(_N>1){
-    libp::memory<dfloat> wtmp(_N-1);
+    memory<dfloat> wtmp(_N-1);
     JacobiGQ(1,1, _N-2, _x+1, wtmp.ptr());
   }
 
   if (_w!=nullptr) {
     int _Np = _N+1;
-    libp::memory<dfloat> _MM(_Np*_Np);
-    libp::memory<dfloat> V(_Np*_Np);
+    memory<dfloat> _MM(_Np*_Np);
+    memory<dfloat> V(_Np*_Np);
 
     Vandermonde1D(_N, _N+1, _x, V.ptr());
     MassMatrix1D(_N+1, V.ptr(), _MM.ptr());
@@ -193,8 +193,8 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat _x[], dfloat w[]
   }
 
   // Form symmetric matrix from recurrence.
-  libp::memory<dfloat> J((_N+1)*(_N+1), 0);
-  libp::memory<dfloat> h1(_N+1);
+  memory<dfloat> J((_N+1)*(_N+1), 0);
+  memory<dfloat> h1(_N+1);
 
   for(int n=0;n<=_N;++n){
     h1[n] = 2*n+alpha+beta;
@@ -223,9 +223,9 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat _x[], dfloat w[]
   // Compute quadrature by eigenvalue solve
 
   //  [V,D] = eig(J);
-  libp::memory<dfloat> WR(_N+1);
-  libp::memory<dfloat> WI(_N+1);
-  libp::memory<dfloat> VR((_N+1)*(_N+1));
+  memory<dfloat> WR(_N+1);
+  memory<dfloat> WI(_N+1);
+  memory<dfloat> VR((_N+1)*(_N+1));
 
   // _x = diag(D);
   matrixEigenVectors(_N+1, J.ptr(), VR.ptr(), _x, WI.ptr());

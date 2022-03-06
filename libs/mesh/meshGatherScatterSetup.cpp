@@ -33,12 +33,12 @@ void mesh_t::GatherScatterSetup() {
   //use the masked ids to make another gs handle (signed so the gather is defined)
   bool verbose = platform.settings().compareSetting("VERBOSE", "TRUE");
   bool unique = true; //flag a unique node in every gather node
-  ogs.Setup(Nelements*Np, globalIds.ptr(),
+  ogs.Setup(Nelements*Np, globalIds,
             comm, ogs::Signed, ogs::Auto,
             unique, verbose, platform);
 
   GlobalToLocal.malloc(Nelements*Np);
-  ogs.SetupGlobalToLocalMapping(GlobalToLocal.ptr());
+  ogs.SetupGlobalToLocalMapping(GlobalToLocal);
 
   o_GlobalToLocal = platform.malloc(GlobalToLocal);
 }

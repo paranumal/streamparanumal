@@ -29,15 +29,15 @@ SOFTWARE.
 namespace libp {
 
 void mesh_t::Setup(platform_t& _platform, settings_t& _settings,
-                   MPI_Comm _comm){
+                   comm_t _comm){
 
   platform = _platform;
   settings = _settings;
   props = platform.props();
 
-  MPI_Comm_dup(_comm, &comm);
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  comm = _comm.Dup();
+  rank = comm.rank();
+  size = comm.size();
 
   std::string eType;
   settings.getSetting("ELEMENT TYPE", eType);
