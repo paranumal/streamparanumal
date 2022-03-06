@@ -37,9 +37,9 @@ class mesh_t {
 public:
   platform_t platform;
   settings_t settings;
-  occa::properties props;
+  properties_t props;
 
-  MPI_Comm comm;
+  comm_t comm;
   int rank, size;
 
   /*************************/
@@ -50,40 +50,40 @@ public:
   int elementType;
 
   // indices of vertex nodes
-  libp::memory<int> vertexNodes;
+  memory<int> vertexNodes;
 
   hlong Nnodes=0; //global number of element vertices
-  libp::memory<dfloat> EX; // coordinates of vertices for each element
-  libp::memory<dfloat> EY;
-  libp::memory<dfloat> EZ;
+  memory<dfloat> EX; // coordinates of vertices for each element
+  memory<dfloat> EY;
+  memory<dfloat> EZ;
 
   dlong Nelements=0;       //local element count
   hlong NelementsGlobal=0; //global element count
-  libp::memory<hlong> EToV; // element-to-vertex connectivity
-  libp::memory<dlong> EToE; // element-to-element connectivity
-  libp::memory<int>   EToF; // element-to-(local)face connectivity
-  libp::memory<int>   EToP; // element-to-partition/process connectivity
+  memory<hlong> EToV;      // element-to-vertex connectivity
+  memory<dlong> EToE;      // element-to-element connectivity
+  memory<int>   EToF;      // element-to-(local)face connectivity
+  memory<int>   EToP;      // element-to-partition/process connectivity
 
-  libp::memory<dlong> VmapM;  // list of vertices on each face
-  libp::memory<dlong> VmapP;  // list of vertices that are paired with face vertices
+  memory<dlong> VmapM;  // list of vertices on each face
+  memory<dlong> VmapP;  // list of vertices that are paired with face vertices
 
 
   /*************************/
   /* FEM Space             */
   /*************************/
-  int N=0, Np=0;  // N = Polynomial order and Np = Nodes per element
-  libp::memory<dfloat> r, s, t;    // coordinates of local nodes
+  int N=0, Np=0;             // N = Polynomial order and Np = Nodes per element
+  memory<dfloat> r, s, t;    // coordinates of local nodes
 
-  int Nq=0;  // N = Polynomial order, Nq=N+1
-  libp::memory<dfloat> gllz; // 1D GLL quadrature nodes
-  libp::memory<dfloat> gllw; // 1D GLL quadrature weights
+  int Nq=0;            // N = Polynomial order, Nq=N+1
+  memory<dfloat> gllz; // 1D GLL quadrature nodes
+  memory<dfloat> gllw; // 1D GLL quadrature weights
 
   // face node info
-  int Nfp=0;                      // number of nodes per face
-  libp::memory<int> faceNodes;    // list of element reference interpolation nodes on element faces
-  libp::memory<dlong> vmapM;      // list of volume nodes that are face nodes
-  libp::memory<dlong> vmapP;      // list of volume nodes that are paired with face nodes
-  libp::memory<int> faceVertices; // list of mesh vertices on each face
+  int Nfp=0;                // number of nodes per face
+  memory<int> faceNodes;    // list of element reference interpolation nodes on element faces
+  memory<dlong> vmapM;      // list of volume nodes that are face nodes
+  memory<dlong> vmapP;      // list of volume nodes that are paired with face nodes
+  memory<int> faceVertices; // list of mesh vertices on each face
 
   /*************************/
   /* MPI Data              */
@@ -94,14 +94,14 @@ public:
 
   // CG gather-scatter info
   ogs::ogs_t ogs;
-  libp::memory<hlong> globalIds;
-  libp::memory<dlong> GlobalToLocal;
-  occa::memory o_GlobalToLocal;
+  memory<hlong> globalIds;
+  memory<dlong> GlobalToLocal;
+  deviceMemory<dlong> o_GlobalToLocal;
 
   mesh_t()=default;
   mesh_t(platform_t& _platform,
          settings_t& _settings,
-         MPI_Comm _comm) {
+         comm_t _comm) {
     Setup(_platform, _settings, _comm);
   }
 
@@ -109,7 +109,7 @@ public:
 
   void Setup(platform_t& _platform,
              settings_t& _settings,
-             MPI_Comm _comm);
+             comm_t _comm);
 
 private:
   /*Element types*/

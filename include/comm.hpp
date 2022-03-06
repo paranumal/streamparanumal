@@ -32,6 +32,8 @@ SOFTWARE.
 
 namespace libp {
 
+#define MAX_PROCESSOR_NAME MPI_MAX_PROCESSOR_NAME
+
 /*Generic data type*/
 template<typename T>
 struct mpiType {
@@ -66,11 +68,11 @@ TYPE(double, MPI_DOUBLE);
 class comm_t {
 
  private:
+  std::shared_ptr<MPI_Comm> comm_ptr;
   int _rank=0;
   int _size=0;
 
  public:
-  MPI_Comm comm=MPI_COMM_NULL;
   comm_t() = default;
   comm_t(const comm_t &c) = default;
   comm_t& operator = (const comm_t &c)=default;
@@ -80,16 +82,19 @@ class comm_t {
   static void Finalize();
 
   /*Static handle to MPI_COMM_WORLD*/
-  static const comm_t world();
+  static comm_t world();
 
   /*MPI_Comm_dup and MPI_Comm_delete*/
-  comm_t Dup();
+  comm_t Dup() const;
+  comm_t Split(const int color, const int key) const;
   void Free();
-  void Split(const comm_t &c, const int color, const int key);
 
   /*Rank and size getters*/
   const int rank() const;
   const int size() const;
+
+  /*MPI_Comm getter*/
+  MPI_Comm comm() const;
 
   using request_t = MPI_Request;
 
@@ -104,428 +109,457 @@ class comm_t {
   static constexpr op_t Xor  = MPI_LXOR;
 
   /*libp::memory send*/
-  template <typename T>
-  void Send(const memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Send(mem<T> m,
             const int dest,
             const int count=-1,
-            const int tag=0) {
+            const int tag=0) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Send(m.ptr(), cnt, type, dest, tag, comm);
+    MPI_Send(m.ptr(), cnt, type, dest, tag, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory recv*/
-  template <typename T>
-  void Recv(const memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Recv(mem<T> m,
             const int source,
             const int count=-1,
-            const int tag=0) {
+            const int tag=0) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Recv(m.ptr(), cnt, type, source, tag, comm);
+    MPI_Recv(m.ptr(), cnt, type, source, tag, comm());
+    mpiType<T>::freeMpiType(type);
+  }
+
+  /*scalar send*/
+  template <typename T>
+  void Send(T& val,
+            const int dest,
+            const int tag=0) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Send(&val, 1, type, dest, tag, comm());
+    mpiType<T>::freeMpiType(type);
+  }
+
+  /*scalar recv*/
+  template <typename T>
+  void Recv(T& val,
+            const int source,
+            const int tag=0) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Recv(&val, 1, type, source, tag, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory non-blocking send*/
-  template <typename T>
-  request_t Isend(memory<T> &m,
-                  const int dest,
-                  const int count=-1,
-                  const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Isend(mem<T> m,
+             const int dest,
+             const int count,
+             const int tag,
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    request_t request;
-    const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Isend(m.ptr(), cnt, type, dest, tag, comm, &request);
+    MPI_Isend(m.ptr(), count, type, dest, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
   }
 
   /*libp::memory non-blocking recv*/
-  template <typename T>
-  request_t Irecv(memory<T> &m,
-                  const int source,
-                  const int count=-1,
-                  const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Irecv(mem<T> m,
+             const int source,
+             const int count,
+             const int tag,
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    request_t request;
-    const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Irecv(m.ptr(), cnt, type, source, tag, comm, &request);
+    MPI_Irecv(m.ptr(), count, type, source, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
+  }
+
+  /*scalar non-blocking send*/
+  template <typename T>
+  void Isend(T& val,
+             const int dest,
+             const int tag,
+             request_t &request) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Isend(&val, 1, type, dest, tag, comm(), &request);
+    mpiType<T>::freeMpiType(type);
+  }
+
+  /*scalar non-blocking recv*/
+  template <typename T>
+  void Irecv(T& val,
+             const int source,
+             const int tag,
+             request_t &request) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Irecv(&val, 1, type, source, tag, comm(), &request);
+    mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory broadcast*/
-  template <typename T>
-  void Bcast(memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Bcast(mem<T> m,
              const int root,
-             const int count=-1,
-             const int tag=0) {
+             const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Bcast(m.ptr(), cnt, type, root, comm);
+    MPI_Bcast(m.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar broadcast*/
   template <typename T>
-  void Bcast(T &val,
-             const int root,
-             const int tag=0) {
+  void Bcast(T& val,
+             const int root) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    MPI_Bcast(&val, 1, type, root, comm);
+    MPI_Bcast(&val, 1, type, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory reduce*/
-  template <typename T>
-  void Reduce(const memory<T> &snd,
-                    memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Reduce(const mem<T> snd,
+                    mem<T> rcv,
               const int root,
               const op_t op = Sum,
-              const int count=-1,
-              const int tag=0) {
+              const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
-    MPI_Reduce(snd.ptr(), rcv.ptr(), cnt, type, op, root, comm);
+    MPI_Reduce(snd.ptr(), rcv.ptr(), cnt, type, op, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory in-place reduce*/
-  template <typename T>
-  void Reduce(memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Reduce(mem<T> m,
               const int root,
               const op_t op = Sum,
-              const int count=-1,
-              const int tag=0) {
+              const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     if (_rank==root) {
-      MPI_Reduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, root, comm);
+      MPI_Reduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, root, comm());
     } else {
-      MPI_Reduce(m.ptr(), nullptr, cnt, type, op, root, comm);
+      MPI_Reduce(m.ptr(), nullptr, cnt, type, op, root, comm());
     }
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar reduce*/
   template <typename T>
-  void Reduce(const T &snd,
-                    T &rcv,
+  void Reduce(const T& snd,
+                    T& rcv,
               const int root,
-              const op_t op = Sum,
-              const int tag=0) {
+              const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    MPI_Reduce(&snd, &rcv, 1, type, op, root, comm);
+    MPI_Reduce(&snd, &rcv, 1, type, op, root, comm());
     mpiType<T>::freeMpiType(type);
   }
   template <typename T>
-  T Reduce(const T &val,
-           const int root,
-           const op_t op = Sum,
-           const int tag=0) {
+  void Reduce(T& val,
+              const int root,
+              const op_t op = Sum) const {
     T rcv=val;
-    Reduce(val, rcv, root, op, tag);
-    return rcv;
+    Reduce(val, rcv, root, op);
+    if (rank()==root) val=rcv;
   }
 
   /*libp::memory allreduce*/
-  template <typename T>
-  void Allreduce(const memory<T> &snd,
-                       memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Allreduce(const mem<T> snd,
+                       mem<T> rcv,
                  const op_t op = Sum,
-                 const int count=-1,
-                 const int tag=0) {
+                 const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
-    MPI_Allreduce(snd.ptr(), rcv.ptr(), cnt, type, op, comm);
+    MPI_Allreduce(snd.ptr(), rcv.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory in-place allreduce*/
-  template <typename T>
-  void Allreduce(memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Allreduce(mem<T> m,
                  const op_t op = Sum,
-                 const int count=-1,
-                 const int tag=0) {
+                 const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Allreduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm);
+    MPI_Allreduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar allreduce*/
   template <typename T>
-  void Allreduce(const T &snd,
-                       T &rcv,
-                 const op_t op = Sum,
-                 const int tag=0) {
+  void Allreduce(const T& snd,
+                       T& rcv,
+                 const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    MPI_Allreduce(&snd, &rcv, 1, type, op, comm);
+    MPI_Allreduce(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
   template <typename T>
-  T Allreduce(const T &snd,
-              const op_t op = Sum,
-              const int tag=0) {
-    T rcv;
-    Allreduce(snd, rcv, op, tag);
-    return rcv;
+  void Allreduce(T& val,
+                 const op_t op = Sum) const {
+    T rcv=val;
+    Allreduce(val, rcv, op);
+    val = rcv;
   }
 
   /*libp::memory non-blocking allreduce*/
-  template <typename T>
-  request_t Iallreduce(const memory<T> &snd,
-                             memory<T> &rcv,
-                       const op_t op = Sum,
-                       const int count=-1,
-                       const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Iallreduce(const mem<T> snd,
+                        mem<T> rcv,
+                  const op_t op,
+                  const int count,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
-    request_t request;
-    MPI_Iallreduce(snd.ptr(), rcv.ptr(), cnt, type, op, comm, &request);
+    MPI_Iallreduce(snd.ptr(), rcv.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
   }
 
   /*libp::memory non-blocking in-place allreduce*/
-  template <typename T>
-  request_t Iallreduce(memory<T> &m,
-                       const int root,
-                       const op_t op = Sum,
-                       const int count=-1,
-                       const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Iallreduce(mem<T> m,
+                  const int root,
+                  const op_t op,
+                  const int count,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    request_t request;
-    MPI_Iallreduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm, &request);
+    MPI_Iallreduce(MPI_IN_PLACE, m.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
   }
 
   /*scalar non-blocking allreduce*/
-  template <typename T>
-  request_t Iallreduce(const T &snd,
-                             T &rcv,
-                       const op_t op = Sum,
-                       const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Iallreduce(const T& snd,
+                        T& rcv,
+                  const op_t op,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    request_t request;
-    MPI_Iallreduce(&snd, &rcv, 1, type, op, comm, &request);
+    MPI_Iallreduce(&snd, &rcv, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
   }
   /*scalar non-blocking in-place allreduce*/
-  template <typename T>
-  request_t Iallreduce(T &val,
-                       const op_t op = Sum,
-                       const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Iallreduce(T& val,
+                  const op_t op,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    request_t request;
-    MPI_Iallreduce(MPI_IN_PLACE, &val, 1, type, op, comm, &request);
+    MPI_Iallreduce(MPI_IN_PLACE, &val, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
-    return request;
   }
 
   /*libp::memory scan*/
-  template <typename T>
-  void Scan(const memory<T> &snd,
-                  memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Scan(const mem<T> snd,
+                  mem<T> rcv,
             const op_t op = Sum,
-            const int count=-1,
-            const int tag=0) {
+            const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
-    MPI_Scan(snd.ptr(), rcv.ptr(), cnt, type, op, comm);
+    MPI_Scan(snd.ptr(), rcv.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory in-place scan*/
-  template <typename T>
-  void Scan(memory<T> &m,
+  template <template<typename> class mem, typename T>
+  void Scan(mem<T> m,
             const op_t op = Sum,
-            const int count=-1,
-            const int tag=0) {
+            const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
-    MPI_Scan(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm);
+    MPI_Scan(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar scan*/
   template <typename T>
-  void Scan(const T &snd,
-                  T &rcv,
-            const op_t op = Sum,
-            const int tag=0) {
+  void Scan(const T& snd,
+                  T& rcv,
+            const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    MPI_Scan(&snd, &rcv, 1, type, op, comm);
+    MPI_Scan(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
   template <typename T>
-  T Scan(const T &snd,
-         const op_t op = Sum,
-         const int tag=0) {
-    T rcv;
-    Scan(snd, rcv, op, tag);
-    return rcv;
+  void Scan(T& snd,
+            const op_t op = Sum) const {
+    T rcv=snd;
+    Scan(snd, rcv, op);
+    snd = rcv;
   }
 
   /*libp::memory gather*/
-  template <typename T>
-  void Gather(const memory<T> &snd,
-                    memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Gather(const mem<T> snd,
+                    mem<T> rcv,
               const int root,
-              const int sendCount=-1,
-              const int tag=0) {
+              const int sendCount=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (sendCount==-1) ? static_cast<int>(snd.length()) : sendCount;
     MPI_Gather(snd.ptr(), cnt, type,
-               rcv.ptr(), cnt, type, root, comm);
+               rcv.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory gatherv*/
-  template <typename T>
-  void Gatherv(const memory<T> &snd,
+  template <template<typename> class mem, typename T>
+  void Gatherv(const mem<T> snd,
                const int sendcount,
-                     memory<T> &rcv,
-               const memory<int> &recvCounts,
-               const memory<int> &recvOffsets,
-               const int root,
-               const int tag=0) {
+                     mem<T> rcv,
+               const memory<int> recvCounts,
+               const memory<int> recvOffsets,
+               const int root) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Gatherv(snd.ptr(), sendcount, type,
                 rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
-                root, comm);
+                root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar gather*/
-  template <typename T>
-  void Gather(const T &snd,
-                    memory<T> &rcv,
-              const int root,
-              const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Gather(const T& snd,
+                    mem<T> rcv,
+              const int root) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Gather(&snd,      1, type,
-               rcv.ptr(), 1, type, root, comm);
+               rcv.ptr(), 1, type, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory scatter*/
-  template <typename T>
-  void Scatter(const memory<T> &snd,
-                     memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Scatter(const mem<T> snd,
+                     mem<T> rcv,
                const int root,
-               const int count=-1,
-               const int tag=0) {
+               const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(rcv.length()) : count;
     MPI_Scatter(snd.ptr(), cnt, type,
-                rcv.ptr(), cnt, type, root, comm);
+                rcv.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory scatterv*/
-  template <typename T>
-  void Scatterv(const memory<T> &snd,
-                const memory<int> &sendCounts,
-                const memory<int> &sendOffsets,
-                      memory<T> &rcv,
+  template <template<typename> class mem, typename T>
+  void Scatterv(const mem<T> snd,
+                const memory<int> sendCounts,
+                const memory<int> sendOffsets,
+                      mem<T> rcv,
                 const int recvcount,
-                const int root,
-                const int tag=0) {
+                const int root) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Scatterv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                  rcv.ptr(), recvcount, type,
-                 root, comm);
+                 root, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar scatter*/
-  template <typename T>
-  T Scatter(const memory<T> &snd,
-            const int root,
-            const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Scatter(T& rcv,
+               const mem<T> snd,
+               const int root) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    T rcv;
     MPI_Scatter(snd.ptr,   1, type,
-                &rcv,      1, type, root, comm);
+                &rcv,      1, type, root, comm());
     mpiType<T>::freeMpiType(type);
-    return rcv;
   }
 
   /*libp::memory allgather*/
-  template <typename T>
-  void Allgather(const memory<T> &snd,
-                       memory<T> &rcv,
-                 const int sendCount=-1,
-                 const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Allgather(const mem<T> snd,
+                       mem<T> rcv,
+                 const int sendCount=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (sendCount==-1) ? static_cast<int>(snd.length()) : sendCount;
     MPI_Allgather(snd.ptr(), cnt, type,
-                  rcv.ptr(), cnt, type, comm);
+                  rcv.ptr(), cnt, type, comm());
+    mpiType<T>::freeMpiType(type);
+  }
+  template <template<typename> class mem, typename T>
+  void Allgather(mem<T> m,
+                 const int cnt) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Allgather(MPI_IN_PLACE, cnt, type,
+                  m.ptr(),      cnt, type, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory allgatherv*/
-  template <typename T>
-  void Allgatherv(const memory<T> &snd,
+  template <template<typename> class mem, typename T>
+  void Allgatherv(const mem<T> snd,
                   const int sendcount,
-                        memory<T> &rcv,
-                  const memory<int> &recvCounts,
-                  const memory<int> &recvOffsets,
-                  const int tag=0) {
+                        mem<T> rcv,
+                  const memory<int> recvCounts,
+                  const memory<int> recvOffsets) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allgatherv(snd.ptr(), sendcount, type,
                    rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
-                   comm);
+                   comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*scalar allgather*/
-  template <typename T>
-  void Allgather(const T &snd,
-                       memory<T> &rcv,
-                 const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Allgather(const T& snd,
+                       mem<T> rcv) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allgather(&snd,      1, type,
-                  rcv.ptr(), 1, type, comm);
+                  rcv.ptr(), 1, type, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory alltoall*/
-  template <typename T>
-  void Alltoall(const memory<T> &snd,
-                      memory<T> &rcv,
-                const int cnt,
-                const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Alltoall(const mem<T> snd,
+                      mem<T> rcv,
+                const int cnt=1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Alltoall(snd.ptr(), cnt, type,
-                 rcv.ptr(), cnt, type, comm);
+                 rcv.ptr(), cnt, type, comm());
     mpiType<T>::freeMpiType(type);
   }
 
   /*libp::memory alltoallv*/
-  template <typename T>
-  void Allgatherv(const memory<T> &snd,
-                  const memory<int> &sendCounts,
-                  const memory<int> &sendOffsets,
-                        memory<T> &rcv,
-                  const memory<int> &recvCounts,
-                  const memory<int> &recvOffsets,
-                  const int tag=0) {
+  template <template<typename> class mem, typename T>
+  void Alltoallv(const mem<T> snd,
+                 const memory<int> sendCounts,
+                 const memory<int> sendOffsets,
+                       mem<T> rcv,
+                 const memory<int> recvCounts,
+                 const memory<int> recvOffsets) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Alltoallv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                   rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
-                  comm);
+                  comm());
     mpiType<T>::freeMpiType(type);
   }
 
-  void Wait(request_t &request);
-  void WaitAll(const int count, memory<request_t> &requests);
-  void Barrier();
+  template <template<typename> class mem, typename T>
+  void Ialltoallv(const mem<T> snd,
+                  const memory<int> sendCounts,
+                  const memory<int> sendOffsets,
+                        mem<T> rcv,
+                  const memory<int> recvCounts,
+                  const memory<int> recvOffsets,
+                  request_t &request) const {
+    MPI_Datatype type = mpiType<T>::getMpiType();
+    MPI_Ialltoallv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
+                  rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
+                  comm(), &request);
+    mpiType<T>::freeMpiType(type);
+  }
+
+  void Wait(request_t &request) const;
+  void Waitall(const int count, memory<request_t> &requests) const;
+  void Barrier() const;
+
+  static void GetProcessorName(char* name, int &namelen) {
+    MPI_Get_processor_name(name,&namelen);
+  }
 };
 
 } //namespace libp
