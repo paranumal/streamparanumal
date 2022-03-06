@@ -49,7 +49,7 @@ void setting_t::updateVal(const string newVal){
        << "Possible values are: { ";
     for (size_t i=0;i<options.size()-1;i++) ss << options[i] << ", ";
     ss << options[options.size()-1] << " }" << std::endl;
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT(ss.str());
   }
 }
 
@@ -99,7 +99,7 @@ std::ostream& operator<<(std::ostream& os, const setting_t& setting) {
   return os;
 }
 
-settings_t::settings_t(MPI_Comm _comm):
+settings_t::settings_t(comm_t _comm):
   comm(_comm) {}
 
 void settings_t::newSetting(const string shortkey, const string longkey,
@@ -109,16 +109,10 @@ void settings_t::newSetting(const string shortkey, const string longkey,
 
   for(auto it = settings.begin(); it != settings.end(); ++it) {
     setting_t &setting = it->second;
-    if (!setting.shortkey.compare(shortkey)) {
-      stringstream ss;
-      ss << "Setting with key: [" << shortkey << "] already exists.";
-      LIBP_ABORT(ss.str());
-    }
-    if (!setting.longkey.compare(longkey)) {
-      stringstream ss;
-      ss << "Setting with key: [" << longkey << "] already exists.";
-      LIBP_ABORT(ss.str());
-    }
+    LIBP_ABORT("Setting with key: [" << shortkey << "] already exists.",
+               !setting.shortkey.compare(shortkey));
+    LIBP_ABORT("Setting with key: [" << longkey << "] already exists.",
+               !setting.longkey.compare(longkey));
   }
 
   auto search = settings.find(name);
@@ -126,9 +120,7 @@ void settings_t::newSetting(const string shortkey, const string longkey,
     settings[name] = setting_t(shortkey, longkey, name, val, description, options);
     insertOrder.push_back(name);
   } else {
-    stringstream ss;
-    ss << "Setting with name: [" << name << "] already exists.";
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT("Setting with name: [" << name << "] already exists.");
   }
 }
 
@@ -138,9 +130,7 @@ void settings_t::changeSetting(const string name, const string newVal) {
     setting_t& val = search->second;
     val.updateVal(newVal);
   } else {
-    stringstream ss;
-    ss << "Setting with name: [" << name << "] does not exist.";
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT("Setting with name: [" << name << "] does not exist.");
   }
 }
 
@@ -159,9 +149,7 @@ void settings_t::parseSettings(const int argc, char** argv) {
       if (strcmp(argv[i], setting.shortkey.c_str()) == 0 ||
           strcmp(argv[i], setting.longkey.c_str()) == 0) {
         if (setting.check!=0) {
-          stringstream ss;
-          ss << "Cannot set setting [" << setting.name << "] twice in run command.";
-          LIBP_ABORT(ss.str());
+          LIBP_FORCE_ABORT("Cannot set setting [" << setting.name << "] twice in run command.");
         } else {
           if (strcmp(argv[i], "-v") == 0 ||
               strcmp(argv[i], "--verbose") == 0) {
@@ -185,9 +173,7 @@ string settings_t::getSetting(const string name) const {
     const setting_t& val = search->second;
     return val.getVal<string>();
   } else {
-    stringstream ss;
-    ss << "Unable to find setting: [" << name << "]";
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT("Unable to find setting: [" << name << "]");
     return string();
   }
 }
@@ -198,9 +184,7 @@ bool settings_t::compareSetting(const string name, const string token) const {
     const setting_t& val = search->second;
     return val.compareVal(token);
   } else {
-    stringstream ss;
-    ss << "Unable to find setting: [" << name.c_str() << "]";
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT("Unable to find setting: [" << name.c_str() << "]");
     return false;
   }
 }
@@ -220,9 +204,7 @@ void settings_t::reportSetting(const string name) const {
     const setting_t& val = search->second;
     std::cout << val << std::endl;
   } else {
-    stringstream ss;
-    ss << "Unable to find setting: [" << name.c_str() << "]";
-    LIBP_ABORT(ss.str());
+    LIBP_FORCE_ABORT("Unable to find setting: [" << name.c_str() << "]");
   }
 }
 

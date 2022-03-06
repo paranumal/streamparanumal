@@ -62,11 +62,8 @@ void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI){
   dgeev_ (&JOBVL, &JOBVR, &N, tmpA, &LDA, WR, WI,
           VL, &LDVL, tmpVR, &LDVR, WORK, &LWORK, &INFO);
 
-  if(INFO) {
-    std::stringstream ss;
-    ss << "dgeev_ reports info = " << INFO;
-    LIBP_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgeev_ reports info = " << INFO,
+             INFO);
 
   for(int n=0;n<N;++n){
     for(int m=0;m<N;++m){
@@ -106,11 +103,8 @@ void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI){
   sgeev_ (&JOBVL, &JOBVR, &N, tmpA, &LDA, WR, WI,
           VL, &LDVL, tmpVR, &LDVR, WORK, &LWORK, &INFO);
 
-  if(INFO) {
-    std::stringstream ss;
-    ss << "sgeev_ reports info = " << INFO;
-    LIBP_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgeev_ reports info = " << INFO,
+             INFO);
 
   for(int n=0;n<N;++n){
     for(int m=0;m<N;++m){
@@ -142,11 +136,8 @@ void matrixEigenValues(int N, double *A, double *WR, double *WI){
   dgeev_ (&JOBVL, &JOBVR, &N, A, &LDA, WR, WI,
           VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
 
-  if(INFO) {
-    std::stringstream ss;
-    ss << "dgeev_ reports info = " << INFO;
-    LIBP_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgeev_ reports info = " << INFO,
+             INFO);
 
   free(WORK);
 }
@@ -170,11 +161,8 @@ void matrixEigenValues(int N, float *A, float *WR, float *WI){
   sgeev_ (&JOBVL, &JOBVR, &N, A, &LDA, WR, WI,
           VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
 
-  if(INFO) {
-    std::stringstream ss;
-    ss << "sgeev_ reports info = " << INFO;
-    LIBP_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgeev_ reports info = " << INFO,
+             INFO);
 
   free(WORK);
 }

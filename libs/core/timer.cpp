@@ -30,31 +30,31 @@ namespace libp {
 
 /* Host time*/
 timePoint_t Time() {
-	return std::chrono::high_resolution_clock::now();
+  return std::chrono::high_resolution_clock::now();
 }
 
 /* Host time after global sync*/
 timePoint_t GlobalTime(comm_t comm) {
-	comm.Barrier();
-	return Time();	
+  comm.Barrier();
+  return Time();
 }
 
 /* Host time after platform sync*/
 timePoint_t PlatformTime(platform_t &platform) {
-	platform.finish();
-	return Time();
+  platform.finish();
+  return Time();
 }
 
 /* Host time after platform sync*/
 timePoint_t GlobalPlatformTime(platform_t &platform) {
-	platform.finish();
-	platform.comm.Barrier();
-	return Time();
+  platform.finish();
+  platform.comm.Barrier();
+  return Time();
 }
 
 /*Time between time points, in seconds*/
 double ElapsedTime(const timePoint_t start, const timePoint_t end) {
-	return std::chrono::duration_cast<std::chrono::microseconds>(end-start).count()/(1.0e6);
+  return std::chrono::duration_cast<std::chrono::microseconds>(end-start).count()/(1.0e6);
 }
 
 } //namespace libp

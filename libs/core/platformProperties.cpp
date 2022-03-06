@@ -28,10 +28,10 @@ SOFTWARE.
 
 namespace libp {
 
-//initialize occa::properties with common props
+//initialize properties_t with common props
 void platform_t::DeviceProperties(){
 
-  occa::properties& Props = props();
+  properties_t& Props = props();
 
   Props["defines"].asObject();
   Props["includes"].asArray();

@@ -33,32 +33,50 @@ void comm_t::Init(int &argc, char** &argv) { MPI_Init(&argc, &argv); }
 void comm_t::Finalize() { MPI_Finalize(); }
 
 /*Static handle to MPI_COMM_WORLD*/
-const comm_t comm_t::world() {
+comm_t comm_t::world() {
   comm_t c;
-  c.comm = MPI_COMM_WORLD;
-  MPI_Comm_rank(c.comm, &(c._rank));
-  MPI_Comm_size(c.comm, &(c._size));
+  c.comm_ptr = std::make_shared<MPI_Comm>();
+  *(c.comm_ptr) = MPI_COMM_WORLD;
+  MPI_Comm_rank(c.comm(), &(c._rank));
+  MPI_Comm_size(c.comm(), &(c._size));
   return c;
 }
 
-/*MPI_Comm_dup and MPI_Comm_free*/
-comm_t comm_t::Dup() {
+/*MPI_Comm_dup and free*/
+comm_t comm_t::Dup() const {
   comm_t c;
-  MPI_Comm_dup(comm, &(c.comm));
-  MPI_Comm_rank(c.comm, &(c._rank));
-  MPI_Comm_size(c.comm, &(c._size));
+  /*Make a new comm shared_ptr, which will call MPI_Comm_free when destroyed*/
+  c.comm_ptr = std::shared_ptr<MPI_Comm>(new MPI_Comm,
+                                        [](MPI_Comm *comm) {
+                                          if (*comm != MPI_COMM_NULL)
+                                            MPI_Comm_free(comm);
+                                          delete comm;
+                                        });
+  MPI_Comm_dup(comm(), c.comm_ptr.get());
+  MPI_Comm_rank(c.comm(), &(c._rank));
+  MPI_Comm_size(c.comm(), &(c._size));
   return c;
 }
 void comm_t::Free() {
-  MPI_Comm_free(&comm);
+  comm_ptr = nullptr;
   _rank=0;
   _size=0;
 }
 /*Split*/
-void comm_t::Split(const comm_t &c, const int color, const int key) {
-  MPI_Comm_split(c.comm, color, key, &comm);
-  MPI_Comm_rank(comm, &_rank);
-  MPI_Comm_size(comm, &_size);
+comm_t comm_t::Split(const int color, const int key) const {
+  comm_t c;
+  /*Make a new comm shared_ptr, which will call MPI_Comm_free when destroyed*/
+  c.comm_ptr = std::shared_ptr<MPI_Comm>(new MPI_Comm,
+                                        [](MPI_Comm *comm) {
+                                          if (*comm != MPI_COMM_NULL)
+                                            MPI_Comm_free(comm);
+                                          delete comm;
+                                        });
+
+  MPI_Comm_split(comm(), color, key, c.comm_ptr.get());
+  MPI_Comm_rank(c.comm(), &(c._rank));
+  MPI_Comm_size(c.comm(), &(c._size));
+  return c;
 }
 
 /*Rank and size getters*/
@@ -69,16 +87,24 @@ const int comm_t::size() const {
   return _size;
 }
 
-void comm_t::Wait(request_t &request) {
+MPI_Comm comm_t::comm() const {
+  if (comm_ptr == nullptr) {
+    return MPI_COMM_NULL;
+  } else {
+    return *comm_ptr;
+  }
+}
+
+void comm_t::Wait(request_t &request) const {
   MPI_Wait(&request, MPI_STATUS_IGNORE);
 }
 
-void comm_t::WaitAll(const int count, memory<request_t> &requests) {
+void comm_t::Waitall(const int count, memory<request_t> &requests) const {
   MPI_Waitall(count, requests.ptr(), MPI_STATUSES_IGNORE);
 }
 
-void comm_t::Barrier() {
-  MPI_Barrier(comm);
+void comm_t::Barrier() const {
+  MPI_Barrier(comm());
 }
 
 } //namespace libp
