@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs4.hpp"
 
 //settings for bs4 solver
-bs4Settings_t::bs4Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs4Settings_t::bs4Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);
