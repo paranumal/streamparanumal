@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS5_HPP 1
 
 #include "platform.hpp"
+#include "timer.hpp"
 
 #define DBS5 STREAM_DIR"/BS/BS5/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs5Settings_t: public settings_t {
 public:
-  bs5Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs5Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
@@ -46,8 +47,8 @@ public:
 
   int blockSize;
 
-  occa::kernel kernel1;
-  occa::kernel kernel2;
+  kernel_t kernel1;
+  kernel_t kernel2;
 
   bs5_t() = default;
   bs5_t(platform_t &_platform, settings_t& _settings) {

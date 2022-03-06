@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs5.hpp"
 
 //settings for bs5 solver
-bs5Settings_t::bs5Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs5Settings_t::bs5Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);
