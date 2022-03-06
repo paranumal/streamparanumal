@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs8.hpp"
 
 //settings for bs8 solver
-bs8Settings_t::bs8Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs8Settings_t::bs8Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);

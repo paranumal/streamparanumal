@@ -30,31 +30,26 @@ void bs8_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
-  occa::memory o_q = platform.malloc(N*sizeof(dfloat));
+  deviceMemory<dfloat> o_q = platform.malloc<dfloat>(N);
 
   /* Warmup */
   for(int n=0;n<5;++n){
-    mesh.ogs.GatherScatter(o_q, 1, ogs::Dfloat, ogs::Add, ogs::Sym); //dry run
+    mesh.ogs.GatherScatter(o_q, 1, ogs::Add, ogs::Sym); //dry run
   }
 
   /* Gather Scatter test */
   int Ntests = 50;
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double startTime = MPI_Wtime();
+  timePoint_t start = GlobalPlatformTime(platform);
 
   for(int n=0;n<Ntests;++n){
-    mesh.ogs.GatherScatter(o_q, 1, ogs::Dfloat, ogs::Add, ogs::Sym);
+    mesh.ogs.GatherScatter(o_q, 1, ogs::Add, ogs::Sym);
   }
 
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double endTime = MPI_Wtime();
-  double elapsedTime = (endTime - startTime)/Ntests;
+  timePoint_t end = GlobalPlatformTime(platform);
+  double elapsedTime = ElapsedTime(start, end)/Ntests;
 
-  hlong NLocal  = N;
-  hlong NGlobal;
-  MPI_Allreduce(&NLocal, &NGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  hlong NGlobal = N;
+  mesh.comm.Allreduce(NGlobal);
 
   hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
 
@@ -67,9 +62,7 @@ void bs8_t::Run(){
 
   size_t bytes = bytesIn + bytesOut;
 
-  hlong Nflops = N;
-  hlong NflopsGlobal;
-  MPI_Allreduce(&Nflops, &NflopsGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  hlong NflopsGlobal = NGlobal;
 
   hlong Ndofs = mesh.ogs.NgatherGlobal;
 

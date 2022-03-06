@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS8_HPP 1
 
 #include "mesh.hpp"
+#include "timer.hpp"
 
 #define DBS8 STREAM_DIR"/BS/BS8/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs8Settings_t: public settings_t {
 public:
-  bs8Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs8Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
