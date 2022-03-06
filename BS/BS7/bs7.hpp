@@ -28,6 +28,7 @@ SOFTWARE.
 #define BS7_HPP 1
 
 #include "mesh.hpp"
+#include "timer.hpp"
 
 #define DBS7 STREAM_DIR"/BS/BS7/"
 
@@ -35,7 +36,7 @@ using namespace libp;
 
 class bs7Settings_t: public settings_t {
 public:
-  bs7Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs7Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
