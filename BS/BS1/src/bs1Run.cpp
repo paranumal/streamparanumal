@@ -49,8 +49,6 @@ void bs1_t::Run(){
   deviceMemory<dfloat> o_a = platform.malloc<dfloat>(Nmax);
   deviceMemory<dfloat> o_b = platform.malloc<dfloat>(Nmax);
 
-  std::cout << o_a.dtype().name() << std::endl;
-
   int Nwarm = 5;
   for(int n=0;n<Nwarm;++n){ //warmup
     kernel(Nmax, o_a, o_b); //b = a
