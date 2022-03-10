@@ -102,8 +102,7 @@ void mesh_t::FaceNodeMatchingTri2D(int _N, dfloat _r[], dfloat _s[],
 
   const dfloat NODETOL = 1.0e-5;
 
-  dfloat V0[2] = {-1.0, 1.0};
-  dfloat V1[2] = { 1.0,-1.0};
+  dfloat V[2] = {-1.0, 1.0};
 
   dfloat EX0[Nverts];
   dfloat EX1[Nverts];
@@ -119,7 +118,7 @@ void mesh_t::FaceNodeMatchingTri2D(int _N, dfloat _r[], dfloat _s[],
     //setup top element with face fM on the bottom
     for (int v=0;v<NfaceVertices;v++) {
       int fv = faceVertices[fM*NfaceVertices + v];
-      EX0[fv] = V0[v];
+      EX0[fv] = V[v];
     }
 
     for(int n=0;n<_Nfp;++n){ /* for each face node */
@@ -144,7 +143,7 @@ void mesh_t::FaceNodeMatchingTri2D(int _N, dfloat _r[], dfloat _s[],
         //setup bottom element with face fP on the top
         for (int v=0;v<NfaceVertices;v++) {
           int fv = faceVertices[fP*NfaceVertices + ((v+rot)%NfaceVertices)];
-          EX1[fv] = V1[v];
+          EX1[fv] = V[v];
         }
 
         for(int n=0;n<_Nfp;++n){ /* for each node */
