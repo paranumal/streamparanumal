@@ -1,26 +1,26 @@
 /*
 
-The MIT License (MIT)
+  The MIT License (MIT)
 
-Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+  Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
 */
 
@@ -28,68 +28,274 @@ SOFTWARE.
 
 /*------------------------------------------------------------------------------
   The basic gather-scatter kernel
-------------------------------------------------------------------------------*/
-@kernel void gatherScatter(const dlong Nblocks,
+  ------------------------------------------------------------------------------*/
+@kernel void gatherScatter(const dlong Nrows,
+			   const dlong Nblocks,
                            const int K,
-                          @restrict const dlong *blockStarts,
-                          @restrict const dlong *gatherStarts,
-                          @restrict const dlong *gatherIds,
-                          @restrict const dlong *scatterStarts,
-                          @restrict const dlong *scatterIds,
-                          @restrict           T *q) {
+			   @restrict const dlong *blockStarts,
+			   @restrict const dlong *gatherStarts,
+			   @restrict const dlong *gatherIds,
+			   @restrict const dlong *scatterStarts,
+			   @restrict const dlong *scatterIds,
+			   @restrict           T *q) {
 
+  if(scatterStarts!=gatherStarts){
+    for(dlong k=0;k<K;++k;@outer(1)){
+      for(dlong b=0;b<Nblocks;++b;@outer(0)){
+	@exclusive dlong blockStart, blockEnd, gStart, sStart;
+	@shared T gtemp[p_gatherNodesPerBlock];
+	@shared T stemp[p_gatherNodesPerBlock];
+
+	for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+
+	  blockStart = blockStarts[b];
+	  blockEnd   = blockStarts[b+1];
+	  gStart = gatherStarts[blockStart];
+	  sStart = scatterStarts[blockStart];
+
+#pragma nounroll
+	  for (dlong id=gStart+n;id<gatherStarts[blockEnd];id+=p_blockSize) {
+	    gtemp[id-gStart] = q[k+gatherIds[id]*K];
+	  }
+	}
+
+	for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+	  for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
+	    const dlong gRowStart = gatherStarts[row]  -gStart;
+	    const dlong gRowEnd   = gatherStarts[row+1]-gStart;
+	    const dlong sRowStart = scatterStarts[row]  -sStart;
+	    const dlong sRowEnd   = scatterStarts[row+1]-sStart;
+	    T gq = OGS_OP_INIT;
+
+#pragma nounroll
+	    for (dlong i=gRowStart;i<gRowEnd;i++) {
+	      OGS_OP(gq,gtemp[i]);
+	    }
+#pragma nounroll
+	    for (dlong i=sRowStart;i<sRowEnd;i++) {
+	      stemp[i] = gq;
+	    }
+
+	  }
+	}
+      
+	for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+#pragma nounroll
+	  for (dlong id=sStart+n;id<scatterStarts[blockEnd];id+=p_blockSize) {
+	    q[k+scatterIds[id]*K] = stemp[id-sStart];
+	  }
+	}
+      }
+    }
+  }
+  
+#if 0
+  // good
+  // assume one node to gather to per thread
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
-      @exclusive dlong blockStart, blockEnd, gStart, sStart;
-      @shared T gtemp[p_gatherNodesPerBlock];
-      @shared T stemp[p_gatherNodesPerBlock];
+      @exclusive dlong blockStart, blockEnd, gStart, gEnd;
+      @shared T s_gtemp[p_gatherNodesPerBlock];
+      @shared T s_stemp[p_gatherNodesPerBlock];
+      @shared int s_flag[p_gatherNodesPerBlock];
+      @shared int s_gids[p_gatherNodesPerBlock];
+      @exclusive int flag;
 
       for(dlong n=0;n<p_blockSize;++n;@inner(0)){
         blockStart = blockStarts[b];
         blockEnd   = blockStarts[b+1];
         gStart = gatherStarts[blockStart];
+	gEnd = gatherStarts[blockEnd];
+
+	// prefetch gather indices
+#pragma nounroll
+        for (dlong id=gStart+n;id<gEnd;id+=p_blockSize) {
+	  dlong gid = k+K*gatherIds[id];
+	  dfloat qtmp =  q[gid];
+	  s_gtemp[id-gStart] = qtmp;
+	  s_stemp[id-gStart] = qtmp;// store in case a singleton
+	  s_gids[id-gStart] = gid;
+	  s_flag[id-gStart] = 0;
+	}
+      }
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+	dlong row = blockStart + n;
+	flag = 0;
+	if(row<blockEnd){
+	  const dlong gRowStart = gatherStarts[row]  -gStart;
+	  const dlong gRowEnd   = gatherStarts[row+1]-gStart;
+	  
+	  flag = gRowEnd-gRowStart;
+	  if(flag){
+	    T gq = OGS_OP_INIT;
+	    
+#pragma nounroll
+	    for (dlong i=gRowStart;i<gRowEnd;i++) {
+	      s_flag[i] = 1;
+	      OGS_OP(gq,s_gtemp[i]);
+	    }
+#pragma nounroll
+	    for (dlong i=gRowStart;i<gRowEnd;i++) {
+	      s_stemp[i] = gq;
+	    }
+	  }
+	}
+      }
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+#pragma nounroll
+	for (dlong id=gStart+n;id<gEnd;id+=p_blockSize) {
+	  if(s_flag[id-gStart] == 1)
+	    q[s_gids[id-gStart]] = s_stemp[id-gStart];
+	}
+      }
+    }
+  }
+#endif  
+
+#if 0
+  // best nonsymm
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<Nblocks;++b;@outer(0)){
+      @exclusive dlong blockStart, blockEnd, gStart, gEnd, sStart, sEnd, gid, sid;
+      @shared T s_gtemp[p_gatherNodesPerBlock];
+      @shared T s_stemp[p_gatherNodesPerBlock];
+      
+      for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+        blockStart = blockStarts[b];
+        blockEnd   = blockStarts[b+1];
+        gStart = gatherStarts[blockStart];
+        gEnd   = gatherStarts[blockEnd];
         sStart = scatterStarts[blockStart];
-
-        for (dlong id=gStart+n;id<gatherStarts[blockEnd];id+=p_blockSize) {
-          gtemp[id-gStart] = q[k+gatherIds[id]*K];
+        sEnd   = scatterStarts[blockEnd];
+	
+        // load local data and indices
+        if(gStart+n<gEnd){
+          gid = k+K*gatherIds[gStart+n];
+          s_gtemp[n] = q[gid];
+	}
+	if(sStart+n<sEnd){
+	  sid = k+K*scatterIds[sStart+n];
         }
       }
+      
+      @barrier();
 
-      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
-        for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
-          const dlong gRowStart = gatherStarts[row]  -gStart;
-          const dlong gRowEnd   = gatherStarts[row+1]-gStart;
-          const dlong sRowStart = scatterStarts[row]  -sStart;
-          const dlong sRowEnd   = scatterStarts[row+1]-sStart;
-          T gq = OGS_OP_INIT;
-          for (dlong i=gRowStart;i<gRowEnd;i++) {
-            OGS_OP(gq,gtemp[i]);
-          }
-          for (dlong i=sRowStart;i<sRowEnd;i++) {
-            stemp[i] = gq;
-          }
-        }
+      for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+	dlong row = blockStart + n;
+
+        if(row<blockEnd){
+	  
+	  const dlong gRowStart = gatherStarts[row]  -gStart;
+	  const dlong gRowEnd   = gatherStarts[row+1]-gStart;
+	  const dlong sRowStart = scatterStarts[row]  -sStart;
+	  const dlong sRowEnd   = scatterStarts[row+1]-sStart;
+	  
+	  T gq = OGS_OP_INIT;
+	  
+	  // gather row from shared
+#pragma nounroll
+	  for (dlong i=gRowStart;i<gRowEnd;i++) {
+	    OGS_OP(gq,s_gtemp[i]);
+	  }
+	  
+	  // scatter row to shared
+#pragma nounroll
+	  for (dlong i=sRowStart;i<sRowEnd;i++) {
+	    s_stemp[i] = gq;
+	  }
+	}
       }
-
-      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
-        for (dlong id=sStart+n;id<scatterStarts[blockEnd];id+=p_blockSize) {
-          q[k+scatterIds[id]*K] = stemp[id-sStart];
+      
+      @barrier();
+      
+      for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+        if(sStart+n<sEnd){
+          q[sid] = s_stemp[n];
         }
       }
     }
   }
+#endif
+
+  
+  if(gatherStarts==scatterStarts){
+    // best symm so far
+    // trying more threads for load
+    // assume one node to gather to per thread
+    for(dlong k=0;k<K;++k;@outer(1)){
+      for(dlong b=0;b<Nblocks;++b;@outer(0)){
+	@exclusive dlong blockStart, blockEnd, gStart, gEnd, gid;
+	@shared T s_gtemp[p_gatherNodesPerBlock];
+      
+	for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+
+//	  if(k==0 && b==0 && n==0) printf("HIHIHIHIH\n");
+	  
+	  blockStart = blockStarts[b];
+	  blockEnd   = blockStarts[b+1];
+	  gStart = gatherStarts[blockStart];
+	  gEnd = gatherStarts[blockEnd];
+
+	  // load local data and indices
+	  if(gStart+n<gEnd){
+	    gid = k+K*gatherIds[gStart+n];
+	    dfloat qtmp =  q[gid];
+	    s_gtemp[n] = qtmp;
+	  }
+	}
+      
+	@barrier();
+      
+	for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+	  dlong row = blockStart + n;
+
+	  if(row<blockEnd){
+	  
+	    const dlong gRowStart = gatherStarts[row]  -gStart;
+	    const dlong gRowEnd   = gatherStarts[row+1]-gStart;
+	  
+	    T gq = OGS_OP_INIT;
+	  
+	    // gather row from shared
+#pragma nounroll
+	    for (dlong i=gRowStart;i<gRowEnd;i++) {
+	      OGS_OP(gq,s_gtemp[i]);
+	    }
+	  
+	    // scatter row to shared
+#pragma nounroll
+	    for (dlong i=gRowStart;i<gRowEnd;i++) {
+	      s_gtemp[i] = gq;
+	    }
+	  }
+	}
+      
+	@barrier();
+      
+	for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+	  if(gStart+n<gEnd){
+	    q[gid] = s_gtemp[n];
+	  }
+	}
+      }
+    }
+  }
+  
+  
 }
 
 /*------------------------------------------------------------------------------
   The basic gather kernel
-------------------------------------------------------------------------------*/
+  ------------------------------------------------------------------------------*/
 @kernel void gather(const dlong Nblocks,
                     const int K,
-                   @restrict const dlong *blockStarts,
-                   @restrict const dlong *gatherStarts,
-                   @restrict const dlong *gatherIds,
-                   @restrict const     T *q,
-                   @restrict           T *gatherq){
+		    @restrict const dlong *blockStarts,
+		    @restrict const dlong *gatherStarts,
+		    @restrict const dlong *gatherIds,
+		    @restrict const     T *q,
+		    @restrict           T *gatherq){
 
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
@@ -123,7 +329,7 @@ SOFTWARE.
 
 /*------------------------------------------------------------------------------
   The basic scatter kernel
-------------------------------------------------------------------------------*/
+  ------------------------------------------------------------------------------*/
 @kernel void scatter(const dlong Nblocks,
                      const int K,
                      @restrict const dlong *blockStarts,
@@ -168,7 +374,7 @@ SOFTWARE.
                      const int K,
                      @restrict const dlong *ids,
                      @restrict const T *q,
-                           @restrict T *gatherq) {
+		     @restrict T *gatherq) {
   for(dlong n=0;n<N*K;++n;@tile(p_blockSize, @outer(0), @inner(0))){
     const dlong gid = n/K;
     const int k = n%K;
