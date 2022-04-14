@@ -14,7 +14,7 @@ If you use any part of streamParanumal in your research project please use the f
       title = "{streamParanumal}: Streaming Microbenchmarks for High-order Finite Element Methods",
       year = "2020",
       url = "https://github.com/paranumal/streamparanumal",
-      note = "Release 1.0"
+      note = "Release 1.1"
       }
 </pre>
 
@@ -62,44 +62,31 @@ Overview of microbenchmarks:
    - Fused gather and scatter operation.
 
 ---
-### 4. OCCA dependency
-```
-git clone https://github.com/libocca/occa
-```
+### 4. Required Libraries
+streamParanumal requires installed BLAS and LAPACK libraries, and an MPI installation. By default, the build system will look for `openblas` in your default library search paths, and will use the `mpic++` compiler wrapper. The OpenBLAS library path can also be manually specified in `make.top` with the `OPENBLAS_DIR` variable.
 
-#### 4-1. Build OCCA
+Some Linux distributions will package OpenBLAS and OpenMPI. For example, on Ubuntu systems these libraries can be installed via
 ```
-cd occa
-export OCCA_DIR=${PWD}
-make -j `nproc` 
-cd ../
+sudo apt install libopenblas-dev libopenmpi-dev openmpi-bin
 ```
-
 ---
-### 5. Required Libraries
-streamParanumal requires installed BLAS and LAPACK libraries. By default, the build system will look for `libblas` and `liblapack` in your default library search paths. The library paths can also be manually specified in `make.top` with the `CEED_BLAS_DIR` and `CEED_LAPACK_DIR` variables.
-
-Some Linux distributions will package BLAS and LAPACK libraries. For example, on Ubuntu systems these libraries can be installed via
+### 5. Clone: streamParanumal (and OCCA submodule)
 ```
-sudo apt install libblas-dev liblapack-dev
+git clone --recursive https://github.com/paranumal/streamparanumal
 ```
 
-streamParanumal also depends on the [gslib](https://github.com/Nek5000/gslib) library for gather-scatter operations. For more information on gslib see [Henry Tufo's thesis](https://dl.acm.org/doi/book/10.5555/926758) and a more recent reference [Fischer et al.](https://iopscience.iop.org/article/10.1088/1742-6596/125/1/012076/meta). The source code for gslib is included in this repository.
-
----
-### 6. Clone: streamParanumal
-```
-git clone https://github.com/paranumal/streamparanumal
-```
-
-#### 6-1. Build all streamParanumal benchmarks
+#### 5-1. Build all streamParanumal benchmarks
 ```
 cd streamparanumal
 make -j `nproc` 
 ```
+#### 5-2. Build streamParanumal benchmarks with GPU-aware MPI
+```
+make -j `nproc` --gpu-aware-mpi=true
+```
 
 ---
-### 7. Running the benchmarks:
+### 6. Running the benchmarks:
 
 Each benchmark is contained in its respective subfolder in `BS/`. Each benchmark sub-directory includes a makefile, a src directory, and a run script.
 
@@ -116,7 +103,7 @@ The run script in each benchmark folder runs a more stressful version of each te
 
 Finally, the run scripts in the root and `BS/` folders can also be used to quickly run one instance of each test.
 
-### 8. License
+### 7. License
 
 The MIT License (MIT)
 
@@ -140,7 +127,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-### 10. References
+### 8. References
 
 StreamParanumal: [arXiv version](): `Chalmers, N., and Warburton, T., 2020. Portable high-order finite element kernels I: Streaming Operation.`
 
