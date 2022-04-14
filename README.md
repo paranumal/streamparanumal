@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4041222.svg)](https://doi.org/10.5281/zenodo.4041222)
+[![DOI](https://zenodo.org/badge/296924470.svg)](https://zenodo.org/badge/latestdoi/296924470)
 
 ## streamParanumal
 A collection of streaming microbenchmarks relevent to finite element flow solvers for heterogeneous (GPU/CPU) systems. The initial development of streamParanumal was performed by the [Parallel Numerical Algorithms Group at Virginia Tech](http://paranumal.com).
