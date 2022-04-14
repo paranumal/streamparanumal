@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "platform.hpp"
 
+namespace libp {
+
 void platformAddSettings(settings_t& settings) {
 
   settings.newSetting("-m", "--mode",
@@ -41,7 +43,7 @@ void platformAddSettings(settings_t& settings) {
 
   settings.newSetting("-d", "--device",
                       "DEVICE NUMBER",
-                      "0"
+                      "0",
                       "Parallel device number");
 }
 
@@ -54,11 +56,11 @@ void platformReportSettings(settings_t& settings) {
   if (settings.compareSetting("THREAD MODEL","OpenCL"))
     settings.reportSetting("PLATFORM NUMBER");
 
-  int size;
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  if ((size==1)
+  if ((settings.comm.size()==1)
       &&(settings.compareSetting("THREAD MODEL","CUDA")
       ||settings.compareSetting("THREAD MODEL","HIP")
       ||settings.compareSetting("THREAD MODEL","OpenCL") ))
     settings.reportSetting("DEVICE NUMBER");
 }
+
+} //namespace libp

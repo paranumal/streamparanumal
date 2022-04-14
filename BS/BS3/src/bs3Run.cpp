@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -46,9 +46,9 @@ void bs3_t::Run(){
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  occa::memory o_a = platform.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_tmp = platform.malloc(blockSize*sizeof(dfloat));
-  occa::memory o_norm = platform.malloc(1*sizeof(dfloat));
+  deviceMemory<dfloat> o_a    = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_tmp  = platform.malloc<dfloat>(blockSize);
+  deviceMemory<dfloat> o_norm = platform.malloc<dfloat>(1);
 
 
   int Nwarm = 5;
@@ -73,8 +73,7 @@ void bs3_t::Run(){
 
   //test
   for(int N=Nmin;N<=Nmax;N+=Nstep){
-    platform.device.finish();
-    dfloat tic = MPI_Wtime();
+    timePoint_t start = GlobalPlatformTime(platform);
 
     /* NORM Test */
     int Ntests = 20;
@@ -85,9 +84,8 @@ void bs3_t::Run(){
       kernel2(Nblock, o_tmp, o_norm); //finish reduction
     }
 
-    platform.device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
+    timePoint_t end = GlobalPlatformTime(platform);
+    double elapsedTime = ElapsedTime(start, end)/Ntests;
 
     size_t bytesIn  = N*sizeof(dfloat);
     size_t bytesOut = 0;

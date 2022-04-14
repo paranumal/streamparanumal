@@ -2,7 +2,7 @@
 #
 #The MIT License (MIT)
 #
-#Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+#Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -25,60 +25,50 @@
 #####################################################################################
 
 #can be GNU or INTEL
-CEED_ARCH=GNU
+LIBP_ARCH=GNU
 
-#absolute path to CEED
-export CEED_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+#absolute path to StreamParanumal
+export STREAM_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+export LIBP_DIR=${STREAM_DIR}
 
-export CEED_INCLUDE_DIR=${CEED_DIR}/include
-export CEED_LIBS_DIR=${CEED_DIR}/libs
-export CEED_TPL_DIR=${CEED_DIR}/3rdParty
+export LIBP_INCLUDE_DIR=${STREAM_DIR}/include
+export LIBP_LIBS_DIR=${STREAM_DIR}/libs
 
-#paths to installed blas and lapack libraries
-export CEED_BLAS_DIR  =/usr/lib/x86_64-linux-gnu
-export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu
-export CEED_BLAS_LIB  =-L${CEED_BLAS_DIR} -lblas
-export CEED_LAPACK_LIB=-L${CEED_LAPACK_DIR} -llapack
+export OPENBLAS_DIR?=/usr/lib/x86_64-linux-gnu
+export LIBP_BLAS_LIB=-L${OPENBLAS_DIR} -lopenblas
 
 #include OCCA
-ifndef OCCA_DIR
-  $(error environment variable [OCCA_DIR] is not set)
-endif
+export OCCA_DIR=${STREAM_DIR}/occa
 
 #compilers to use for C/C++
-export CEED_MPICC = mpicc
-export CEED_MPICXX= mpic++
-export CEED_LD    = mpic++
+export LIBP_CC = mpicc
+export LIBP_CXX= mpic++
+export LIBP_LD = mpic++
 
-export CEED_CFLAGS=-O2 -fopenmp -g -Wall -Wshadow -Wno-unused-function
-export CEED_MPICFLAGS=$(CEED_CFLAGS)
+export LIBP_INCLUDES=-I${LIBP_INCLUDE_DIR} -I${OCCA_DIR}/include
+export LIBP_LIBS= ${LIBP_BLAS_LIB}  \
+                     -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
 
-export CEED_CXXFLAGS=-O2 -fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
-export CEED_MPICXXFLAGS=$(CEED_CXXFLAGS)
-
-export CEED_BLAS_DIR=/usr/lib/x86_64-linux-gnu/
-export CEED_LAPACK_DIR=/usr/lib/x86_64-linux-gnu/
-
-export CEED_LIBS= ${CEED_BLAS_LIB} \
-                  ${CEED_LAPACK_LIB} \
-                  -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
-
-export CEED_DEFINES=-DUSE_OCCA_MEM_BYTE_ALIGN=32
-
-export CEED_INCLUDES=-I${CEED_INCLUDE_DIR} -I${OCCA_DIR}/include
-
-ifeq (GNU,${CEED_ARCH})
-  #CXXFLAGS+=-DUSE_OCCA_MEM_BYTE_ALIGN=32 -O2 -mavx2 -ftree-vectorize -march=native
-  #-funroll-all-loops
-  #CEED_LIBS+=-L/opt/apps/gcc5_2/atlas/3.10.2/lib/ -llapack -latlas  -lf77blas -lcblas -lptcblas -lptf77blas -lsatlas  -lgfortran  -L../../../libxsmm/lib -lxsmm -ldl
-else ifeq (INTEL,${CEED_ARCH})
-  CEED_CXXFLAGS+=-funroll-loops -xHost
-  CEED_LIBS+=-L/opt/apps/intel15_3/mkl/11.2.3/lib/intel64  -lmkl_rt
-  #  -fopt-info-vec-missed  -fopt-info
-  #-fopt-info
+ifneq (,${debug})
+  export LIBP_CFLAGS=-O0 -g -Wall -Wshadow -Wno-unused-function -Wno-unknown-pragmas
+  export LIBP_CXXFLAGS=-O0 -g -Wall -Wshadow -Wno-unused-function -Wno-unknown-pragmas -std=c++17
+  export LIBP_DEFINES=-DLIBP_DEBUG
 else
-  $(error unknown arch for [CEED_ARCH] specified)
+  export LIBP_CFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function
+  export LIBP_CXXFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function -std=c++17
+  export LIBP_DEFINES=
+
+  ifeq (GNU,${LIBP_ARCH})
+    LIBP_CFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+    LIBP_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+  else ifeq (INTEL,${LIBP_ARCH})
+    LIBP_CFLAGS+=-funroll-loops -xHost
+    LIBP_CXXFLAGS+=-funroll-loops -xHost
+  else
+    $(error unknown arch for [LIBP_ARCH] specified)
+  endif
 endif
+
 
 export OBJ_COLOR = \033[0;36m
 export LIB_COLOR = \033[0;34m
@@ -86,4 +76,4 @@ export EXE_COLOR = \033[0;32m
 export SOL_COLOR = \033[0;33m
 export NO_COLOR  = \033[m
 
-export CEED_MAKETOP_LOADED=true
+export LIBP_MAKETOP_LOADED=true

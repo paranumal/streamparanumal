@@ -2,7 +2,7 @@
 
   The MIT License (MIT)
 
-  Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+  Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -46,13 +46,13 @@ void bs5_t::Run(){
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  occa::memory o_p  = platform.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_Ap = platform.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_x  = platform.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_r  = platform.malloc(Nmax*sizeof(dfloat));
+  deviceMemory<dfloat> o_p  = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_Ap = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_x  = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_r  = platform.malloc<dfloat>(Nmax);
 
-  occa::memory o_tmp = platform.malloc(blockSize*sizeof(dfloat));
-  occa::memory o_rdotr = platform.malloc(1*sizeof(dfloat));
+  deviceMemory<dfloat> o_tmp = platform.malloc<dfloat>(blockSize);
+  deviceMemory<dfloat> o_rdotr = platform.malloc<dfloat>(1);
 
   const dfloat alpha = 1.0;
 
@@ -79,8 +79,7 @@ void bs5_t::Run(){
 
   //test
   for(int N=Nmin;N<=Nmax;N+=Nstep){
-    platform.device.finish();
-    dfloat tic = MPI_Wtime();
+    timePoint_t start = GlobalPlatformTime(platform);
 
     /* CGupdate Test */
     int Ntests = 20;
@@ -91,9 +90,8 @@ void bs5_t::Run(){
       kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
     }
 
-    platform.device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
+    timePoint_t end = GlobalPlatformTime(platform);
+    double elapsedTime = ElapsedTime(start, end)/Ntests;
 
     size_t bytesIn  = 4*N*sizeof(dfloat);
     size_t bytesOut = 2*N*sizeof(dfloat);

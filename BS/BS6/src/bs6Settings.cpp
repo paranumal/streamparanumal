@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ SOFTWARE.
 #include "bs6.hpp"
 
 //settings for bs6 solver
-bs6Settings_t::bs6Settings_t(const int argc, char** argv, MPI_Comm &_comm):
+bs6Settings_t::bs6Settings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);

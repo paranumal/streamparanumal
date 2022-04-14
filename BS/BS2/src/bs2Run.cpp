@@ -2,7 +2,7 @@
 
   The MIT License (MIT)
 
-  Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+  Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -46,8 +46,8 @@ void bs2_t::Run(){
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  occa::memory o_a = platform.malloc(Nmax*sizeof(dfloat));
-  occa::memory o_b = platform.malloc(Nmax*sizeof(dfloat));
+  deviceMemory<dfloat> o_a = platform.malloc<dfloat>(Nmax);
+  deviceMemory<dfloat> o_b = platform.malloc<dfloat>(Nmax);
 
   const dfloat alpha = 1.0;
   const dfloat beta = 1.0;
@@ -71,8 +71,7 @@ void bs2_t::Run(){
 
   //test
   for(int N=Nmin;N<=Nmax;N+=Nstep){
-    platform.device.finish();
-    dfloat tic = MPI_Wtime();
+    timePoint_t start = GlobalPlatformTime(platform);
 
     /* AXPY Test */
     int Ntests = 20;
@@ -80,9 +79,8 @@ void bs2_t::Run(){
       kernel(N, alpha, o_a, beta, o_b); //b = alpha*a + beta*b
     }
 
-    platform.device.finish();
-    dfloat toc = MPI_Wtime();
-    double elapsedTime = (toc-tic)/Ntests;
+    timePoint_t end = GlobalPlatformTime(platform);
+    double elapsedTime = ElapsedTime(start, end)/Ntests;
 
     size_t bytesIn  = 2*N*sizeof(dfloat);
     size_t bytesOut = N*sizeof(dfloat);

@@ -2,7 +2,7 @@
 #
 #The MIT License (MIT)
 #
-#Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+#Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ $(error ${BS1_HELP_MSG})
 endif
 endif
 
-ifndef CEED_MAKETOP_LOADED
+ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard ../../make.top))
 $(error cannot locate ${PWD}/../../make.top)
 else
@@ -73,62 +73,65 @@ endif
 endif
 
 #libraries
-BS1_CEED_LIBS=linAlg core
+BS1_LIBP_LIBS=core
 
 #includes
-INCLUDES=${CEED_INCLUDES} \
+INCLUDES=${LIBP_INCLUDES} \
          -I.
 
 #defines
-DEFINES =${CEED_DEFINES} \
-         -DCEED_DIR='"${CEED_DIR}"'
+DEFINES =${LIBP_DEFINES} \
+         -DSTREAM_DIR='"${STREAM_DIR}"'
 
 #.cpp compilation flags
-BS1_CXXFLAGS=${CEED_CXXFLAGS} ${DEFINES} ${INCLUDES}
+BS1_CXXFLAGS=${LIBP_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${CEED_LIBS_DIR} $(addprefix -l,$(BS1_CEED_LIBS)) \
-     ${CEED_LIBS}
+LIBS=-L${LIBP_LIBS_DIR} $(addprefix -l,$(BS1_LIBP_LIBS)) \
+     ${LIBP_LIBS}
 
 #link flags
 LFLAGS=${BS1_CXXFLAGS} ${LIBS}
 
 #object dependancies
 DEPS=$(wildcard *.hpp) \
-     $(wildcard $(CEED_INCLUDE_DIR)/*.h) \
-     $(wildcard $(CEED_INCLUDE_DIR)/*.hpp)
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.h) \
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.hpp)
 
 SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all ceed_libs clean clean-libs \
+.PHONY: all libp_libs clean clean-libs \
 		clean-kernels realclean help info BS1
 
 all: BS1
 
-ceed_libs:
+libp_libs: ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
-	${MAKE} -C ${CEED_LIBS_DIR} $(BS1_CEED_LIBS) verbose=${verbose}
+	${MAKE} -C ${LIBP_LIBS_DIR} $(BS1_LIBP_LIBS) verbose=${verbose}
 else
-	@${MAKE} -C ${CEED_LIBS_DIR} $(BS1_CEED_LIBS) --no-print-directory
+	@${MAKE} -C ${LIBP_LIBS_DIR} $(BS1_LIBP_LIBS) --no-print-directory
 endif
 
-BS1:$(OBJS) bs1Main.o ceed_libs
+BS1:$(OBJS) bs1Main.o libp_libs
 ifneq (,${verbose})
-	$(CEED_LD) -o BS1 bs1Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	$(LIBP_LD) -o BS1 bs1Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(CEED_LD) -o BS1 bs1Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	@$(LIBP_LD) -o BS1 bs1Main.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
 endif
 
+${OCCA_DIR}/lib/libocca.so:
+	${MAKE} -C ${OCCA_DIR}
+
 # rule for .cpp files
-%.o: %.cpp $(DEPS) | ceed_libs
+%.o: %.cpp $(DEPS) | libp_libs
 ifneq (,${verbose})
-	$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS1_CXXFLAGS)
+	$(LIBP_CXX) -o $*.o -c $*.cpp $(BS1_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $*.o -c $*.cpp $(BS1_CXXFLAGS)
+	@$(LIBP_CXX) -o $*.o -c $*.cpp $(BS1_CXXFLAGS)
 endif
 
 #cleanup
@@ -136,22 +139,22 @@ clean:
 	rm -f src/*.o *.o BS1
 
 clean-libs: clean
-	${MAKE} -C ${CEED_LIBS_DIR} clean
+	${MAKE} -C ${LIBP_LIBS_DIR} clean
 
 clean-kernels: clean-libs
-	rm -rf ~/.occa/
+	rm -rf ${STREAM_DIR}/.occa/
 
-realclean: clean
-	${MAKE} -C ${CEED_LIBS_DIR} realclean
+realclean: clean-kernels
+	${MAKE} -C ${OCCA_DIR} clean
 
 help:
 	$(info $(value BS1_HELP_MSG))
 	@true
 
 info:
+	$(info STREAM_DIR  = $(STREAM_DIR))
 	$(info OCCA_DIR  = $(OCCA_DIR))
-	$(info CEED_DIR  = $(CEED_DIR))
-	$(info CEED_ARCH = $(CEED_ARCH))
+	$(info LIBP_ARCH = $(LIBP_ARCH))
 	$(info CXXFLAGS  = $(BS1_CXXFLAGS))
 	$(info LIBS      = $(LIBS))
 	@true

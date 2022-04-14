@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,49 +28,38 @@ SOFTWARE.
 
 void bs7_t::Run(){
 
-  platform_t &platform = mesh.platform;
-
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
-  dlong Ngather = mesh.ogs->Ngather;
-  occa::memory o_q = platform.malloc(N*sizeof(dfloat));
-  occa::memory o_gq = platform.malloc(Ngather*sizeof(dfloat));
+  dlong Ngather = mesh.ogs.Ngather;
+  deviceMemory<dfloat> o_q  = platform.malloc<dfloat>(N);
+  deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(Ngather);
 
   /* Warmup */
   for(int n=0;n<5;++n){
-    mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans); //dry run
+    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::NoTrans); //dry run
   }
 
   /* Scatter test */
   int Ntests = 20;
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double startTime = MPI_Wtime();
+  timePoint_t start = GlobalPlatformTime(platform);
 
   for(int n=0;n<Ntests;++n){
-    mesh.ogs->Scatter(o_q, o_gq, ogs_dfloat, ogs_add, ogs_notrans);
+    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::NoTrans);
   }
 
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double endTime = MPI_Wtime();
-  double elapsedTime = (endTime - startTime)/Ntests;
+  timePoint_t end = GlobalPlatformTime(platform);
+  double elapsedTime = ElapsedTime(start, end)/Ntests;
 
-  hlong Ntotal = mesh.Nelements*mesh.Np;
-  hlong NtotalGlobal;
-  MPI_Allreduce(&Ntotal, &NtotalGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  hlong NtotalGlobal = mesh.Nelements*mesh.Np;
+  mesh.comm.Allreduce(NtotalGlobal);
 
-  hlong Nblocks = mesh.ogs->localScatter.NrowBlocks+mesh.ogs->haloScatter.NrowBlocks;
-  hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
-  hlong NgatherGlobal = mesh.ogsMasked->NgatherGlobal;
+  hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
 
   size_t bytesIn  = NgatherGlobal*sizeof(dfloat)+NtotalGlobal*sizeof(dlong);
   size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
   size_t bytes = bytesIn + bytesOut;
 
-  hlong Ndofs = mesh.ogsMasked->NgatherGlobal;
+  hlong Ndofs = mesh.ogs.NgatherGlobal;
   size_t Nflops = 0;
 
   if ((mesh.rank==0)){

@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,15 +26,9 @@ SOFTWARE.
 
 #include "bs6.hpp"
 
-bs6_t& bs6_t::Setup(mesh_t& mesh){
-
-  bs6_t* bs6 = new bs6_t(mesh);
-
-  //make masked ogs
-  int Nfields=1;
-  mesh.BoundarySetup(Nfields);
-
-  return *bs6;
+void bs6_t::Setup(platform_t &_platform, settings_t& _settings,
+                  mesh_t& _mesh){
+  platform = _platform;
+  settings = _settings;
+  mesh = _mesh;
 }
-
-bs6_t::~bs6_t() {}

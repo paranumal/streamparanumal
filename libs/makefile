@@ -2,7 +2,7 @@
 #
 #The MIT License (MIT)
 #
-#Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+#Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 #
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 #
 #####################################################################################
 
-define CEED_HELP_MSG
+define LIB_HELP_MSG
 
 Libraries makefile targets:
 
@@ -39,7 +39,7 @@ Libraries makefile targets:
 Usage:
 
 make all
-	 Build core, ogs, mesh, and linAlg libraries.
+	 Build core, mesh, ogs, and parAdogs libraries.
 make {lib}
 	 Build only {lib} library.
 make clean
@@ -57,14 +57,14 @@ Can use "make verbose=true" for verbose output.
 
 endef
 
-ifeq (,$(filter core linAlg mesh ogs \
+ifeq (,$(filter core mesh ogs \
 								clean clean-libs clean-kernels realclean info help, $(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
-$(error ${CEED_HELP_MSG})
+$(error ${LIB_HELP_MSG})
 endif
 endif
 
-ifndef CEED_MAKETOP_LOADED
+ifndef LIBP_MAKETOP_LOADED
 ifeq (,$(wildcard ../make.top))
 $(error cannot locate ${PWD}/../make.top)
 else
@@ -72,57 +72,53 @@ include ../make.top
 endif
 endif
 
-#third party
-GS_DIR=${CEED_TPL_DIR}/gslib
-
 #libraries
-LIBCORE_DIR=${CEED_LIBS_DIR}/core
-LIBLINALG_DIR=${CEED_LIBS_DIR}/linAlg
-LIBMESH_DIR=${CEED_LIBS_DIR}/mesh
-LIBOGS_DIR=${CEED_LIBS_DIR}/ogs
+LIBCORE_DIR=${LIBP_LIBS_DIR}/core
+LIBMESH_DIR=${LIBP_LIBS_DIR}/mesh
+LIBOGS_DIR=${LIBP_LIBS_DIR}/ogs
 
 #includes
-INCLUDES=${CEED_INCLUDES}
+INCLUDES=${LIBP_INCLUDES}
 
 #defines
-LIBCORE_DEFINES=-DCEED_DIR='"${CEED_DIR}"'
-LIBLINALG_DEFINES=-DLINALG_DIR='"${LIBLINALG_DIR}"'
+LIBCORE_DEFINES=-DLIBP_DIR='"${LIBP_DIR}"'
 LIBMESH_DEFINES=-DMESH_DIR='"${LIBMESH_DIR}"'
-LIBOGS_DEFINES=-DCEED_DIR='"${CEED_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
+LIBOGS_DEFINES=-DLIBP_DIR='"${LIBP_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
+
+ifeq (true,${gpu-aware-mpi})
+  LIBOGS_DEFINES+= -DGPU_AWARE_MPI
+endif
 
 #.cpp compilation flags
-LIB_CXXFLAGS=${CEED_DEFINES} ${CEED_MPICXXFLAGS} ${INCLUDES}
+LIB_CXXFLAGS=${LIBP_DEFINES} ${LIBP_CXXFLAGS} ${INCLUDES}
 
 #object dependancies
-LIB_DEPS=$(wildcard $(CEED_INCLUDE_DIR)/*.h)  \
-				 $(wildcard ${CEED_INCLUDE_DIR}/*.hpp)
+LIB_DEPS=$(wildcard $(LIBP_INCLUDE_DIR)/*.h)  \
+				 $(wildcard ${LIBP_INCLUDE_DIR}/*.hpp)
 
-LIBMESH_DEPS=$(wildcard ${CEED_INCLUDE_DIR}/mesh/*.h)   \
-						 $(wildcard ${CEED_INCLUDE_DIR}/mesh/*.hpp) \
-						 ${LIB_DEPS}
-
-LIBOGS_DEPS=$(wildcard ${CEED_INCLUDE_DIR}/ogs/*.h)   \
-						$(wildcard ${CEED_INCLUDE_DIR}/ogs/*.hpp) \
+LIBOGS_DEPS=$(wildcard ${LIBP_INCLUDE_DIR}/ogs/*.hpp) \
 						${LIB_DEPS}
 
+LIBMESH_DEPS=$(wildcard ${LIBP_INCLUDE_DIR}/mesh/*.h)   \
+						 $(wildcard ${LIBP_INCLUDE_DIR}/mesh/*.hpp) \
+						 ${LIBPARADOGS_DEPS}
+
 LIBCORE_SRC =$(wildcard core/*.cpp)
-LIBLINALG_SRC =$(wildcard linAlg/*.cpp)
 LIBMESH_SRC =$(wildcard mesh/*.cpp)
 LIBOGS_SRC =$(wildcard ogs/*.cpp)
 
 LIBCORE_OBJS=$(LIBCORE_SRC:.cpp=.o)
-LIBLINALG_OBJS=$(LIBLINALG_SRC:.cpp=.o)
 LIBMESH_OBJS=$(LIBMESH_SRC:.cpp=.o)
 LIBOGS_OBJS=$(LIBOGS_SRC:.cpp=.o)
 
-.PHONY: all core linAlg mesh ogs  \
-				clean realclean silentUpdate-core             \
-				silentUpdate-linAlg silentUpdate-ogs silentUpdate-mesh
+.PHONY: all core mesh ogs \
+				clean clean-kernels realclean silentUpdate-core  \
+				silentUpdate-mesh
 
-all: core linAlg mesh ogs
+
+all: core mesh ogs
 
 core: libcore.a silentUpdate-core
-linAlg: liblinAlg.a silentUpdate-linAlg
 mesh: libmesh.a silentUpdate-mesh
 ogs: libogs.a silentUpdate-ogs
 
@@ -134,14 +130,7 @@ else
 	@ar -cr libcore.a $(LIBCORE_OBJS)
 endif
 
-libgs: | libcore.a
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
-libogs.a: $(LIBOGS_OBJS) | libgs
+libogs.a: $(LIBOGS_OBJS) | libcore.a
 ifneq (,${verbose})
 	ar -cr libogs.a $(LIBOGS_OBJS)
 else
@@ -149,15 +138,7 @@ else
 	@ar -cr libogs.a $(LIBOGS_OBJS)
 endif
 
-liblinAlg.a: $(LIBLINALG_OBJS)
-ifneq (,${verbose})
-	ar -cr liblinAlg.a $(LIBLINALG_OBJS)
-else
-	@printf "%b" "$(LIB_COLOR)Building library $(@F)$(NO_COLOR)\n";
-	@ar -cr liblinAlg.a $(LIBLINALG_OBJS)
-endif
-
-libmesh.a: $(LIBMESH_OBJS) | liblinAlg.a libogs.a
+libmesh.a: $(LIBMESH_OBJS) | libcore.a libogs.a
 ifneq (,${verbose})
 	ar -cr libmesh.a $(LIBMESH_OBJS)
 else
@@ -168,67 +149,58 @@ endif
 silentUpdate-core:
 	@true
 
-silentUpdate-linAlg:
-	@true
-
 silentUpdate-ogs:
 	@true
 
 silentUpdate-mesh:
 	@true
 
+${OCCA_DIR}/lib/libocca.so:
+	${MAKE} -C ${OCCA_DIR}
+
 # rule for .cpp files
-core/%.o: core/%.cpp $(LIB_DEPS)
+core/%.o: core/%.cpp $(LIB_DEPS) ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
-	$(CEED_MPICXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-linAlg/%.o: linAlg/%.cpp $(LIB_DEPS) | libcore.a
+ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
 ifneq (,${verbose})
-	$(CEED_MPICXX) -o $@ -c $< ${LIBLINALG_DEFINES} $(LIB_CXXFLAGS)
+	$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $@ -c $< ${LIBLINALG_DEFINES} $(LIB_CXXFLAGS)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-mesh/%.o: mesh/%.cpp $(LIBMESH_DEPS) | libogs.a
+mesh/%.o: mesh/%.cpp $(LIBMESH_DEPS) | libcore.a libogs.a
 ifneq (,${verbose})
-	$(CEED_MPICXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
+	$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
-endif
-
-ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libgs
-ifneq (,${verbose})
-	$(CEED_MPICXX) -o $@ -c $< ${LIBOGS_DEFINES} -I${GS_DIR}/src $(LIB_CXXFLAGS)
-else
-	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(CEED_MPICXX) -o $@ -c $< ${LIBOGS_DEFINES} -I${GS_DIR}/src $(LIB_CXXFLAGS)
+	@$(LIBP_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 endif
 
 #cleanup
 clean:
-	rm -f core/*.o linAlg/*.o mesh/*.o ogs/*.o *.a
+	rm -f core/*.o ogs/*.o mesh/*.o *.a
 
 clean-kernels: clean
-#   $(shell ${OCCA_DIR}/bin/occa clear all -y)
-	rm -rf ~/.occa/
+	rm -rf ${LIBP_DIR}/.occa
 
 realclean: clean
-	${MAKE} -C ${GS_DIR} clean
+	${MAKE} -C ${OCCA_DIR} clean
 
 help:
-	$(info $(value CEED_HELP_MSG))
+	$(info $(value LIB_HELP_MSG))
 	@true
 
 info:
 	$(info OCCA_DIR  = $(OCCA_DIR))
-	$(info CEED_DIR  = $(CEED_DIR))
-	$(info CEED_ARCH = $(CEED_ARCH))
+	$(info LIBP_DIR  = $(LIBP_DIR))
+	$(info LIBP_ARCH = $(LIBP_ARCH))
 	$(info CXXFLAGS  = $(LIB_CXXFLAGS))
 	$(info LIBS      = $(LIBS))
 	@true

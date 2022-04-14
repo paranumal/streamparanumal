@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "core.hpp"
 
+#include "core.hpp"
+
 extern "C" {
   void dgesv_ ( int     *N, int     *NRHS, double  *A,
                 int     *LDA,
@@ -33,6 +35,7 @@ extern "C" {
                 double  *B,
                 int     *LDB,
                 int     *INFO );
+
   void sgesv_ ( int     *N, int     *NRHS, float  *A,
                 int     *LDA,
                 int     *IPIV,
@@ -40,6 +43,8 @@ extern "C" {
                 int     *LDB,
                 int     *INFO );
 }
+
+namespace libp {
 
 // C = A/B  = trans(trans(B)\trans(A))
 // assume row major
@@ -72,11 +77,8 @@ void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB,
 
   dgesv_(&NrowsX, &NcolsY, tmpX, &NrowsX, ipiv, tmpY, &NrowsY, &info); // ?
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgesv_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgesv_ reports info = " << info,
+             info);
 
   for(int n=0;n<NrowsY*NcolsY;++n){
     C[n] = tmpY[n];
@@ -119,11 +121,8 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
 
   sgesv_(&NrowsX, &NcolsY, tmpX, &NrowsX, ipiv, tmpY, &NrowsY, &info); // ?
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgesv_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgesv_ reports info = " << info,
+             info);
 
   for(int n=0;n<NrowsY*NcolsY;++n){
     C[n] = tmpY[n];
@@ -134,3 +133,5 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
   free(tmpX);
   free(tmpY);
 }
+
+} //namespace libp

@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,92 +25,60 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh2D.hpp"
-#include "mesh/mesh3D.hpp"
 
-mesh_t& mesh_t::Setup(platform_t& platform, settings_t& settings,
-                      MPI_Comm comm){
+namespace libp {
 
-  string eType;
-  string fileName;
-  int N, elementType = HEXAHEDRA;
+void mesh_t::Setup(platform_t& _platform, settings_t& _settings,
+                   comm_t _comm){
 
-  // settings.getSetting("MESH FILE", fileName);
-  settings.getSetting("POLYNOMIAL DEGREE", N);
+  platform = _platform;
+  settings = _settings;
+  props = platform.props();
+
+  comm = _comm.Dup();
+  rank = comm.rank();
+  size = comm.size();
+
+  std::string eType;
   settings.getSetting("ELEMENT TYPE", eType);
-  // settings.getSetting("MESH DIMENSION", dim);
-
-  mesh_t *mesh=nullptr;
   if (eType.compare("Tri")==0) {
-    mesh = new meshTri2D(platform, settings, comm);
-    elementType = TRIANGLES;
+    SetElementType(TRIANGLES);
   } else if (eType.compare("Quad")==0) {
-    mesh = new meshQuad2D(platform, settings, comm);
-    elementType = QUADRILATERALS;
+    SetElementType(QUADRILATERALS);
   } else if (eType.compare("Tet")==0) {
-    mesh = new meshTet3D(platform, settings, comm);
-    elementType = TETRAHEDRA;
+    SetElementType(TETRAHEDRA);
   } else if (eType.compare("Hex")==0) {
-    mesh = new meshHex3D(platform, settings, comm);
-    elementType = HEXAHEDRA;
+    SetElementType(HEXAHEDRA);
   }
 
-  mesh->elementType = elementType;
+  settings.getSetting("POLYNOMIAL DEGREE", N);
 
-  // mesh->ringHalo = NULL;
-
-  // if (settings.compareSetting("MESH FILE","PMLBOX")) {
-  //   //build a box mesh with a pml layer
-  //   mesh->SetupPmlBox();
-  // } else if (settings.compareSetting("MESH FILE","BOX")) {
-  //   //build a box mesh
-  //   mesh->SetupBox();
-  // } else {
-  //   // read chunk of elements from file
-  //   mesh->ParallelReader(fileName.c_str());
-
-  //   // partition elements using Morton ordering & parallel sort
-  //   mesh->GeometricPartition();
-  // }
+  // reference nodes and operators
+  ReferenceNodes();
 
   //build a box mesh
-  mesh->SetupBox();
+  SetupBox();
 
   // connect elements using parallel sort
-  mesh->ParallelConnect();
-
-  // print out connectivity statistics
-  if (settings.compareSetting("VERBOSE", "TRUE"))
-    mesh->PrintPartitionStatistics();
-
-  // connect elements to boundary faces
-  mesh->ConnectBoundary();
-
-  // load reference (r,s) element nodes
-  mesh->ReferenceNodes(N);
+  Connect();
 
   // set up halo exchange info for MPI (do before connect face nodes)
-  mesh->HaloSetup();
+  HaloSetup();
 
-  // compute physical (x,y) locations of the element nodes
-  mesh->PhysicalNodes();
-
-  // compute geometric factors
-  // mesh->GeometricFactors();
+  // connect face vertices
+  ConnectFaceVertices();
 
   // connect face nodes (find trace indices)
-  mesh->ConnectFaceNodes();
-
-  // compute surface geofacs
-  // mesh->SurfaceGeometricFactors();
+  ConnectFaceNodes();
 
   // make a global indexing
-  mesh->ParallelConnectNodes();
+  ConnectNodes();
 
   // make an ogs operator and label local/global gather elements
-  mesh->ParallelGatherScatterSetup();
+  GatherScatterSetup();
 
-  mesh->OccaSetup();
-
-  return *mesh;
+  // Set device properties
+  DeviceProperties();
 }
+
+} //namespace libp

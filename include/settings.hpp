@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,18 +28,20 @@ SOFTWARE.
 #define SETTINGS_HPP
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <ostream>
 #include <sstream>
 #include <fstream>
 #include "core.hpp"
+#include "comm.hpp"
 
-using std::string;
-using std::vector;
-using std::ostream;
-using std::stringstream;
+namespace libp {
 
 class setting_t {
+  using string = std::string;
+  using stringstream = std::stringstream;
+
 public:
   string shortkey;
   string longkey;
@@ -48,7 +50,7 @@ public:
   string val;
 
   string description;
-  vector<string> options;
+  std::vector<string> options;
 
   int check;
 
@@ -56,7 +58,7 @@ public:
   setting_t() = default;
   setting_t(string shortkey_, string longkey_,
             string name_, string val_,
-            string description_="", vector<string> options_={});
+            string description_="", std::vector<string> options_={});
 
   ~setting_t() = default;
 
@@ -80,31 +82,32 @@ public:
   string PrintUsage() const;
 };
 
-ostream& operator<<(ostream& os, const setting_t& setting);
+std::ostream& operator<<(std::ostream& os, const setting_t& setting);
 
 class settings_t {
+  using string = std::string;
+  using stringstream = std::stringstream;
+
 private:
 
-  vector<string> insertOrder;
+  std::vector<string> insertOrder;
 
 public:
-  MPI_Comm& comm;
+  comm_t comm;
 
-  std::map<string, setting_t*> settings;
+  std::map<string, setting_t> settings;
 
-  settings_t() = delete;
-  settings_t(MPI_Comm& _comm);
-
-  ~settings_t();
+  settings_t() = default;
+  settings_t(comm_t _comm);
 
   //copy
-  settings_t(const settings_t& other);
-  settings_t& operator=(const settings_t& other);
+  settings_t(const settings_t& other)=default;
+  settings_t& operator=(const settings_t& other)=default;
 
   void newSetting(const string shortkey, const string longkey,
                   const string name, const string val,
                   const string description="",
-                  const vector<string> options={});
+                  const std::vector<string> options={});
 
   void changeSetting(const string name, const string newVal);
 
@@ -115,12 +118,10 @@ public:
   void getSetting(const string name, T& value) const {
     auto search = settings.find(name);
     if (search != settings.end()) {
-      setting_t* val = search->second;
-      value = val->getVal<T>();
+      const setting_t& val = search->second;
+      value = val.getVal<T>();
     } else {
-      stringstream ss;
-      ss << "Unable to find setting: [" << name << "]";
-      CEED_ABORT(ss.str());
+      LIBP_FORCE_ABORT("Unable to find setting: [" << name << "]");
     }
   }
 
@@ -135,6 +136,7 @@ public:
   void PrintUsage();
 };
 
-
+} //namespace libp
 
 #endif
+

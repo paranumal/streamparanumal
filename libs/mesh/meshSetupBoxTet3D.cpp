@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,29 +25,14 @@ SOFTWARE.
 */
 
 #include "mesh.hpp"
-#include "mesh/mesh3D.hpp"
 
-void meshTet3D::SetupBox(){
+namespace libp {
 
-  dim = 3;
-  Nverts = 4; // number of vertices per element
-  Nfaces = 4;
-  NfaceVertices = 3;
-
-  // vertices on each face
-  int faceVertices_[4][3] = {{0,1,2},{0,1,3},{1,2,3},{2,0,3}};
-
-  faceVertices = (int*) calloc(NfaceVertices*Nfaces, sizeof(int));
-  memcpy(faceVertices, faceVertices_[0], 12*sizeof(int));
+void mesh_t::SetupBoxTet3D(){
 
   //local grid physical sizes
-  dfloat DIMX, DIMY, DIMZ;
-  // settings.getSetting("BOX DIMX", DIMX);
-  // settings.getSetting("BOX DIMY", DIMY);
-  // settings.getSetting("BOX DIMZ", DIMZ);
-
   //Hard code to 2x2x2
-  DIMX=2.0; DIMY=2.0; DIMZ=2.0;
+  dfloat DIMX=2.0, DIMY=2.0, DIMZ=2.0;
 
   //number of local elements in each dimension
   dlong nx, ny, nz;
@@ -55,27 +40,21 @@ void meshTet3D::SetupBox(){
   settings.getSetting("BOX NY", ny);
   settings.getSetting("BOX NZ", nz);
 
-  int size_x = std::cbrt(size); //number of ranks in each dimension
-  if (size_x*size_x*size_x != size)
-    CEED_ABORT(string("3D BOX mesh requires a cubic number of ranks for now."))
+  // find a factorization size = size_x*size_y*size_z such that
+  //  size_x>=size_y>=size_z are all 'close' to one another
+  int size_x, size_y, size_z;
+  Factor3(size, size_x, size_y, size_z);
 
-  int boundaryFlag;
-  // settings.getSetting("BOX BOUNDARY FLAG", boundaryFlag);
-
-  //Hard code to Dirichlet
-  boundaryFlag = 1;
-
-  const int periodicFlag = (boundaryFlag == -1) ? 1 : 0;
+  //determine (x,y,z) rank coordinates for this processes
+  int rank_x=-1, rank_y=-1, rank_z=-1;
+  RankDecomp3(size_x, size_y, size_z,
+              rank_x, rank_y, rank_z,
+              rank);
 
   //local grid physical sizes
   dfloat dimx = DIMX/size_x;
-  dfloat dimy = DIMY/size_x;
-  dfloat dimz = DIMZ/size_x;
-
-  //rank coordinates
-  int rank_z = rank / (size_x*size_x);
-  int rank_y = (rank - rank_z*size_x*size_x) / size_x;
-  int rank_x = rank % size_x;
+  dfloat dimy = DIMY/size_y;
+  dfloat dimz = DIMZ/size_z;
 
   //bottom corner of physical domain
   dfloat X0 = -DIMX/2.0 + rank_x*dimx;
@@ -84,32 +63,33 @@ void meshTet3D::SetupBox(){
 
   //global number of elements in each dimension
   hlong NX = size_x*nx;
-  hlong NY = size_x*ny;
-  hlong NZ = size_x*nz;
+  hlong NY = size_y*ny;
+  hlong NZ = size_z*nz;
 
   //global number of nodes in each dimension
-  hlong NnX = periodicFlag ? NX : NX+1; //lose a node when periodic (repeated node)
-  hlong NnY = periodicFlag ? NY : NY+1; //lose a node when periodic (repeated node)
-  hlong NnZ = periodicFlag ? NZ : NZ+1; //lose a node when periodic (repeated node)
+  hlong NnX = NX+1;
+  hlong NnY = NY+1;
+  hlong NnZ = NZ+1;
 
   // build an nx x ny x nz box grid
   Nnodes = NnX*NnY*NnZ; //global node count
   Nelements = 6*nx*ny*nz; //local element count (each cube divided into 6 tets)
 
-  EToV = (hlong*) calloc(Nelements*Nverts, sizeof(hlong));
-  EX = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EY = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EZ = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
+  EToV.malloc(Nelements*Nverts);
+  EX.malloc(Nelements*Nverts);
+  EY.malloc(Nelements*Nverts);
+  EZ.malloc(Nelements*Nverts);
 
-  elementInfo = (hlong*) calloc(Nelements, sizeof(hlong));
+  const dfloat dx = dimx/nx;
+  const dfloat dy = dimy/ny;
+  const dfloat dz = dimz/nz;
 
-  dlong e = 0;
-  dfloat dx = dimx/nx;
-  dfloat dy = dimy/ny;
-  dfloat dz = dimz/nz;
+  #pragma omp parallel for collapse(3)
   for(int k=0;k<nz;++k){
     for(int j=0;j<ny;++j){
       for(int i=0;i<nx;++i){
+
+        dlong e = 6*(i + j*nx + k*nx*ny);
 
         const hlong i0 = i+rank_x*nx;
         const hlong i1 = (i+1+rank_x*nx)%NnX;
@@ -132,8 +112,6 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0+dx; EY[e*Nverts+1] = y0+dy; EZ[e*Nverts+1] = z0;
         EX[e*Nverts+2] = x0;    EY[e*Nverts+2] = y0+dy; EZ[e*Nverts+2] = z0;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
 
         //tet 2 (0,1,3,7)
@@ -146,8 +124,6 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0+dx; EY[e*Nverts+1] = y0;    EZ[e*Nverts+1] = z0;
         EX[e*Nverts+2] = x0+dx; EY[e*Nverts+2] = y0+dy; EZ[e*Nverts+2] = z0;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
 
         //tet 3 (0,2,6,7)
@@ -160,8 +136,6 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0;    EY[e*Nverts+1] = y0+dy; EZ[e*Nverts+1] = z0;
         EX[e*Nverts+2] = x0;    EY[e*Nverts+2] = y0+dy; EZ[e*Nverts+2] = z0+dz;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
 
         //tet 4 (0,6,4,7)
@@ -174,8 +148,6 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0;    EY[e*Nverts+1] = y0+dy; EZ[e*Nverts+1] = z0+dz;
         EX[e*Nverts+2] = x0;    EY[e*Nverts+2] = y0;    EZ[e*Nverts+2] = z0+dz;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
 
         //tet 5 (0,5,1,7)
@@ -188,8 +160,6 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0+dx; EY[e*Nverts+1] = y0;    EZ[e*Nverts+1] = z0+dz;
         EX[e*Nverts+2] = x0+dx; EY[e*Nverts+2] = y0;    EZ[e*Nverts+2] = z0;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
 
         //tet 6 (0,4,5,7)
@@ -202,111 +172,10 @@ void meshTet3D::SetupBox(){
         EX[e*Nverts+1] = x0;    EY[e*Nverts+1] = y0;    EZ[e*Nverts+1] = z0+dz;
         EX[e*Nverts+2] = x0+dx; EY[e*Nverts+2] = y0;    EZ[e*Nverts+2] = z0+dz;
         EX[e*Nverts+3] = x0+dx; EY[e*Nverts+3] = y0+dy; EZ[e*Nverts+3] = z0+dz;
-
-        elementInfo[e] = 1; // domain
         e++;
       }
     }
   }
-
-
-
-  if (boundaryFlag != -1) { //-1 reserved for periodic case
-    NboundaryFaces = 4*NX*NY + 4*NX*NZ + 4*NY*NZ;
-    boundaryInfo = (hlong*) calloc(NboundaryFaces*(NfaceVertices+1), sizeof(hlong));
-
-    hlong bcnt = 0;
-
-    //top and bottom
-    for(hlong j=0;j<NY;++j){
-      for(hlong i=0;i<NX;++i){
-        hlong vid1 = i + j*NnX +  0*NnX*NnY;
-        hlong vid2 = i + j*NnX + NZ*NnX*NnY;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0;
-        boundaryInfo[bcnt*4+2] = vid1 + 1;
-        boundaryInfo[bcnt*4+3] = vid1 + 1 + NnX;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0;
-        boundaryInfo[bcnt*4+2] = vid1 + 1 + NnX;
-        boundaryInfo[bcnt*4+3] = vid1 + 0 + NnX;
-        bcnt++;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0;
-        boundaryInfo[bcnt*4+2] = vid2 + 1;
-        boundaryInfo[bcnt*4+3] = vid2 + 1 + NnX;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0;
-        boundaryInfo[bcnt*4+2] = vid2 + 1 + NnX;
-        boundaryInfo[bcnt*4+3] = vid2 + 0 + NnX;
-        bcnt++;
-      }
-    }
-    //front and back
-    for(hlong k=0;k<NZ;++k){
-      for(hlong i=0;i<NX;++i){
-        hlong vid1 = i +  0*NnX + k*NnX*NnY;
-        hlong vid2 = i + NY*NnX + k*NnX*NnY;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0;
-        boundaryInfo[bcnt*4+2] = vid1 + 1;
-        boundaryInfo[bcnt*4+3] = vid1 + 1 + NnX*NnY;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0;
-        boundaryInfo[bcnt*4+2] = vid1 + 1 + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid1 + 0 + NnX*NnY;
-        bcnt++;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0;
-        boundaryInfo[bcnt*4+2] = vid2 + 1;
-        boundaryInfo[bcnt*4+3] = vid2 + 1 + NnX*NnY;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0;
-        boundaryInfo[bcnt*4+2] = vid2 + 1 + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid2 + 0 + NnX*NnY;
-        bcnt++;
-      }
-    }
-    //left and right
-    for(hlong k=0;k<NZ;++k){
-      for(hlong j=0;j<NY;++j){
-        hlong vid1 =  0 + j*NnX + k*NnX*NnY;
-        hlong vid2 = NX + j*NnX + k*NnX*NnY;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0*NnX;
-        boundaryInfo[bcnt*4+2] = vid1 + 0*NnX + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid1 + 1*NnX + NnX*NnY;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid1 + 0*NnX;
-        boundaryInfo[bcnt*4+2] = vid1 + 1*NnX + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid1 + 1*NnX;
-        bcnt++;
-
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0*NnX;
-        boundaryInfo[bcnt*4+2] = vid2 + 0*NnX + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid2 + 1*NnX + NnX*NnY;
-        bcnt++;
-        boundaryInfo[bcnt*4+0] = boundaryFlag;
-        boundaryInfo[bcnt*4+1] = vid2 + 0*NnX;
-        boundaryInfo[bcnt*4+2] = vid2 + 1*NnX + NnX*NnY;
-        boundaryInfo[bcnt*4+3] = vid2 + 1*NnX;
-        bcnt++;
-      }
-    }
-
-  } else {
-    NboundaryFaces = 0;
-    boundaryInfo = NULL; // no boundaries
-  }
 }
+
+} //namespace libp

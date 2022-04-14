@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,27 +28,35 @@ SOFTWARE.
 #define BS7_HPP 1
 
 #include "mesh.hpp"
+#include "timer.hpp"
 
-#define DBS7 CEED_DIR"/BS/BS7/"
+#define DBS7 STREAM_DIR"/BS/BS7/"
+
+using namespace libp;
 
 class bs7Settings_t: public settings_t {
 public:
-  bs7Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs7Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
 class bs7_t {
 public:
-  mesh_t& mesh;
+  platform_t platform;
+  settings_t settings;
+  mesh_t mesh;
 
-  bs7_t() = delete;
-  bs7_t(mesh_t& _mesh):
-    mesh(_mesh) {}
+  bs7_t() = default;
+  bs7_t(platform_t &_platform, settings_t& _settings,
+        mesh_t& _mesh) {
+    Setup(_platform, _settings, _mesh);
+  }
 
-  ~bs7_t();
+  ~bs7_t() = default;
 
   //setup
-  static bs7_t& Setup(mesh_t& mesh);
+  void Setup(platform_t &_platform, settings_t& _settings,
+             mesh_t& _mesh);
 
   void Run();
 };

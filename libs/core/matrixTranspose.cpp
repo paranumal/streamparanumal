@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "core.hpp"
 
+namespace libp {
+
 template<typename T>
 inline
 void matrixTranspose_t(const int M, const int N,
@@ -42,10 +44,8 @@ void matrixTranspose_t(const int M, const int N,
   if (N<1 || M<1) return;
 
   //check for weird input
-  if (LDA<N || LDAT<M) {
-    printf("Bad input to matrixTranspose\n");
-    return;
-  }
+  LIBP_ABORT("Bad input to matrixTranspose\n",
+             LDA<N || LDAT<M);
 
   for (int n=0;n<N;n++) { //for all cols of A^T
     for (int m=0;m<M;m++) { //for all rows of A^T
@@ -77,3 +77,5 @@ void matrixTranspose(const int M, const int N,
                            long long int *AT, const int LDAT) {
   matrixTranspose_t(M, N, A, LDA, AT, LDAT);
 }
+
+} //namespace libp

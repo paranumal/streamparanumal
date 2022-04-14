@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,15 @@ SOFTWARE.
 
 #include "bs1.hpp"
 
-bs1_t& bs1_t::Setup(platform_t &platform, settings_t& settings) {
+void bs1_t::Setup(platform_t& _platform, settings_t& _settings) {
 
-  bs1_t* bs1 = new bs1_t(platform, settings);
+  platform = _platform;
+  settings = _settings;
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props; //copy base occa properties
+  properties_t kernelInfo = platform.props(); //copy base occa properties
 
   kernelInfo["defines/" "p_blockSize"] = (int)256;
 
-  bs1->kernel = platform.buildKernel(DBS1 "/okl/bs1.okl", "bs1", kernelInfo);
-
-  return *bs1;
-}
-
-bs1_t::~bs1_t() {
-  kernel.free();
+  kernel = platform.buildKernel(DBS1 "/okl/bs1.okl", "bs1", kernelInfo);
 }

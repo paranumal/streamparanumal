@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,8 @@ extern "C" {
   void sgetri_(int* N, float* A, int* lda, int* IPIV, float* WORK, int* lwork, int* INFO);
 }
 
+namespace libp {
+
 void matrixInverse(int N, double *A){
   int lwork = N*N;
   int info;
@@ -44,19 +46,13 @@ void matrixInverse(int N, double *A){
 
   dgetrf_ (&N, &N, A, &N, ipiv, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgetrf_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgetrf_ reports info = " << info,
+             info);
 
   dgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgetri_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgetri_ reports info = " << info,
+             info);
 
   free(work);
   free(ipiv);
@@ -72,20 +68,16 @@ void matrixInverse(int N, float *A){
 
   sgetrf_ (&N, &N, A, &N, ipiv, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgetrf_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgetrf_ reports info = " << info,
+             info);
 
   sgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgetri_ reports info = " << info;
-    CEED_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgetri_ reports info = " << info,
+             info);
 
   free(work);
   free(ipiv);
 }
+
+} //namespace libp

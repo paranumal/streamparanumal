@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,24 +29,26 @@ SOFTWARE.
 int main(int argc, char **argv){
 
   // start up MPI
-  MPI_Init(&argc, &argv);
+  comm_t::Init(argc, argv);
 
-  MPI_Comm comm = MPI_COMM_WORLD;
+  {
+    comm_t comm(comm_t::world().Dup());
 
-  bs5Settings_t settings(argc, argv, comm);
-  if (settings.compareSetting("VERBOSE", "TRUE"))
-    settings.report();
+    bs5Settings_t settings(argc, argv, comm);
+    if (settings.compareSetting("VERBOSE", "TRUE"))
+      settings.report();
 
-  // set up platform
-  platform_t platform(settings);
+    // set up platform
+    platform_t platform(settings);
 
-  // set up bs solver
-  bs5_t& bs = bs5_t::Setup(platform, settings);
+    // set up bs solver
+    bs5_t bs(platform, settings);
 
-  // run
-  bs.Run();
+    // run
+    bs.Run();
+  }
 
   // close down MPI
-  MPI_Finalize();
-  return CEED_SUCCESS;
+  comm_t::Finalize();
+  return LIBP_SUCCESS;
 }

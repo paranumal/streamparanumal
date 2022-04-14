@@ -1,6 +1,6 @@
 /*
 The MIT License (MIT)
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -20,6 +20,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void meshAddSettings(settings_t& settings) {
 
   settings.newSetting("-e", "--elements",
@@ -30,20 +32,20 @@ void meshAddSettings(settings_t& settings) {
 
   settings.newSetting("-nx", "--dimx",
                       "BOX NX",
-                      "10",
+                      "50",
                       "Number of elements in X-dimension per rank");
   settings.newSetting("-ny", "--dimy",
                       "BOX NY",
-                      "10",
+                      "50",
                       "Number of elements in Y-dimension per rank");
   settings.newSetting("-nz", "--dimz",
                       "BOX NZ",
-                      "10",
+                      "50",
                       "Number of elements in Z-dimension per rank");
 
   settings.newSetting("-p", "--degree",
                       "POLYNOMIAL DEGREE",
-                      "4",
+                      "3",
                       "Degree of polynomial finite element space",
                       {"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15"});
 }
@@ -62,3 +64,5 @@ void meshReportSettings(settings_t& settings) {
 
   settings.reportSetting("POLYNOMIAL DEGREE");
 }
+
+} //namespace libp

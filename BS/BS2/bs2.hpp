@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,30 +28,34 @@ SOFTWARE.
 #define BS2_HPP 1
 
 #include "platform.hpp"
+#include "timer.hpp"
 
-#define DBS2 CEED_DIR"/BS/BS2/"
+#define DBS2 STREAM_DIR"/BS/BS2/"
+
+using namespace libp;
 
 class bs2Settings_t: public settings_t {
 public:
-  bs2Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs2Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
 class bs2_t {
 public:
-  platform_t &platform;
-  settings_t &settings;
+  platform_t platform;
+  settings_t settings;
 
-  occa::kernel kernel;
+  kernel_t kernel;
 
-  bs2_t() = delete;
-  bs2_t(platform_t &_platform, settings_t& _settings):
-    platform(_platform), settings(_settings) {}
+  bs2_t() = default;
+  bs2_t(platform_t &_platform, settings_t& _settings) {
+    Setup(_platform, _settings);
+  }
 
-  ~bs2_t();
+  ~bs2_t() = default;
 
   //setup
-  static bs2_t& Setup(platform_t &_platform, settings_t& _settings);
+  void Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };

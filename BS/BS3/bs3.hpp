@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,32 +28,37 @@ SOFTWARE.
 #define BS3_HPP 1
 
 #include "platform.hpp"
+#include "timer.hpp"
 
-#define DBS3 CEED_DIR"/BS/BS3/"
+#define DBS3 STREAM_DIR"/BS/BS3/"
+
+using namespace libp;
 
 class bs3Settings_t: public settings_t {
 public:
-  bs3Settings_t(const int argc, char** argv, MPI_Comm& _comm);
+  bs3Settings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
 class bs3_t {
 public:
-  platform_t &platform;
-  settings_t &settings;
+  platform_t platform;
+  settings_t settings;
 
   int blockSize;
 
-  occa::kernel kernel1, kernel2;
+  kernel_t kernel1;
+  kernel_t kernel2;
 
-  bs3_t() = delete;
-  bs3_t(platform_t &_platform, settings_t& _settings):
-    platform(_platform), settings(_settings) {}
+  bs3_t() = default;
+  bs3_t(platform_t &_platform, settings_t& _settings) {
+    Setup(_platform, _settings);
+  }
 
-  ~bs3_t();
+  ~bs3_t() = default;
 
   //setup
-  static bs3_t& Setup(platform_t &_platform, settings_t& _settings);
+  void Setup(platform_t &_platform, settings_t& _settings);
 
   void Run();
 };

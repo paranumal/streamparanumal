@@ -120,7 +120,7 @@ Finally, the run scripts in the root and `BS/` folders can also be used to quick
 
 The MIT License (MIT)
 
-Copyright (c) 2019-2020 Parallel Numerical Algorithms Group @VT
+Copyright (c) 2017-2022 Parallel Numerical Algorithms Group @VT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
