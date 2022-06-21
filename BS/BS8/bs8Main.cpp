@@ -29,10 +29,10 @@ SOFTWARE.
 int main(int argc, char **argv){
 
   // start up MPI
-  comm_t::Init(argc, argv);
+  Comm::Init(argc, argv);
 
   {
-    comm_t comm(comm_t::world().Dup());
+    comm_t comm(Comm::World().Dup());
 
     bs8Settings_t settings(argc, argv, comm);
     if (settings.compareSetting("VERBOSE", "TRUE"))
@@ -52,6 +52,6 @@ int main(int argc, char **argv){
   }
 
   // close down MPI
-  comm_t::Finalize();
+  Comm::Finalize();
   return LIBP_SUCCESS;
 }
