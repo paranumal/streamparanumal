@@ -46,11 +46,7 @@ void mesh_t::FaceNodesTet3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _
   int cnt[4];
   for (int i=0;i<4;i++) cnt[i]=0;
 
-  dfloat deps = 1.;
-  while((1.+deps)>1.)
-    deps *= 0.5;
-
-  const dfloat NODETOL = 1000.*deps;
+  const dfloat NODETOL = 1.0e-5;
 
   for (int n=0;n<_Np;n++) {
     if(fabs(_t[n]+1)<NODETOL)
@@ -67,11 +63,7 @@ void mesh_t::FaceNodesTet3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _
 void mesh_t::VertexNodesTet3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _vertexNodes[]){
   int _Np = (_N+1)*(_N+2)*(_N+3)/6;
 
-  dfloat deps = 1.;
-  while((1.+deps)>1.)
-    deps *= 0.5;
-
-  const dfloat NODETOL = 1000.*deps;
+  const dfloat NODETOL = 1.0e-5;
 
   for(int n=0;n<_Np;++n){
     if( (_r[n]+1)*(_r[n]+1)+(_s[n]+1)*(_s[n]+1)+(_t[n]+1)*(_t[n]+1)<NODETOL)
