@@ -28,6 +28,7 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
+#include "timer.hpp"
 
 namespace libp {
 
@@ -36,7 +37,6 @@ namespace ogs {
 static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
   const int Ncold = 10;
   const int Nhot  = 10;
-  double start, end;
   double localTime, sumTime, minTime, maxTime;
 
   comm_t& comm = exchange->comm;
@@ -56,7 +56,7 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
     } else {
       //if not using gpu-aware mpi move the halo buffer to the host
       o_buf.copyTo(buf, exchange->Nhalo,
-                   0, "async: true");
+                   0, properties_t("async", true));
       device.finish();
 
       /*MPI exchange of host buffer*/
@@ -65,13 +65,13 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
 
       // copy recv back to device
       o_buf.copyFrom(buf, exchange->Nhalo,
-                     0, "async: true");
+                     0, properties_t("async", true));
       device.finish(); //wait for transfer to finish
     }
   }
 
   //hot runs
-  start = MPI_Wtime();
+  timePoint_t start = Time();
   for (int n=0;n<Nhot;++n) {
     if (exchange->gpu_aware) {
       /*GPU-aware exchange*/
@@ -80,7 +80,7 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
     } else {
       //if not using gpu-aware mpi move the halo buffer to the host
       o_buf.copyTo(buf, exchange->Nhalo,
-                   0, "async: true");
+                   0, properties_t("async", true));
       device.finish();
 
       /*MPI exchange of host buffer*/
@@ -89,16 +89,16 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
 
       // copy recv back to device
       o_buf.copyFrom(buf, exchange->Nhalo,
-                     0, "async: true");
+                     0, properties_t("async", true));
       device.finish(); //wait for transfer to finish
     }
   }
-  end = MPI_Wtime();
+  timePoint_t end = Time();
 
-  localTime = (end-start)/Nhot;
-  comm.Allreduce(localTime, sumTime, comm_t::Sum);
-  comm.Allreduce(localTime, maxTime, comm_t::Max);
-  comm.Allreduce(localTime, minTime, comm_t::Min);
+  localTime = ElapsedTime(start,end)/Nhot;
+  comm.Allreduce(localTime, sumTime, Comm::Sum);
+  comm.Allreduce(localTime, maxTime, Comm::Max);
+  comm.Allreduce(localTime, minTime, Comm::Min);
 
   time[0] = sumTime/size; //avg
   time[1] = minTime;      //min
@@ -108,7 +108,6 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
 static void HostExchangeTest(ogsExchange_t* exchange, double time[3]) {
   const int Ncold = 10;
   const int Nhot  = 10;
-  double start, end;
   double localTime, sumTime, minTime, maxTime;
 
   comm_t& comm = exchange->comm;
@@ -123,17 +122,17 @@ static void HostExchangeTest(ogsExchange_t* exchange, double time[3]) {
   }
 
   //hot runs
-  start = MPI_Wtime();
+  timePoint_t start = Time();
   for (int n=0;n<Nhot;++n) {
     exchange->Start (buf, 1, Add, Sym);
     exchange->Finish(buf, 1, Add, Sym);
   }
-  end = MPI_Wtime();
+  timePoint_t end = Time();
 
-  localTime = (end-start)/Nhot;
-  comm.Allreduce(localTime, sumTime, comm_t::Sum);
-  comm.Allreduce(localTime, maxTime, comm_t::Max);
-  comm.Allreduce(localTime, minTime, comm_t::Min);
+  localTime = ElapsedTime(start,end)/Nhot;
+  comm.Allreduce(localTime, sumTime, Comm::Sum);
+  comm.Allreduce(localTime, maxTime, Comm::Max);
+  comm.Allreduce(localTime, minTime, Comm::Min);
 
   time[0] = sumTime/size; //avg
   time[1] = minTime;      //min

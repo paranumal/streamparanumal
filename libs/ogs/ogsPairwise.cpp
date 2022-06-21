@@ -409,7 +409,6 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   recvOffsetsT[NranksRecvT] = mpiRecvOffsetsT[size];
 
   requests.malloc(NranksSendT+NranksRecvT);
-  statuses.malloc(NranksSendT+NranksRecvT);
 
   //make scratch space
   AllocBuffer(sizeof(dfloat));
