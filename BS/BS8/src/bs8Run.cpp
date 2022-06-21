@@ -48,21 +48,21 @@ void bs8_t::Run(){
   timePoint_t end = GlobalPlatformTime(platform);
   double elapsedTime = ElapsedTime(start, end)/Ntests;
 
-  hlong NGlobal = N;
-  mesh.comm.Allreduce(NGlobal);
+  hlong NtotalGlobal = mesh.Nelements*mesh.Np;
+  mesh.comm.Allreduce(NtotalGlobal);
 
   hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
 
   size_t bytesIn=0;
   size_t bytesOut=0;
   bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
-  bytesIn += NGlobal*sizeof(dlong); //local Ids
-  bytesIn += NGlobal*sizeof(dfloat); //values
-  bytesOut+= NGlobal*sizeof(dfloat);
+  bytesIn += NtotalGlobal*sizeof(dlong); //local Ids
+  bytesIn += NtotalGlobal*sizeof(dfloat); //values
+  bytesOut+= NtotalGlobal*sizeof(dfloat);
 
   size_t bytes = bytesIn + bytesOut;
 
-  hlong NflopsGlobal = NGlobal;
+  hlong NflopsGlobal = NtotalGlobal;
 
   hlong Ndofs = mesh.ogs.NgatherGlobal;
 

@@ -50,21 +50,22 @@ void bs6_t::Run(){
   timePoint_t end = GlobalPlatformTime(platform);
   double elapsedTime = ElapsedTime(start, end)/Ntests;
 
+  hlong NtotalGlobal = mesh.Nelements*mesh.Np;
+  mesh.comm.Allreduce(NtotalGlobal);
+
   hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
-  hlong NGlobal = N;
-  mesh.comm.Allreduce(NGlobal);
 
   size_t bytesIn=0;
   size_t bytesOut=0;
   bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
-  bytesIn += NGlobal*sizeof(dlong); //local Ids
-  bytesIn += NGlobal*sizeof(dfloat); //values
+  bytesIn += NtotalGlobal*sizeof(dlong); //local Ids
+  bytesIn += NtotalGlobal*sizeof(dfloat); //values
   bytesOut+= NgatherGlobal*sizeof(dfloat);
 
   size_t bytes = bytesIn + bytesOut;
 
   hlong Ndofs = mesh.ogs.NgatherGlobal;
-  size_t Nflops = NGlobal;
+  size_t Nflops = NtotalGlobal;
 
   if ((mesh.rank==0)){
     printf("BS6 = [%d, " hlongFormat ", %5.4le, %5.4le, %6.2f, %6.2f]; %% Gather [N, DOFs, elapsed, DOFs/(ranks*s), avg BW (GB/s), avg GFLOPs] \n",

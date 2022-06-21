@@ -55,8 +55,13 @@ void bs7_t::Run(){
 
   hlong NgatherGlobal = mesh.ogs.NgatherGlobal;
 
-  size_t bytesIn  = NgatherGlobal*sizeof(dfloat)+NtotalGlobal*sizeof(dlong);
-  size_t bytesOut = NtotalGlobal*(sizeof(dfloat));
+  size_t bytesIn  = 0;
+  size_t bytesOut = 0;
+  bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
+  bytesIn += NtotalGlobal*sizeof(dlong); //local Ids
+  bytesIn += NgatherGlobal*sizeof(dfloat); //values
+  bytesOut+= NtotalGlobal*sizeof(dfloat);
+
   size_t bytes = bytesIn + bytesOut;
 
   hlong Ndofs = mesh.ogs.NgatherGlobal;
