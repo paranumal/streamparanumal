@@ -38,7 +38,7 @@
 #define p_NW 4
 #else
 #define p_SIMD 32
-#define p_NW 8
+#define p_NW 32
 #endif
 
   for(int b=0;b<NB;++b;@outer(0)){
@@ -50,7 +50,7 @@
       for(int t=0;t<p_SIMD;++t;@inner(0)){
         int n =  t + p_SIMD*w + b*p_blockSize;
 
-        // do this first
+	// do this first
         while(n<N){
           x[n] += alpha*p[n];
           n += p_blockSize*NB;
@@ -61,11 +61,14 @@
 
         // do this second
         while(n<N){
-          r[n] -= alpha*Ap[n];
-          res += r[n]*r[n];
+	  dfloat rn = r[n];
+          rn -= alpha*Ap[n];
+          res += rn*rn;
+	  r[n] = rn;
           n += p_blockSize*NB;
         }
 
+	
 #if OCCA_USE_HIP==1
         res += __shfl_down(res, 32, p_SIMD);
         res += __shfl_down(res, 16, p_SIMD);
@@ -92,12 +95,16 @@
       for(int t=0;t<p_SIMD;++t;@inner(0)){
 
         if(w==0){
-          dfloat res = s_rdotr[t];
-          // assume p_NW = 4
+          dfloat res = (t<p_NW) ? s_rdotr[t]:(dfloat)0.0;
+
 #if OCCA_USE_HIP==1
+          // assume p_NW = 4
           res += __shfl_down(res,  2, p_SIMD);
           res += __shfl_down(res,  1, p_SIMD);
 #else
+          res += __shfl_down_sync(0xFFFFFFFF, res,  16, p_SIMD);
+	  res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
           res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
           res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
 #endif
