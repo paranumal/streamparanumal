@@ -89,7 +89,7 @@ void platform_t::DeviceProperties(){
   }
 
   if(device.mode()=="dpcpp"){ // add backend compiler optimization for OPENCL
-    std::cout << "TAGGING THIS AS A DPCPP BUILD" << std::endl;
+    //    std::cout << "TAGGING THIS AS A DPCPP BUILD" << std::endl;
     Props["defines/OCCA_USE_DPCPP"] = 1;
   }
 
