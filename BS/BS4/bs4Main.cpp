@@ -34,15 +34,11 @@ int main(int argc, char **argv){
   {
     comm_t comm(Comm::World().Dup());
 
-    std::cout << " starting settings " << std::endl;
-    
     bs4Settings_t settings(argc, argv, comm);
     
     if (settings.compareSetting("VERBOSE", "TRUE"))
       settings.report();
 
-    std::cout << " starting platform " << std::endl;
-    
     // set up platform
     platform_t platform(settings);
 
