@@ -42,8 +42,8 @@ fi
 echo "Running BS4..."
 
 #./BS4 -m $mode -b 1073741824
-#./BS4 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -p $plat -d $devi
-./BS4 -m $mode -bmin 1024 -bmax 1073741 --bstep 1048576 -p $plat -d $devi
+./BS4 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -pl $plat -d $devi
+
 
 #
 # Noel Chalmers

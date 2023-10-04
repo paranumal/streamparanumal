@@ -68,8 +68,13 @@
           n += p_blockSize*NB;
         }
 
-	
-#if OCCA_USE_HIP==1
+#if OCCA_USE_DPCPP==1
+	res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  1);	
+#elif OCCA_USE_HIP==1
         res += __shfl_down(res, 32, p_SIMD);
         res += __shfl_down(res, 16, p_SIMD);
         res += __shfl_down(res,  8, p_SIMD);
@@ -97,7 +102,13 @@
         if(w==0){
           dfloat res = (t<p_NW) ? s_rdotr[t]:(dfloat)0.0;
 
-#if OCCA_USE_HIP==1
+#if OCCA_USE_DPCPP==1
+	res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  1);	
+#elif OCCA_USE_HIP==1
           // assume p_NW = 4
           res += __shfl_down(res,  2, p_SIMD);
           res += __shfl_down(res,  1, p_SIMD);

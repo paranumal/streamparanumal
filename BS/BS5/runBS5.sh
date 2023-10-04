@@ -38,8 +38,7 @@ fi
 
 echo "Running BS5..."
 
-#./BS5 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -p $plat -d $devi
-./BS5 -m $mode -bmin 1024 -bmax 10737418 --bstep 1048576 -p $plat -d $devi
+./BS5 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -pl $plat -d $devi
 
 #
 # Noel Chalmers

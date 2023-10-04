@@ -41,6 +41,8 @@ void bs4_t::Run(){
 
   if(B) Bmax = B;
 
+  std::cout << "Bmin=" << Bmin << ", B=" << B << ", Bmax=" << Bmax << std::endl;  
+  
   int sc = 2*sizeof(dfloat);  // bytes moved per entry
   int Nmin = Bmin/sc;
   int Nmax = Bmax/sc;

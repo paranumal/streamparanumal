@@ -34,11 +34,11 @@ export LIBP_DIR=${STREAM_DIR}
 export LIBP_INCLUDE_DIR=${STREAM_DIR}/include
 export LIBP_LIBS_DIR=${STREAM_DIR}/libs
 
-#export LIBP_BLAS_DIR?=/usr/lib/x86_64-linux-gnu
+export LIBP_BLAS_DIR?=/usr/lib/x86_64-linux-gnu
 #export LIBP_BLAS_LIB=-L${LIBP_BLAS_DIR} -lopenblas
 #export LIBP_BLAS_DIR?=../../../OpenBLAS
 #export LIBP_BLAS_LIB=-L${LIBP_BLAS_DIR} -lopenblas
-export LIBP_BLAS_LIB=-llapack -lblas
+#export LIBP_BLAS_LIB=-llapack -lblas
 
 #include OCCA
 export OCCA_DIR=${STREAM_DIR}/occa
@@ -62,8 +62,10 @@ else
   export LIBP_DEFINES=
 
   ifeq (GNU,${LIBP_ARCH})
-    LIBP_CFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
-    LIBP_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+    LIBP_CFLAGS+= -mavx2 -ftree-vectorize -march=native
+    #-DGLIBCXX_PARALLEL
+    LIBP_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native
+    #-DGLIBCXX_PARALLEL
   else ifeq (INTEL,${LIBP_ARCH})
     LIBP_CFLAGS+=-funroll-loops -xHost
     LIBP_CXXFLAGS+=-funroll-loops -xHost
