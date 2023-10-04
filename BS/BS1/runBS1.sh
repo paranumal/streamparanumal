@@ -10,7 +10,7 @@ while getopts :m:h FLAG; do
   case $FLAG in
     m)
         mode=$OPTARG
-        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial ]] && {
+        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
             echo "Incorrect run mode provided"
             exit 1
         }

@@ -34,7 +34,7 @@ void platformAddSettings(settings_t& settings) {
                       "THREAD MODEL",
                       "CUDA",
                       "OCCA's Parallel execution platform",
-                      {"Serial", "OpenMP", "CUDA", "HIP", "OpenCL"});
+                      {"Serial", "OpenMP", "CUDA", "HIP", "OpenCL", "DPCPP"});
 
   settings.newSetting("-pl", "--platform",
                       "PLATFORM NUMBER",
@@ -53,13 +53,16 @@ void platformReportSettings(settings_t& settings) {
 
   settings.reportSetting("THREAD MODEL");
 
-  if (settings.compareSetting("THREAD MODEL","OpenCL"))
+  if (settings.compareSetting("THREAD MODEL","OpenCL") ||
+      settings.compareSetting("THREAD MODEL","DPCPP") )
     settings.reportSetting("PLATFORM NUMBER");
 
   if ((settings.comm.size()==1)
       &&(settings.compareSetting("THREAD MODEL","CUDA")
       ||settings.compareSetting("THREAD MODEL","HIP")
-      ||settings.compareSetting("THREAD MODEL","OpenCL") ))
+      ||settings.compareSetting("THREAD MODEL","OpenCL")
+	 ||settings.compareSetting("THREAD MODEL","DPCPP")
+	 ))
     settings.reportSetting("DEVICE NUMBER");
 }
 
