@@ -1,13 +1,16 @@
 #!/bin/bash
 
 function HELP {
-  echo "Usage: ./runBS0.sh -m MODE"
+  echo "Usage: ./runBS0.sh -m MODE -p PLATFORM_ID -d DEVICE_ID"
   exit 1
 }
 
+plat=0
+devi=0
+
 #parse options
-while getopts :m:h FLAG; do
-  case $FLAG in
+while getopts ":m:h:p:d:e" FLAG; do
+  case "$FLAG" in
     m)
         mode=$OPTARG
         [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
@@ -15,6 +18,12 @@ while getopts :m:h FLAG; do
             exit 1
         }
         ;;
+    p)
+        plat=$OPTARG;
+	echo "platform=" $plat;;
+    d)
+        devi=$OPTARG;
+	echo "device=" $devi;;
     h)  #show help
         HELP
         ;;
@@ -35,7 +44,7 @@ fi
 echo "Running BS0..."
 
 #./BS0 -m $mode -n 10 
-./BS0 -m $mode -nmin 1 -nmax 1024  --step 1 -pl 4 -d 0
+./BS0 -m $mode -nmin 1 -nmax 1024  --step 1 -pl $plat -d $devi
 
 #
 # Noel Chalmers

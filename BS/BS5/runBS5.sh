@@ -1,20 +1,22 @@
 #!/bin/bash
 
-function HELP {
-  echo "Usage: ./runBS5.sh -m MODE"
-  exit 1
-}
 
 #parse options
-while getopts :m:h FLAG; do
-  case $FLAG in
+while getopts ":m:h:p:d:e" FLAG; do
+  case "$FLAG" in
     m)
         mode=$OPTARG
-        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial ]] && {
+        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
             echo "Incorrect run mode provided"
             exit 1
         }
         ;;
+    p)
+        plat=$OPTARG;
+	echo "platform=" $plat;;
+    d)
+        devi=$OPTARG;
+	echo "device=" $devi;;
     h)  #show help
         HELP
         ;;
@@ -23,6 +25,8 @@ while getopts :m:h FLAG; do
         ;;
   esac
 done
+
+
 
 # Build the code
 # make -j `nproc`
@@ -34,8 +38,8 @@ fi
 
 echo "Running BS5..."
 
-#./BS5 -m $mode -b 1073741824
-./BS5 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576
+#./BS5 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -p $plat -d $devi
+./BS5 -m $mode -bmin 1024 -bmax 10737418 --bstep 1048576 -p $plat -d $devi
 
 #
 # Noel Chalmers

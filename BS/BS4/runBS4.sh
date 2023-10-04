@@ -1,20 +1,26 @@
 #!/bin/bash
 
 function HELP {
-  echo "Usage: ./runBS4.sh -m MODE"
+  echo "Usage: ./runBS2.sh -m MODE -p PLATFORM_ID -d DEVICE_ID"
   exit 1
 }
 
 #parse options
-while getopts :m:h FLAG; do
-  case $FLAG in
+while getopts ":m:h:p:d:e" FLAG; do
+  case "$FLAG" in
     m)
         mode=$OPTARG
-        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial ]] && {
+        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
             echo "Incorrect run mode provided"
             exit 1
         }
         ;;
+    p)
+        plat=$OPTARG;
+	echo "platform=" $plat;;
+    d)
+        devi=$OPTARG;
+	echo "device=" $devi;;
     h)  #show help
         HELP
         ;;
@@ -23,6 +29,7 @@ while getopts :m:h FLAG; do
         ;;
   esac
 done
+
 
 # Build the code
 # make -j `nproc`
@@ -35,7 +42,8 @@ fi
 echo "Running BS4..."
 
 #./BS4 -m $mode -b 1073741824
-./BS4 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576
+#./BS4 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -p $plat -d $devi
+./BS4 -m $mode -bmin 1024 -bmax 1073741 --bstep 1048576 -p $plat -d $devi
 
 #
 # Noel Chalmers

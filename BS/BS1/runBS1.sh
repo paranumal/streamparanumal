@@ -6,8 +6,8 @@ function HELP {
 }
 
 #parse options
-while getopts :m:h FLAG; do
-  case $FLAG in
+while getopts ":m:h:p:d:e" FLAG; do
+  case "$FLAG" in
     m)
         mode=$OPTARG
         [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
@@ -15,6 +15,12 @@ while getopts :m:h FLAG; do
             exit 1
         }
         ;;
+    p)
+        plat=$OPTARG;
+	echo "platform=" $plat;;
+    d)
+        devi=$OPTARG;
+	echo "device=" $devi;;
     h)  #show help
         HELP
         ;;
@@ -32,10 +38,10 @@ if [ -z $mode ]; then
     mode=HIP
 fi
 
-echo "Running BS1..."
+echo "Running BS1... on platform "$plat" and device "$devi" " 
 
 #./BS1 -m $mode -b 1073741824
-./BS1 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -pl 4 -d 0
+./BS1 -m ${mode} -bmin 1024 -bmax 1073741824 --bstep 1048576 -pl ${plat} -d ${devi}
 
 #
 # Noel Chalmers
