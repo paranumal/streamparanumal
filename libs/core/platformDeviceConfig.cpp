@@ -54,8 +54,11 @@ void platform_t::DeviceConfig(){
 
   settings_t& Settings = settings();
 
-  if(Settings.compareSetting("THREAD MODEL", "OpenCL"))
+  if(Settings.compareSetting("THREAD MODEL", "OpenCL") ||
+     Settings.compareSetting("THREAD MODEL", "DPCPP") 
+     ){
     Settings.getSetting("PLATFORM NUMBER", plat);
+  }
 
   // read thread model/device/platform from Settings
   std::string mode;

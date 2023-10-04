@@ -1,0 +1,12 @@
+git clone --depth 1 https://github.com/libocca/occa.git
+cd occa
+source /opt/intel/oneapi/setvars.sh
+make clean
+export OCCA_DPCPP_COMPILER=icpx
+export OCCA_OPENCL_ENABLED=0
+export OCCA_DPCPP_ENABLED=1
+export ONEAPI_HOME=/opt/intel/oneapi/compiler/2023.2.0/linux
+export OCCA_INCLUDE_PATH=${ONEAPI_HOME}/include/:${ONEAPI_HOME}/include/sycl:${ONEAPI_HOME}/include/sycl/CL
+export SYCL_ROOT=${ONEAPI_HOME}
+
+make -j 12 verbose=true 

@@ -34,8 +34,8 @@ fi
 
 echo "Running BS0..."
 
-#./BS0 -m $mode -n 10
-./BS0 -m $mode -nmin 1 -nmax 1024  --step 1
+#./BS0 -m $mode -n 10 
+./BS0 -m $mode -nmin 1 -nmax 1024  --step 1 -pl 4 -d 0
 
 #
 # Noel Chalmers

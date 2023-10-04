@@ -35,7 +35,7 @@ fi
 echo "Running BS1..."
 
 #./BS1 -m $mode -b 1073741824
-./BS1 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576
+./BS1 -m $mode -bmin 1024 -bmax 1073741824 --bstep 1048576 -pl 4 -d 0
 
 #
 # Noel Chalmers

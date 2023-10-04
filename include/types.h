@@ -30,7 +30,7 @@ SOFTWARE.
 namespace libp {
 
 //float data type
-#if 0
+#if 1
 #define dfloat float
 #define MPI_DFLOAT MPI_FLOAT
 #define dfloatFormat "%f"
