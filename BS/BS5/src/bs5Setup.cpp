@@ -34,7 +34,8 @@ void bs5_t::Setup(platform_t& _platform, settings_t& _settings) {
   // OCCA build stuff
   properties_t kernelInfo = platform.props(); //copy base occa properties
 
-  blockSize = (platform.device.mode()=="CUDA") ? 1024 : 256;
+  //  blockSize = (platform.device.mode()=="CUDA") ? 1024 : 256;
+  blockSize = 1024;
 
   kernelInfo["defines/" "p_blockSize"] = blockSize;
 
