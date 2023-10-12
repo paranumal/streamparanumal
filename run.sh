@@ -6,15 +6,21 @@ function HELP {
 }
 
 #parse options
-while getopts :m:h FLAG; do
+while getopts :m:p:d:h FLAG; do
   case $FLAG in
     m)
         mode=$OPTARG
-        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial ]] && {
+        [[ ! $mode =~ CUDA|HIP|OpenCL|OpenMP|Serial|DPCPP ]] && {
             echo "Incorrect run mode provided"
             exit 1
         }
         ;;
+    p)
+        plat=$OPTARG;
+        echo "platform=" $plat;;
+    d)
+        devi=$OPTARG;
+        echo "device=" $devi;;
     h)  #show help
         HELP
         ;;
@@ -30,7 +36,7 @@ then
     mode=HIP
 fi
 
-cd BS; ./runBS.sh -m $mode; cd ..
+cd BS; ./runBS.sh -m $mode -p $plat -d $devi; cd ..
 
 #
 # Noel Chalmers
