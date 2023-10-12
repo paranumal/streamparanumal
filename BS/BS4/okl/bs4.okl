@@ -24,8 +24,9 @@ SOFTWARE.
 
 */
 
-@kernel void bs4_1(const dlong Nblocks,
+@kernel void bs4_1_v2(const dlong Nblocks,
                    const dlong N,
+		   const int Nreads,
                    @restrict const  dfloat *a,
                    @restrict const  dfloat *bb,
                    @restrict        dfloat *ddot){
@@ -36,12 +37,14 @@ SOFTWARE.
     @shared dfloat s_ddot[p_blockSize];
 
     for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
+      dlong id = t + b*p_blockSize*Nreads;
       dfloat r_ddot = 0.0;
-      while (id<N) {
-        r_ddot += a[id]*bb[id];
-        id += p_blockSize*Nblocks;
+
+      for(int r=0;r<Nreads;++r){
+        r_ddot += (id<N) ? a[id]*bb[id]:0;
+        id += p_blockSize;
       }
+      
       s_ddot[t] = r_ddot;
     }
 
@@ -53,9 +56,18 @@ SOFTWARE.
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_ddot[t] += s_ddot[t+256];
 #endif
 
+#if p_blockSize>128
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_ddot[t] += s_ddot[t+128];
+#endif
+
+#if p_blockSize>64
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_ddot[t] += s_ddot[t+ 64];
+#endif
+
+#if p_blockSize>32
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_ddot[t] += s_ddot[t+ 32];
+#endif
+    
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_ddot[t] += s_ddot[t+ 16];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_ddot[t] += s_ddot[t+  8];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_ddot[t] += s_ddot[t+  4];
@@ -63,6 +75,86 @@ SOFTWARE.
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) ddot[b] = s_ddot[0] + s_ddot[1];
   }
 }
+
+@kernel void bs4_1(const dlong Nblocks,
+                   const dlong N,
+		   const int Nreads,
+                   @restrict const  dfloat *a,
+                   @restrict const  dfloat *bb,
+                   @restrict        dfloat *ddot){
+
+
+  for(dlong b=0;b<Nblocks;++b;@outer(0)){
+#if OCCA_USE_CUDA || OCCA_USE_HIP
+    @shared volatile dfloat s_ddot[32][32];
+#endif
+    
+    @shared dfloat s_tmp[32];
+    @exclusive dfloat res;
+    
+#define squareThreads				\
+    for(int w=0;w<32;++w;@inner(1))		\
+      for(int t=0;t<32;++t;@inner(0))
+
+    squareThreads{
+      dlong id = t + w*32 + b*p_blockSize*Nreads;
+      dfloat r_ddot = 0.0;
+      
+      for(int r=0;r<Nreads;++r){
+	r_ddot += (id<N) ? a[id]*bb[id]:0;
+	id += p_blockSize;
+      }
+
+#if OCCA_USE_DPCPP==1
+      res = r_ddot;      
+#else
+      s_ddot[w][t] = r_ddot;
+#endif
+    }
+    
+    squareThreads{
+
+#if OCCA_USE_DPCPP==1
+      res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
+      res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
+      res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
+      res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
+      res += sycl::shift_group_left(item_.get_sub_group(), res,  1);
+      if(t==0) s_tmp[w] = res;
+#else
+      if(t<16) s_ddot[w][t] += s_ddot[w][t+16];
+      if(t< 8) s_ddot[w][t] += s_ddot[w][t+ 8];
+      if(t< 4) s_ddot[w][t] += s_ddot[w][t+ 4];
+      if(t< 2) s_ddot[w][t] += s_ddot[w][t+ 2];
+      if(t< 1) { s_tmp[w] = s_ddot[w][0] + s_ddot[w][1]; }
+#endif
+      
+    }
+
+    squareThreads{
+      if(w==0){
+
+#if OCCA_USE_DPCPP==1
+	res = s_tmp[t];
+	res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
+	res += sycl::shift_group_left(item_.get_sub_group(), res,  1);
+	if(t==0) ddot[b] = res;
+#else
+	if(t<16) s_tmp[t] += s_tmp[t+16];
+	if(t< 8) s_tmp[t] += s_tmp[t+ 8];
+	if(t< 4) s_tmp[t] += s_tmp[t+ 4];
+	if(t< 2) s_tmp[t] += s_tmp[t+ 2];
+	if(t==0) ddot[b] = s_tmp[0] + s_tmp[1];
+#endif
+      }
+    }
+  }
+}
+
+
 
 @kernel void bs4_2(const dlong Nblocks,
                    @restrict const  dfloat *a,

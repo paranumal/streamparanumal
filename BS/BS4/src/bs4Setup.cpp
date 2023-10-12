@@ -34,7 +34,7 @@ void bs4_t::Setup(platform_t& _platform, settings_t& _settings) {
   // OCCA build stuff
   properties_t kernelInfo = platform.props(); //copy base occa properties
 
-  blockSize = 256;
+  blockSize = 1024;
 
   kernelInfo["defines/" "p_blockSize"] = blockSize;
 
