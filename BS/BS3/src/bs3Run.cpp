@@ -46,7 +46,9 @@ void bs3_t::Run(){
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  deviceMemory<dfloat> o_a    = platform.malloc<dfloat>(Nmax);
+  memory<dfloat> h_a(Nmax, 1.);
+  
+  deviceMemory<dfloat> o_a    = platform.malloc<dfloat>(Nmax, h_a);
   deviceMemory<dfloat> o_tmp  = platform.malloc<dfloat>(blockSize);
   deviceMemory<dfloat> o_norm = platform.malloc<dfloat>(1);
 
