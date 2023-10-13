@@ -60,8 +60,10 @@ void bs5_t::Run(){
   int Nwarm = 5;
   int Nblock = (Nmax+blockSize-1)/(blockSize);
   Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  
   for(int n=0;n<Nwarm;++n){ //warmup
-    kernel1(Nblock, Nmax, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+    int Nreads = (Nmax+(Nblock*blockSize)-1)/(Nblock*blockSize);
+    kernel1(Nblock, Nmax, Nreads, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
     kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
@@ -86,7 +88,8 @@ void bs5_t::Run(){
     Nblock = (N+blockSize-1)/blockSize;
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
     for(int n=0;n<Ntests;++n){ //warmup
-      kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+      int Nreads = (N+(Nblock*blockSize)-1)/(Nblock*blockSize);
+      kernel1(Nblock, N, Nreads, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
     }
 
