@@ -29,15 +29,17 @@ SOFTWARE.
 /*------------------------------------------------------------------------------
   The basic gather-scatter kernel
 ------------------------------------------------------------------------------*/
-@kernel void gatherScatter(const dlong Nblocks,
+#if OCCA_USE_DPCPP!=1
+@kernel void gatherScatter(const dlong Ngather,
+			   const dlong Nblocks,
                            const int K,
-                          @restrict const dlong *blockStarts,
-                          @restrict const dlong *gatherStarts,
-                          @restrict const dlong *gatherIds,
-                          @restrict const dlong *scatterStarts,
-                          @restrict const dlong *scatterIds,
-                          @restrict           T *q) {
-
+			   @restrict const dlong *blockStarts,
+			   @restrict const dlong *gatherStarts,
+			   @restrict const dlong *gatherIds,
+			   @restrict const dlong *scatterStarts,
+			   @restrict const dlong *scatterIds,
+			   @restrict           T *q) {
+  
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
       @exclusive dlong blockStart, blockEnd, gStart, sStart;
@@ -79,26 +81,100 @@ SOFTWARE.
     }
   }
 }
+#else
+@kernel void gatherScatter(const dlong Ngather,
+			   const dlong Nblocks,
+                           const int K,
+			   @restrict const dlong *blockStarts,
+			   @restrict const dlong *gatherStarts,
+			   @restrict const dlong *gatherIds,
+			   @restrict const dlong *scatterStarts,
+			   @restrict const dlong *scatterIds,
+			   @restrict           T *q) {
+
+#if 0
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<Nblocks;++b;@outer(0)){
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+
+	const dlong blockStart = blockStarts[b];
+        const dlong blockEnd   = blockStarts[b+1];
+	
+        for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
+	  T gq = OGS_OP_INIT;
+
+	  const dlong rowStart = gatherStarts[row]  ;
+	  const dlong rowEnd   = gatherStarts[row+1];
+	  
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    OGS_OP(gq, q[k+K*gatherIds[i]]);
+	  }
+
+	  const dlong colStart = scatterStarts[row]  ;
+	  const dlong colEnd   = scatterStarts[row+1];
+
+	  for (dlong i=colStart;i<colEnd;i++) {
+	    q[k+K*scatterIds[i]] = gq;
+	  }
+	}
+      }
+    }
+  }
+#else
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<(Ngather+p_blockSize-1)/p_blockSize;++b;@outer(0)){
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+	
+	const dlong row = n + p_blockSize*b;
+
+	if(row<Ngather){
+	  const dlong rowStart = gatherStarts[row]  ;
+	  const dlong rowEnd   = gatherStarts[row+1];
+	  
+	  T gq = OGS_OP_INIT;
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    OGS_OP(gq, q[k+K*gatherIds[i]]);
+	  }
+	  
+	  const dlong colStart = scatterStarts[row]  ;
+	  const dlong colEnd   = scatterStarts[row+1];
+	  
+	  for (dlong i=colStart;i<colEnd;i++) {
+	    q[k+K*scatterIds[i]] = gq;
+	  }
+	}
+      }
+    }
+  }
+#endif
+}
+#endif
 
 /*------------------------------------------------------------------------------
   The basic gather kernel
 ------------------------------------------------------------------------------*/
+
+#if OCCA_USE_DPCPP!=1
 @kernel void gather(const dlong Nblocks,
                     const int K,
-                   @restrict const dlong *blockStarts,
-                   @restrict const dlong *gatherStarts,
-                   @restrict const dlong *gatherIds,
-                   @restrict const     T *q,
-                   @restrict           T *gatherq){
-
+		    @restrict const dlong *blockStarts,
+		    @restrict const dlong *gatherStarts,
+		    @restrict const dlong *gatherIds,
+		    @restrict const     T *q,
+		    @restrict           T *gatherq){
+  
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
       @exclusive dlong blockStart, blockEnd, start;
+
       @shared T temp[p_gatherNodesPerBlock];
 
       for(dlong n=0;n<p_blockSize;++n;@inner(0)){
         blockStart = blockStarts[b];
         blockEnd   = blockStarts[b+1];
+
         start = gatherStarts[blockStart];
 
         for (dlong id=start+n;id<gatherStarts[blockEnd];id+=p_blockSize) {
@@ -108,22 +184,59 @@ SOFTWARE.
 
       for(dlong n=0;n<p_blockSize;++n;@inner(0)){
         for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
-          const dlong rowStart = gatherStarts[row]  -start;
-          const dlong rowEnd   = gatherStarts[row+1]-start;
-          T gq = OGS_OP_INIT;
-          for (dlong i=rowStart;i<rowEnd;i++) {
-            OGS_OP(gq,temp[i]);
-          }
+	  T gq = OGS_OP_INIT;
+
+	  const dlong rowStart = gatherStarts[row]  -start;
+	  const dlong rowEnd   = gatherStarts[row+1]-start;
+
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    OGS_OP(gq,temp[i]);
+	  }
           gatherq[k+row*K] = gq;
         }
       }
     }
   }
 }
+#else
+// For DPCPP we avoid LDS
+@kernel void gather(const dlong Nblocks,
+                    const int K,
+		    @restrict const dlong *blockStarts,
+		    @restrict const dlong *gatherStarts,
+		    @restrict const dlong *gatherIds,
+		    @restrict const     T *q,
+		    @restrict           T *gatherq){
+
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<Nblocks;++b;@outer(0)){
+
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+
+	const dlong blockStart = blockStarts[b];
+        const dlong blockEnd   = blockStarts[b+1];
+	
+        for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
+	  T gq = OGS_OP_INIT;
+
+	  const dlong rowStart = gatherStarts[row]  ;
+	  const dlong rowEnd   = gatherStarts[row+1];
+
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    OGS_OP(gq, q[k+K*gatherIds[i]]);
+	  }
+	  gatherq[k+row*K] = gq;
+	}
+      }
+    }
+  }
+}
+#endif
 
 /*------------------------------------------------------------------------------
   The basic scatter kernel
 ------------------------------------------------------------------------------*/
+#if OCCA_USE_DPCPP!=1
 @kernel void scatter(const dlong Nblocks,
                      const int K,
                      @restrict const dlong *blockStarts,
@@ -162,6 +275,41 @@ SOFTWARE.
     }
   }
 }
+#else
+// For DPCPP avoid LDS
+@kernel void scatter(const dlong Nblocks,
+                     const int K,
+                     @restrict const dlong *blockStarts,
+                     @restrict const dlong *scatterStarts,
+                     @restrict const dlong *scatterIds,
+                     @restrict const     T *gatherq,
+                     @restrict           T *q) {
+
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<Nblocks;++b;@outer(0)){
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+	
+	const dlong blockStart = blockStarts[b];
+	const dlong blockEnd   = blockStarts[b+1];
+	
+	for (dlong row=blockStart+n;row<blockEnd;row+=p_blockSize) {
+	  // load value to scatter
+	  const T foo = gatherq[k+row*K];
+	  
+	  const dlong rowStart = scatterStarts[row]  ;
+	  const dlong rowEnd   = scatterStarts[row+1];
+	  
+	  for(dlong i=rowStart;i<rowEnd;++i){
+	    q[k+scatterIds[i]*K] = foo;
+	  }
+	}
+      }
+    }
+  }
+}
+#endif
+
 
 //extract sparse entries from vector
 @kernel void extract(const dlong N,
@@ -175,3 +323,4 @@ SOFTWARE.
     gatherq[n] = q[k+ids[gid]*K];
   }
 }
+

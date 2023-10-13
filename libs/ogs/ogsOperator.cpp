@@ -446,9 +446,20 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
   constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, Add);
 
+  dlong Nrows = 0;
+  if (trans==Trans) {
+    Nrows = NrowsN;
+  } else if (trans==Sym) {
+    Nrows = NrowsT;
+  } else {
+    Nrows = NrowsT;
+  }
+
+  
   if (trans==Trans) {
     if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+      gatherScatterKernel[type][Add](Nrows,
+				     NrowBlocksT,
                                      k,
                                      o_blockRowStartsT,
                                      o_rowStartsT,
@@ -458,7 +469,8 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
                                      o_v);
   } else if (trans==Sym) {
     if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+      gatherScatterKernel[type][Add](Nrows,
+				     NrowBlocksT,
                                      k,
                                      o_blockRowStartsT,
                                      o_rowStartsT,
@@ -468,7 +480,8 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
                                      o_v);
   } else {
     if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+      gatherScatterKernel[type][Add](Nrows,
+				     NrowBlocksT,
                                      k,
                                      o_blockRowStartsT,
                                      o_rowStartsN,
