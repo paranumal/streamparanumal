@@ -45,6 +45,11 @@
 
     @shared dfloat s_rdotr[p_NW];
 
+#if OCCA_USE_OPENCL==1
+    @shared dfloat s_tmp[p_NW][p_SIMD+1];
+#endif
+
+
     // assume NT is a multiple of p_WARP
     for(int w=0;w<p_NW;++w;@inner(1)){
       for(int t=0;t<p_SIMD;++t;@inner(0)){
@@ -81,12 +86,28 @@
         res += __shfl_down(res,  4, p_SIMD);
         res += __shfl_down(res,  2, p_SIMD);
         res += __shfl_down(res,  1, p_SIMD);
-#else
+#elif OCCA_USE_CUDA==1
         res += __shfl_down_sync(0xFFFFFFFF, res, 16, p_SIMD);
         res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
         res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
         res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
         res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+#else
+	// OpenCL
+	s_tmp[w][t] = res;
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t<16) s_tmp[w][t] += s_tmp[w][t+16];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 8) s_tmp[w][t] += s_tmp[w][t+ 8];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 4) s_tmp[w][t] += s_tmp[w][t+ 4];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 2) s_tmp[w][t] += s_tmp[w][t+ 2];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 1) s_tmp[w][t] += s_tmp[w][t+ 1];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t==0)
+	  res = s_tmp[w][0];
 #endif
 
         if(t==0)
@@ -112,12 +133,39 @@
           // assume p_NW = 4
           res += __shfl_down(res,  2, p_SIMD);
           res += __shfl_down(res,  1, p_SIMD);
-#else
+#elif OCCA_USE_CUDA==1
           res += __shfl_down_sync(0xFFFFFFFF, res,  16, p_SIMD);
 	  res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
           res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
           res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
           res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+#else
+	  // need to check sub_group_size - this assumes 32
+	  if(p_NW>16){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t<16) s_rdotr[t] += s_rdotr[t+16];
+	  }
+	  if(p_NW>8){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 8) s_rdotr[t] += s_rdotr[t+ 8];
+	  }
+	  
+	  if(p_NW>4){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 4) s_rdotr[t] += s_rdotr[t+ 4];
+	  }
+	  
+	  if(p_NW>2){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 2) s_rdotr[t] += s_rdotr[t+ 2];
+	  }
+	  if(p_NW>1){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 1) s_rdotr[t] += s_rdotr[t+ 1];
+	  }
+
+	  if(t==0)
+	    res = s_rdotr[0];
 #endif
 
           if(t==0)
