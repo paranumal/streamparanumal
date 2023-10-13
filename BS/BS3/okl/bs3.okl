@@ -24,6 +24,200 @@ SOFTWARE.
 
 */
 
+#if 0
+// simplified reduction
+@kernel void bs3_1(const int NB,
+                   const int N,
+		   const int Nout,
+		   const int Nreads,
+                   @restrict const dfloat *a,
+                   @restrict       dfloat *norm){
+  
+  for(int b=0;b<NB;++b;@outer(0)){
+    
+    // assume NT is a multiple of p_WARP
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      dfloat res = 0;
+      int n =  t + b*p_blockSize*Nreads;
+      
+      // do this second
+      for(int r=0;r<Nreads;++r){
+	dfloat an = (n<N) ? a[n]:0.f;
+	res += an*an;
+	n += p_blockSize;
+      }
+      
+      n = t + b*p_blockSize;
+      if(n<Nout){
+	norm[n] = res;
+      }
+    }
+  }
+}
+#endif
+
+#if 1
+@kernel void bs3_1(const int NB,
+                   const int N,
+		   const int Nreads,
+		   @restrict const dfloat *a,
+                   @restrict       dfloat *norm){
+
+#if OCCA_USE_HIP==1
+#define p_SIMD 64
+#define p_NW 4
+#else
+
+#define p_SIMD 32
+
+#if p_blockSize==1024
+#define p_NW 32
+#elif p_blockSize==512
+#define p_NW 16
+#elif p_blockSize==256
+#define p_NW 8
+#elif p_blockSize==128
+#define p_NW 4
+#elif p_blockSize==64
+#define p_NW 2
+#endif
+
+#endif
+
+  for(int b=0;b<NB;++b;@outer(0)){
+    
+    @shared dfloat s_norm[p_NW];
+
+#if OCCA_USE_OPENCL==1
+    @shared dfloat s_tmp[p_NW][p_SIMD+1];
+#endif
+    
+    // assume NT is a multiple of p_WARP
+    for(int w=0;w<p_NW;++w;@inner(1)){
+      for(int t=0;t<p_SIMD;++t;@inner(0)){
+        dfloat res = 0;
+	
+	int n =  t + p_SIMD*w + b*p_NW*p_SIMD*Nreads;
+	
+	for(int r=0;r<Nreads;++r){
+	  dfloat an = (n<N) ? a[n]:0.;
+          res += an*an;
+	  n += p_blockSize;
+        }
+	
+#if OCCA_USE_DPCPP==1
+	const auto sg = item_.get_sub_group();
+	
+	res += sycl::shift_group_left(sg, res, 16);
+	res += sycl::shift_group_left(sg, res,  8);
+	res += sycl::shift_group_left(sg, res,  4);
+	res += sycl::shift_group_left(sg, res,  2);
+	res += sycl::shift_group_left(sg, res,  1);	
+#elif OCCA_USE_HIP==1
+        res += __shfl_down(res, 32, p_SIMD);
+        res += __shfl_down(res, 16, p_SIMD);
+        res += __shfl_down(res,  8, p_SIMD);
+        res += __shfl_down(res,  4, p_SIMD);
+        res += __shfl_down(res,  2, p_SIMD);
+        res += __shfl_down(res,  1, p_SIMD);
+#elif OCCA_USE_CUDA==1
+        res += __shfl_down_sync(0xFFFFFFFF, res, 16, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);	
+#else
+	// OpenCL
+	s_tmp[w][t] = res;
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t<16) s_tmp[w][t] += s_tmp[w][t+16];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 8) s_tmp[w][t] += s_tmp[w][t+ 8];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 4) s_tmp[w][t] += s_tmp[w][t+ 4];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 2) s_tmp[w][t] += s_tmp[w][t+ 2];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 1) s_tmp[w][t] += s_tmp[w][t+ 1];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t==0)
+	  res = s_tmp[w][0];
+#endif
+        if(t==0)
+          s_norm[w] = res;
+	
+      }
+    }
+
+    // assume p_NW<=p_SIMD
+    for(int w=0;w<p_NW;++w;@inner(1)){
+      for(int t=0;t<p_SIMD;++t;@inner(0)){
+
+	if(w==0){
+	  
+          dfloat res = (t<p_NW) ? s_norm[t]:(dfloat)0.0;
+	  
+#if OCCA_USE_DPCPP==1
+	  const auto sg = item_.get_sub_group();
+	  if(p_NW>16)
+	    res += sycl::shift_group_left(sg, res, 16);
+	  if(p_NW>8)
+	    res += sycl::shift_group_left(sg, res,  8);
+	  if(p_NW>4)
+	    res += sycl::shift_group_left(sg, res,  4);
+	  if(p_NW>2)
+	    res += sycl::shift_group_left(sg, res,  2);
+	  if(p_NW>1)
+	    res += sycl::shift_group_left(sg, res,  1);
+#elif OCCA_USE_HIP==1
+          // assume p_NW = 4
+          res += __shfl_down(res,  2, p_SIMD);
+          res += __shfl_down(res,  1, p_SIMD);
+#elif OCCA_USE_CUDA==1
+          res += __shfl_down_sync(0xFFFFFFFF, res,  16, p_SIMD);
+	  res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+#else
+	  // need to check sub_group_size - this assumes 32
+	  if(p_NW>16){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t<16) s_norm[t] += s_norm[t+16];
+	  }
+	  if(p_NW>8){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 8) s_norm[t] += s_norm[t+ 8];
+	  }
+	  
+	  if(p_NW>4){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 4) s_norm[t] += s_norm[t+ 4];
+	  }
+	  
+	  if(p_NW>2){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 2) s_norm[t] += s_norm[t+ 2];
+	  }
+	  if(p_NW>1){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 1) s_norm[t] += s_norm[t+ 1];
+	  }
+
+	  if(t==0)
+	    res = s_norm[0];
+#endif
+
+          if(t==0)
+            norm[b] = res;
+        }
+      }
+    }
+  }
+}
+#endif
+
+#if 0
 @kernel void bs3_1(const dlong Nblocks,
                    const dlong N,
                    @restrict const  dfloat *a,
@@ -52,7 +246,10 @@ SOFTWARE.
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_norm[t] += s_norm[t+256];
 #endif
 
+#if p_blockSize>128
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_norm[t] += s_norm[t+128];
+#endif
+    
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_norm[t] += s_norm[t+ 64];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_norm[t] += s_norm[t+ 32];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_norm[t] += s_norm[t+ 16];
@@ -62,6 +259,7 @@ SOFTWARE.
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) norm[b] = s_norm[0] + s_norm[1];
   }
 }
+#endif
 
 @kernel void bs3_2(const dlong Nblocks,
                    @restrict const  dfloat *a,
