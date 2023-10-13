@@ -54,9 +54,16 @@ void bs3_t::Run(){
   int Nwarm = 5;
   int Nblock = (Nmax+blockSize-1)/blockSize;
   Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+  int Nreads = (Nmax+Nblock*blockSize-1)/(Nblock*blockSize);
   for(int n=0;n<Nwarm;++n){ //warmup
-    kernel1(Nblock, Nmax, o_a, o_tmp); //partial reduction
+    kernel1(Nblock, Nmax, Nreads, o_a, o_tmp); //partial reduction
     kernel2(Nblock, o_tmp, o_norm); //finish reduction
+
+    if(n==0){
+      memory<dfloat> tmp(1,0.);
+      o_norm.copyTo(tmp);
+      printf("CHECKSUM ERROR = %e\n", tmp[0]-Nmax);
+    }
   }
 
   if (B) {
@@ -79,8 +86,9 @@ void bs3_t::Run(){
     int Ntests = 20;
     Nblock = (N+blockSize-1)/blockSize;
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
+    Nreads = (N+Nblock*blockSize-1)/(Nblock*blockSize);
     for(int n=0;n<Ntests;++n){ //warmup
-      kernel1(Nblock, N, o_a, o_tmp); //partial reduction
+      kernel1(Nblock, N, Nreads, o_a, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_norm); //finish reduction
     }
 

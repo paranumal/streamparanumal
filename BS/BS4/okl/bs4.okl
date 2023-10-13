@@ -24,172 +24,283 @@ SOFTWARE.
 
 */
 
-@kernel void bs4_1_v2(const dlong Nblocks,
-                   const dlong N,
+#if 0
+// simplified reduction
+@kernel void bs4_1(const int NB,
+                   const int N,
+		   const int Nout,
 		   const int Nreads,
-                   @restrict const  dfloat *a,
-                   @restrict const  dfloat *bb,
-                   @restrict        dfloat *ddot){
+                   @restrict const dfloat *x,
+		   @restrict const dfloat *y,
+                   @restrict       dfloat *dot){
+  
+  for(int b=0;b<NB;++b;@outer(0)){
+    
+    // assume NT is a multiple of p_WARP
+    for(int t=0;t<p_blockSize;++t;@inner(0)){
+      dfloat res = 0;
+      int n =  t + b*p_blockSize*Nreads;
+      
+      // do this second
+      for(int r=0;r<Nreads;++r){
+	dfloat xn = (n<N) ? x[n]:0.f;
+	dfloat yn = (n<N) ? y[n]:0.f;
+	res += xn*yn;
+	n += p_blockSize;
+      }
+      
+      n = t + b*p_blockSize;
+      if(n<Nout){
+	dot[n] = res;
+      }
+    }
+  }
+}
+#endif
+
+#if 1
+@kernel void bs4_1(const int NB,
+                   const int N,
+		   const int Nreads,
+                   @restrict const dfloat *x,
+		   @restrict const dfloat *y,
+                   @restrict       dfloat *dot){
+
+#if OCCA_USE_HIP==1
+#define p_SIMD 64
+#define p_NW 4
+#else
+
+#define p_SIMD 32
+
+#if p_blockSize==1024
+#define p_NW 32
+#elif p_blockSize==512
+#define p_NW 16
+#elif p_blockSize==256
+#define p_NW 8
+#elif p_blockSize==128
+#define p_NW 4
+#elif p_blockSize==64
+#define p_NW 2
+#endif
+
+#endif
+
+  for(int b=0;b<NB;++b;@outer(0)){
+    
+    @shared dfloat s_dot[p_NW];
+
+#if OCCA_USE_OPENCL==1
+    @shared dfloat s_tmp[p_NW][p_SIMD+1];
+#endif
+    
+    // assume NT is a multiple of p_WARP
+    for(int w=0;w<p_NW;++w;@inner(1)){
+      for(int t=0;t<p_SIMD;++t;@inner(0)){
+        dfloat res = 0;
+	
+	int n =  t + p_SIMD*w + b*p_NW*p_SIMD*Nreads;
+	
+	for(int r=0;r<Nreads;++r){
+	  dfloat xn = (n<N) ? x[n]:0.;
+	  dfloat yn = (n<N) ? y[n]:0.;
+          res += xn*yn;
+	  n += p_blockSize;
+        }
+	
+#if OCCA_USE_DPCPP==1
+	const auto sg = item_.get_sub_group();
+	
+	res += sycl::shift_group_left(sg, res, 16);
+	res += sycl::shift_group_left(sg, res,  8);
+	res += sycl::shift_group_left(sg, res,  4);
+	res += sycl::shift_group_left(sg, res,  2);
+	res += sycl::shift_group_left(sg, res,  1);	
+#elif OCCA_USE_HIP==1
+        res += __shfl_down(res, 32, p_SIMD);
+        res += __shfl_down(res, 16, p_SIMD);
+        res += __shfl_down(res,  8, p_SIMD);
+        res += __shfl_down(res,  4, p_SIMD);
+        res += __shfl_down(res,  2, p_SIMD);
+        res += __shfl_down(res,  1, p_SIMD);
+#elif OCCA_USE_CUDA==1
+        res += __shfl_down_sync(0xFFFFFFFF, res, 16, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+        res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);	
+#else
+	// OpenCL
+	s_tmp[w][t] = res;
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t<16) s_tmp[w][t] += s_tmp[w][t+16];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 8) s_tmp[w][t] += s_tmp[w][t+ 8];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 4) s_tmp[w][t] += s_tmp[w][t+ 4];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 2) s_tmp[w][t] += s_tmp[w][t+ 2];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t< 1) s_tmp[w][t] += s_tmp[w][t+ 1];
+	sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	if(t==0)
+	  res = s_tmp[w][0];
+#endif
+        if(t==0)
+          s_dot[w] = res;
+	
+      }
+    }
+
+    // assume p_NW<=p_SIMD
+    for(int w=0;w<p_NW;++w;@inner(1)){
+      for(int t=0;t<p_SIMD;++t;@inner(0)){
+
+	if(w==0){
+	  
+          dfloat res = (t<p_NW) ? s_dot[t]:(dfloat)0.0;
+	  
+#if OCCA_USE_DPCPP==1
+	  const auto sg = item_.get_sub_group();
+	  if(p_NW>16)
+	    res += sycl::shift_group_left(sg, res, 16);
+	  if(p_NW>8)
+	    res += sycl::shift_group_left(sg, res,  8);
+	  if(p_NW>4)
+	    res += sycl::shift_group_left(sg, res,  4);
+	  if(p_NW>2)
+	    res += sycl::shift_group_left(sg, res,  2);
+	  if(p_NW>1)
+	    res += sycl::shift_group_left(sg, res,  1);
+#elif OCCA_USE_HIP==1
+          // assume p_NW = 4
+          res += __shfl_down(res,  2, p_SIMD);
+          res += __shfl_down(res,  1, p_SIMD);
+#elif OCCA_USE_CUDA==1
+          res += __shfl_down_sync(0xFFFFFFFF, res,  16, p_SIMD);
+	  res += __shfl_down_sync(0xFFFFFFFF, res,  8, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  4, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  2, p_SIMD);
+          res += __shfl_down_sync(0xFFFFFFFF, res,  1, p_SIMD);
+#else
+	  // need to check sub_group_size - this assumes 32
+	  if(p_NW>16){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t<16) s_dot[t] += s_dot[t+16];
+	  }
+	  if(p_NW>8){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 8) s_dot[t] += s_dot[t+ 8];
+	  }
+	  
+	  if(p_NW>4){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 4) s_dot[t] += s_dot[t+ 4];
+	  }
+	  
+	  if(p_NW>2){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 2) s_dot[t] += s_dot[t+ 2];
+	  }
+	  if(p_NW>1){
+	    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+	    if(t< 1) s_dot[t] += s_dot[t+ 1];
+	  }
+
+	  if(t==0)
+	    res = s_dot[0];
+#endif
+
+          if(t==0)
+            dot[b] = res;
+        }
+      }
+    }
+  }
+}
+#endif
+
+#if 0
+@kernel void bs4_1(const dlong Nblocks,
+                   const dlong N,
+                   @restrict const  dfloat *x,
+		   @restrict const  dfloat *y,
+                   @restrict        dfloat *dot){
 
 
   for(dlong b=0;b<Nblocks;++b;@outer(0)){
 
-    @shared dfloat s_ddot[p_blockSize];
+    @shared dfloat s_dot[p_blockSize];
 
     for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize*Nreads;
-      dfloat r_ddot = 0.0;
-
-      for(int r=0;r<Nreads;++r){
-        r_ddot += (id<N) ? a[id]*bb[id]:0;
-        id += p_blockSize;
+      dlong id = t + b*p_blockSize;
+      dfloat r_dot = 0.0;
+      while (id<N) {
+        r_dot += x[id]*y[id];
+        id += p_blockSize*Nblocks;
       }
-      
-      s_ddot[t] = r_ddot;
+      s_dot[t] = r_dot;
     }
 
 #if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_ddot[t] += s_ddot[t+512];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
 #endif
 
 #if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_ddot[t] += s_ddot[t+256];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
 #endif
 
 #if p_blockSize>128
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_ddot[t] += s_ddot[t+128];
-#endif
-
-#if p_blockSize>64
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_ddot[t] += s_ddot[t+ 64];
-#endif
-
-#if p_blockSize>32
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_ddot[t] += s_ddot[t+ 32];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
 #endif
     
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_ddot[t] += s_ddot[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_ddot[t] += s_ddot[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_ddot[t] += s_ddot[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_ddot[t] += s_ddot[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) ddot[b] = s_ddot[0] + s_ddot[1];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) dot[b] = s_dot[0] + s_dot[1];
   }
 }
-
-@kernel void bs4_1(const dlong Nblocks,
-                   const dlong N,
-		   const int Nreads,
-                   @restrict const  dfloat *a,
-                   @restrict const  dfloat *bb,
-                   @restrict        dfloat *ddot){
-
-
-  for(dlong b=0;b<Nblocks;++b;@outer(0)){
-#if OCCA_USE_CUDA || OCCA_USE_HIP
-    @shared volatile dfloat s_ddot[32][32];
 #endif
-    
-    @shared dfloat s_tmp[32];
-    @exclusive dfloat res;
-    
-#define squareThreads				\
-    for(int w=0;w<32;++w;@inner(1))		\
-      for(int t=0;t<32;++t;@inner(0))
-
-    squareThreads{
-      dlong id = t + w*32 + b*p_blockSize*Nreads;
-      dfloat r_ddot = 0.0;
-      
-      for(int r=0;r<Nreads;++r){
-	r_ddot += (id<N) ? a[id]*bb[id]:0;
-	id += p_blockSize;
-      }
-
-#if OCCA_USE_DPCPP==1
-      res = r_ddot;      
-#else
-      s_ddot[w][t] = r_ddot;
-#endif
-    }
-    
-    squareThreads{
-
-#if OCCA_USE_DPCPP==1
-      res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
-      res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
-      res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
-      res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
-      res += sycl::shift_group_left(item_.get_sub_group(), res,  1);
-      if(t==0) s_tmp[w] = res;
-#else
-      if(t<16) s_ddot[w][t] += s_ddot[w][t+16];
-      if(t< 8) s_ddot[w][t] += s_ddot[w][t+ 8];
-      if(t< 4) s_ddot[w][t] += s_ddot[w][t+ 4];
-      if(t< 2) s_ddot[w][t] += s_ddot[w][t+ 2];
-      if(t< 1) { s_tmp[w] = s_ddot[w][0] + s_ddot[w][1]; }
-#endif
-      
-    }
-
-    squareThreads{
-      if(w==0){
-
-#if OCCA_USE_DPCPP==1
-	res = s_tmp[t];
-	res += sycl::shift_group_left(item_.get_sub_group(), res, 16);
-	res += sycl::shift_group_left(item_.get_sub_group(), res,  8);
-	res += sycl::shift_group_left(item_.get_sub_group(), res,  4);
-	res += sycl::shift_group_left(item_.get_sub_group(), res,  2);
-	res += sycl::shift_group_left(item_.get_sub_group(), res,  1);
-	if(t==0) ddot[b] = res;
-#else
-	if(t<16) s_tmp[t] += s_tmp[t+16];
-	if(t< 8) s_tmp[t] += s_tmp[t+ 8];
-	if(t< 4) s_tmp[t] += s_tmp[t+ 4];
-	if(t< 2) s_tmp[t] += s_tmp[t+ 2];
-	if(t==0) ddot[b] = s_tmp[0] + s_tmp[1];
-#endif
-      }
-    }
-  }
-}
-
-
 
 @kernel void bs4_2(const dlong Nblocks,
-                   @restrict const  dfloat *a,
-                   @restrict        dfloat *ddot){
+		   @restrict const  dfloat *xy,
+                   @restrict        dfloat *dot){
 
 
   for(dlong b=0;b<1;++b;@outer(0)){
 
-    @shared dfloat s_ddot[p_blockSize];
+    @shared dfloat s_dot[p_blockSize];
 
     for(int t=0;t<p_blockSize;++t;@inner(0)){
       dlong id = t + b*p_blockSize;
-      dfloat r_ddot = 0.0;
+      dfloat r_dot = 0.0;
       while (id<Nblocks) {
-        r_ddot += a[id];
+        r_dot += xy[id];
         id += p_blockSize*Nblocks;
       }
-      s_ddot[t] = r_ddot;
+      s_dot[t] = r_dot;
     }
 
 #if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_ddot[t] += s_ddot[t+512];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
 #endif
 
 #if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_ddot[t] += s_ddot[t+256];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
 #endif
 
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_ddot[t] += s_ddot[t+128];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_ddot[t] += s_ddot[t+ 64];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_ddot[t] += s_ddot[t+ 32];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_ddot[t] += s_ddot[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_ddot[t] += s_ddot[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_ddot[t] += s_ddot[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_ddot[t] += s_ddot[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) ddot[b] = s_ddot[0] + s_ddot[1];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) dot[b] = s_dot[0] + s_dot[1];
   }
 }
+

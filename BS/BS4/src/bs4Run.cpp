@@ -61,9 +61,13 @@ void bs4_t::Run(){
     int Nreads = (Nmax+(Nblock*blockSize)-1)/(Nblock*blockSize);
     kernel1(Nblock, Nmax, Nreads, o_a, o_b, o_tmp); //partial reduction
     kernel2(Nblock, o_tmp, o_dot); //finish reduction
-    libp::memory<dfloat> h_tmp(1);
-    o_dot.copyTo(h_tmp);
-    printf("tmp=%g, Nmax=%d\n", h_tmp[0], Nmax);
+#if 0
+    if(n==0){
+      libp::memory<dfloat> h_tmp(1);
+      o_dot.copyTo(h_tmp);
+      printf("CHECKSUM=%g, Nmax=%d\n", h_tmp[0]-Nmax, Nmax);
+    }
+#endif
   }
 
   if (B) {
