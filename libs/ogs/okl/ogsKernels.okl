@@ -157,7 +157,8 @@ SOFTWARE.
 ------------------------------------------------------------------------------*/
 
 #if OCCA_USE_DPCPP!=1
-@kernel void gather(const dlong Nblocks,
+@kernel void gather(const dlong Ngather,
+		    const dlong Nblocks,
                     const int K,
 		    @restrict const dlong *blockStarts,
 		    @restrict const dlong *gatherStarts,
@@ -200,7 +201,8 @@ SOFTWARE.
 }
 #else
 // For DPCPP we avoid LDS
-@kernel void gather(const dlong Nblocks,
+@kernel void gather(const dlong Ngather,
+		    const dlong Nblocks,
                     const int K,
 		    @restrict const dlong *blockStarts,
 		    @restrict const dlong *gatherStarts,
@@ -208,6 +210,7 @@ SOFTWARE.
 		    @restrict const     T *q,
 		    @restrict           T *gatherq){
 
+#if 0
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
 
@@ -230,6 +233,29 @@ SOFTWARE.
       }
     }
   }
+#else
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<(Ngather+p_blockSize-1)/p_blockSize;++b;@outer(0)){
+
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+
+	const dlong row = b*p_blockSize + n;
+
+	if(row<Ngather){
+	  T gq = OGS_OP_INIT;
+	  
+	  const dlong rowStart = gatherStarts[row]  ;
+	  const dlong rowEnd   = gatherStarts[row+1];
+	  
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    OGS_OP(gq, q[k+K*gatherIds[i]]);
+	  }
+	  gatherq[k+row*K] = gq;
+	}
+      }
+    }
+  }
+#endif
 }
 #endif
 
@@ -237,7 +263,8 @@ SOFTWARE.
   The basic scatter kernel
 ------------------------------------------------------------------------------*/
 #if OCCA_USE_DPCPP!=1
-@kernel void scatter(const dlong Nblocks,
+@kernel void scatter(const dlong Nscatter,
+		     const dlong Nblocks,
                      const int K,
                      @restrict const dlong *blockStarts,
                      @restrict const dlong *scatterStarts,
@@ -277,7 +304,8 @@ SOFTWARE.
 }
 #else
 // For DPCPP avoid LDS
-@kernel void scatter(const dlong Nblocks,
+@kernel void scatter(const dlong Nscatter,
+		     const dlong Nblocks,
                      const int K,
                      @restrict const dlong *blockStarts,
                      @restrict const dlong *scatterStarts,
@@ -285,6 +313,7 @@ SOFTWARE.
                      @restrict const     T *gatherq,
                      @restrict           T *q) {
 
+#if 0
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
       
@@ -307,6 +336,29 @@ SOFTWARE.
       }
     }
   }
+#else
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<(Nscatter+p_blockSize-1)/p_blockSize;++b;@outer(0)){
+      
+      for(dlong n=0;n<p_blockSize;++n;@inner(0)){
+	
+	const dlong row = b*p_blockSize + n;
+
+	if(row<Nscatter){
+	  const dlong rowStart = scatterStarts[row]  ;
+	  const dlong rowEnd   = scatterStarts[row+1];
+	  
+	  // load value to scatter
+	  const T foo = gatherq[k+row*K];
+	  
+	  for(dlong i=rowStart;i<rowEnd;++i){
+	    q[k+scatterIds[i]*K] = foo;
+	  }
+	}
+      }
+    }
+  }
+#endif
 }
 #endif
 

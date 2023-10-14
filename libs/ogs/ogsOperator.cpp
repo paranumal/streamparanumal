@@ -181,9 +181,19 @@ void ogsOperator_t::Gather(deviceMemory<T> o_gv,
   constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, op);
 
+  dlong Nrows = 0;
+  if (trans==Trans) {
+    Nrows = NrowsN;
+  } else if (trans==Sym) {
+    Nrows = NrowsT;
+  } else {
+    Nrows = NrowsT;
+  }
+  
   if (trans==NoTrans) {
     if (NrowBlocksN)
-      gatherKernel[type][op](NrowBlocksN,
+      gatherKernel[type][op](Nrows,
+			     NrowBlocksN,
                               k,
                               o_blockRowStartsN,
                               o_rowStartsN,
@@ -192,7 +202,8 @@ void ogsOperator_t::Gather(deviceMemory<T> o_gv,
                               o_gv);
   } else {
     if (NrowBlocksT)
-      gatherKernel[type][op](NrowBlocksT,
+      gatherKernel[type][op](Nrows,
+			     NrowBlocksT,
                               k,
                               o_blockRowStartsT,
                               o_rowStartsT,
@@ -299,9 +310,17 @@ void ogsOperator_t::Scatter(deviceMemory<T> o_v,
   constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, Add);
 
+  dlong Nrows = 0;
+  if (trans==Trans) {
+    Nrows = NrowsN;
+  } else {
+    Nrows = NrowsT;
+  }
+
   if (trans==Trans) {
     if (NrowBlocksN)
-      scatterKernel[type](NrowBlocksN,
+      scatterKernel[type](Nrows,
+			  NrowBlocksN,
                           k,
                           o_blockRowStartsN,
                           o_rowStartsN,
@@ -310,7 +329,8 @@ void ogsOperator_t::Scatter(deviceMemory<T> o_v,
                           o_v);
   } else {
     if (NrowBlocksT)
-      scatterKernel[type](NrowBlocksT,
+      scatterKernel[type](Nrows,
+			  NrowBlocksT,
                           k,
                           o_blockRowStartsT,
                           o_rowStartsT,
@@ -454,7 +474,6 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
   } else {
     Nrows = NrowsT;
   }
-
   
   if (trans==Trans) {
     if (NrowBlocksT)
@@ -646,3 +665,4 @@ template void extract(const dlong N, const int K, const memory<dlong> ids,
 } //namespace ogs
 
 } //namespace libp
+
