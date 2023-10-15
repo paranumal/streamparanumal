@@ -1,0 +1,106 @@
+/*
+
+The MIT License (MIT)
+
+Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+
+#define bs9_v2 bs9 
+
+/* must have: p_Nreads and p_Nwrites defined */
+#if 1
+typedef struct{
+  dfloat data[p_Nreads];
+}read_t;
+
+typedef struct{
+  dfloat data[p_Nwrites];
+}write_t;
+
+@kernel void bs9_v0(const dlong N,
+                 @restrict const read_t* x,
+		 @restrict write_t* y){
+
+  for(dlong n=0;n<N;++n;@tile(p_blockSize,@outer,@inner)){
+    read_t xn = x[n];
+    dfloat res = 0;
+    for(int m=0;m<p_Nreads;++m){
+      res += xn.data[m];
+    }
+
+    write_t yn;
+    for(int m=0;m<p_Nwrites;++m){
+      yn.data[m] = res;
+    }
+    
+    y[n] = yn;
+  }
+}
+
+
+@kernel void bs9_v1(const dlong N,
+		    @restrict const dfloat* x,
+		    @restrict dfloat* y){
+
+  for(dlong n=0;n<N;++n;@tile(p_blockSize,@outer,@inner)){
+
+    dfloat res = 0;
+    for(int r=0;r<p_Nreads;++r){
+      res += x[n+r*N];
+    }
+      
+    for(int w=0;w<p_Nwrites;++w){
+      y[n+w*N] = res;
+    }
+  }
+}
+
+
+#endif
+
+@kernel void bs9_v2(const dlong N,
+		    @restrict const dfloat* x,
+		    @restrict dfloat* y){
+  
+  for(unsigned long b=0;b<(N+p_blockSize-1)/p_blockSize;++b;@outer){
+    for(int t=0;t<p_blockSize;++t;@inner){
+      unsigned long n = t + b*p_blockSize*p_Nreads;
+      dfloat res = 0;
+#pragma unroll p_Nreads
+      for(int r=0;r<p_Nreads;++r){
+	unsigned long id = n + r*p_blockSize;
+	if(id<N*p_Nreads){
+	  res += x[id];
+	}
+      }
+      n = t + b*p_blockSize*p_Nwrites;
+#pragma unroll p_Nwrites
+      for(int w=0;w<p_Nwrites;++w){
+	unsigned long id = n + w*p_blockSize;
+	if(id<N*p_Nwrites){
+	  y[id] = res;
+	}
+      }
+    }
+  }
+}
+
