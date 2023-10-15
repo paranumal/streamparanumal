@@ -25,15 +25,64 @@ SOFTWARE.
 */
 
 #include "bs7.hpp"
+#include <unistd.h>
+#include <iomanip>
 
 void bs7_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   dlong Ngather = mesh.ogs.Ngather;
+
   deviceMemory<dfloat> o_q  = platform.malloc<dfloat>(N);
   deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(Ngather);
+  
+  {
+    
+    memory<int32_t> h_dest(N, -1);
+    memory<int32_t> h_source(Ngather);
+    
+    for(int n=0;n<N;++n){
+      h_dest[n] = -1;
+    }
+    for(int n=0;n<Ngather;++n){
+      h_source[n] = n;
+    }
+    
+    deviceMemory<int32_t> o_dest   = platform.malloc<int32_t>(h_dest);
+    deviceMemory<int32_t> o_source = platform.malloc<int32_t>(h_source);
+    
+    mesh.ogs.Scatter(o_dest, o_source, 1, ogs::NoTrans);
 
+    // OCCA build stuff
+    properties_t kernelInfo = platform.props(); //copy base occa properties
+    kernelInfo["defines/" "p_blockSize"] = (int)256;
+    occa::kernel kernel = platform.buildKernel(DBS7 "/okl/bs7.okl", "bs7", kernelInfo);
+
+    kernel(N, o_dest, o_gq, o_q);
+
+    usleep(1000);
+    
+    timePoint_t start = GlobalPlatformTime(platform);
+    kernel(N, o_dest, o_gq, o_q);
+    timePoint_t end = GlobalPlatformTime(platform);
+    double elapsed = ElapsedTime(start, end);
+
+    std::cout << std::
+      setprecision(5); 
+    
+    std::cout << "N=" << N
+	      << ", Ngather=" << Ngather
+	      << ", Elapsed=" << elapsed
+	      << ", Throughput=" << (Ngather*sizeof(dlong)+2*N*sizeof(dfloat))/(1.e9*elapsed)
+	      << ", GB/s" << std::endl;
+
+    std::cout << "NgatherGlobal=" << mesh.ogs.NgatherGlobal
+	      << ", NtotalGlobal=" << mesh.Np*mesh.Nelements
+	      << ", Ngather=" << Ngather
+	      << ", N=" << N << std::endl;
+  }
+  
   /* Warmup */
   for(int n=0;n<5;++n){
     mesh.ogs.Scatter(o_q, o_gq, 1, ogs::NoTrans); //dry run
