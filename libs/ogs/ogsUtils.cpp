@@ -56,8 +56,8 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
     switch (type) {
       case Float:  kernelInfo["defines/T"] =  "float"; break;
       case Double: kernelInfo["defines/T"] =  "double"; break;
-      case Int32:  kernelInfo["defines/T"] =  "int32_t"; break;
-      case Int64:  kernelInfo["defines/T"] =  "int64_t"; break;
+      case Int32:  kernelInfo["defines/T"] =  "int"; break;
+      case Int64:  kernelInfo["defines/T"] =  "long long int"; break;
     }
 
     switch (type) {

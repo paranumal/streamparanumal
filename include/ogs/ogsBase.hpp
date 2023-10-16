@@ -76,7 +76,7 @@ public:
                       platform_t& _platform);
   void Free();
 
-protected:
+public: // TW
   std::shared_ptr<ogsOperator_t> gatherLocal;
   std::shared_ptr<ogsOperator_t> gatherHalo;
   std::shared_ptr<ogsExchange_t> exchange;
@@ -103,6 +103,9 @@ private:
                            comm_t _comm,
                            platform_t &_platform,
                            const int verbose);
+
+public:
+  void ReorderGatherScatter();
 };
 
 } //namespace ogs

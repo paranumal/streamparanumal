@@ -846,6 +846,94 @@ void ogsBase_t::LocalHaloSetup(const dlong Nids, memory<parallelNode_t> &nodes){
   gatherHalo->setupRowBlocks();
 }
 
+typedef struct{
+  int degree;
+  dlong *ids;
+}list_t;
+
+  
+  void ogsBase_t::ReorderGatherScatter(){
+
+    int maxDegree = 0, minDegree=1e9, Nsingletons = 0;
+    dlong Nrows = gatherLocal->NrowsT;
+    for(int n=0;n<Nrows;++n){
+      dlong start = gatherLocal->rowStartsT[n];
+      dlong end   = gatherLocal->rowStartsT[n+1];
+      int deg = end-start;
+      maxDegree = std::max(deg, maxDegree);
+      minDegree = std::min(deg, minDegree);
+      if(deg==1) ++Nsingletons;
+    }
+
+    std::cout << "Nrows=" << Nrows <<
+      ", minDegree=" << minDegree <<
+      ", maxDegree=" << maxDegree <<
+      "Fraction that are singletons:" << Nsingletons/(double)Nrows <<
+      std::endl;
+    
+    list_t *blob = new list_t[Nrows];
+
+    int cnt = 0;
+    for(int n=0;n<Nrows;++n){
+      dlong start = gatherLocal->rowStartsT[n];
+      dlong end   = gatherLocal->rowStartsT[n+1];
+      int deg = end-start;
+      if(deg>1){
+	blob[cnt].degree = deg;
+	blob[cnt].ids = (deg>0) ? new dlong[deg]: NULL;
+	for(int m=start;m<end;++m){
+	  blob[cnt].ids[m-start] = gatherLocal->colIdsT[m];
+	}
+	++cnt;
+      }
+    }
+
+#if 0
+    // failed experiment to reorder nodes in each gather list
+    // neutral on perforamnce (probably preordered)
+    for(int n=0;n<cnt;++n){
+      sort(blob[n].ids, blob[n].ids+blob[n].degree,
+	   [](const dlong& a, const dlong& b) {
+	     return a<b;
+	   });
+    }
+#endif
+    
+    
+    
+#if 0
+    // failed experiment to reorder gather nodes
+    sort(blob, blob+cnt,
+	 [](const list_t& a, const list_t& b) {
+	   return a.degree < b.degree;
+	   //	   return a.ids[0] < b.ids[0];
+	 });
+#endif
+
+
+    std::cout << "gatherScatter reorder: Nrows was " << gatherLocal->NrowsT << " and after singletons is " << cnt << std::endl;
+    gatherLocal->NrowsT = cnt;    
+    gatherLocal->rowStartsT.realloc(cnt+1);
+
+    gatherLocal->rowStartsT[0] = 0;
+    for(int n=1;n<=cnt;++n){
+      gatherLocal->rowStartsT[n] = gatherLocal->rowStartsT[n-1] + blob[n-1].degree;
+    }
+    
+    gatherLocal->colIdsT.realloc(gatherLocal->rowStartsT[cnt]);
+    
+    for(int n=0;n<cnt;++n){
+      for(int m=gatherLocal->rowStartsT[n];m<gatherLocal->rowStartsT[n+1];++m){
+	gatherLocal->colIdsT[m] = blob[n].ids[m-gatherLocal->rowStartsT[n]];
+      }
+    }
+    
+    gatherLocal->o_rowStartsT = platform.malloc<dlong>(gatherLocal->rowStartsT);
+    gatherLocal->o_colIdsT = platform.malloc<dlong>(gatherLocal->colIdsT);
+    //    gatherLocal->o_rowStartsT.copyFrom(gatherLocal->rowStartsT);
+    //    gatherLocal->o_colIdsT.copyFrom(gatherLocal->colIdsT);
+  }
+  
 void ogsBase_t::Free() {
   comm.Free();
   gatherLocal = nullptr;

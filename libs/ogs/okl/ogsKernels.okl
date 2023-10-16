@@ -132,18 +132,26 @@ SOFTWARE.
 	if(row<Ngather){
 	  const dlong rowStart = gatherStarts[row]  ;
 	  const dlong rowEnd   = gatherStarts[row+1];
-	  
+
+	  // assume symmetric 
 	  T gq = OGS_OP_INIT;
 	  for (dlong i=rowStart;i<rowEnd;i++) {
-	    OGS_OP(gq, q[k+K*gatherIds[i]]);
-	  }
+	    OGS_OP  (gq, q[k+K*gatherIds[i]]);
+	  } 
 	  
+#if 0
 	  const dlong colStart = scatterStarts[row]  ;
 	  const dlong colEnd   = scatterStarts[row+1];
 	  
 	  for (dlong i=colStart;i<colEnd;i++) {
 	    q[k+K*scatterIds[i]] = gq;
 	  }
+#else
+	  // no really - assume symmetry
+	  for (dlong i=rowStart;i<rowEnd;i++) {
+	    q[k+K*gatherIds[i]] = gq;
+	  }
+#endif
 	}
       }
     }
