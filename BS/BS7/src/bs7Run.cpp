@@ -38,6 +38,10 @@ void bs7_t::Run(){
   deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(Ngather);
   
   {
+    deviceMemory<dfloat> o_q2  = platform.malloc<dfloat>(N*2);
+    deviceMemory<dfloat> o_gq2 = platform.malloc<dfloat>(Ngather*2);
+    deviceMemory<dfloat> o_q4  = platform.malloc<dfloat>(N*4);
+    deviceMemory<dfloat> o_gq4 = platform.malloc<dfloat>(Ngather*4);
     
     memory<int32_t> h_dest(N, -1);
     memory<int32_t> h_source(Ngather);
@@ -59,12 +63,20 @@ void bs7_t::Run(){
     kernelInfo["defines/" "p_blockSize"] = (int)256;
     occa::kernel kernel = platform.buildKernel(DBS7 "/okl/bs7.okl", "bs7", kernelInfo);
 
+#if 1
     kernel(N, o_dest, o_gq, o_q);
-
+#else
+    kernel(N, o_dest, o_gq4, o_q4);
+#endif
     usleep(1000);
     
     timePoint_t start = GlobalPlatformTime(platform);
+#if 1
     kernel(N, o_dest, o_gq, o_q);
+#else
+    kernel(N, o_dest, o_gq4, o_q4);
+#endif
+    
     timePoint_t end = GlobalPlatformTime(platform);
     double elapsed = ElapsedTime(start, end);
 
@@ -74,7 +86,7 @@ void bs7_t::Run(){
     std::cout << "N=" << N
 	      << ", Ngather=" << Ngather
 	      << ", Elapsed=" << elapsed
-	      << ", Throughput=" << (Ngather*sizeof(dlong)+2*N*sizeof(dfloat))/(1.e9*elapsed)
+	      << ", Throughput=" << N*(sizeof(dlong)+2*sizeof(dfloat))/(1.e9*elapsed)
 	      << ", GB/s" << std::endl;
 
     std::cout << "NgatherGlobal=" << mesh.ogs.NgatherGlobal

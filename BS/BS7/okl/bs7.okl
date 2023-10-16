@@ -24,12 +24,13 @@ SOFTWARE.
 
 */
 
+#if 1
 @kernel void bs7(const dlong N,
                  @restrict const dlong* ids,
                  @restrict const dfloat* gq,
                  @restrict       dfloat* q){
 
-  for(dlong n=0;n<N;++n;@tile(p_blockSize,@outer,@inner)){
+  for(dlong n=0;n<N;++n;@tile(32,@outer,@inner)){
     if(n<N) {
       dlong id = ids[n];
       if(id>=0)
@@ -37,3 +38,18 @@ SOFTWARE.
     }
   }
 }
+#else
+@kernel void bs7(const dlong N,
+                 @restrict const dlong* ids,
+                 @restrict const dfloat4* gq,
+                 @restrict       dfloat4* q){
+
+  for(dlong n=0;n<N;++n;@tile(64,@outer,@inner)){
+    if(n<N) {
+      dlong id = ids[n];
+      if(id>=0)
+	q[n] = gq[id];
+    }
+  }
+}
+#endif
