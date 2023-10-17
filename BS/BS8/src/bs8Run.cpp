@@ -25,16 +25,53 @@ SOFTWARE.
 */
 
 #include "bs8.hpp"
+#include "ogs.hpp"
+
+typedef struct{
+  int degree;
+  dlong *ids;
+}list_t;
 
 void bs8_t::Run(){
 
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   deviceMemory<dfloat> o_q = platform.malloc<dfloat>(N);
+  deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(mesh.ogs.Ngather);
 
+  mesh.ogs.ReorderGatherScatter();
+  
+  memory<int32_t> h_dest(N, -1);
+  memory<int32_t> h_source(mesh.ogs.Ngather);
+  
+  for(int n=0;n<N;++n){
+    h_dest[n] = -1;
+  }
+  for(int n=0;n<mesh.ogs.Ngather;++n){
+    h_source[n] = n;
+  }
+  
+  deviceMemory<int32_t> o_dest   = platform.malloc<int32_t>(h_dest);
+  deviceMemory<int32_t> o_source = platform.malloc<int32_t>(h_source);
+  
+  mesh.ogs.Scatter(o_dest, o_source, 1, ogs::NoTrans);
+  
+  // OCCA build stuff
+  properties_t kernelInfo = platform.props(); //copy base occa properties
+  kernelInfo["defines/" "p_blockSize"] = (int)256;
+  occa::kernel modScatterKernel = platform.buildKernel(DBS8 "/../BS7/okl/bs7.okl", "bs7", kernelInfo);
+  
+
+  
   /* Warmup */
   for(int n=0;n<5;++n){
+#if 1
     mesh.ogs.GatherScatter(o_q, 1, ogs::Add, ogs::Sym); //dry run
+#else
+    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Add, ogs::Sym); //dry run
+    //    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::Sym); //dry run
+    modScatterKernel(N, o_dest, o_gq, o_q);
+#endif
   }
 
   /* Gather Scatter test */
@@ -42,7 +79,13 @@ void bs8_t::Run(){
   timePoint_t start = GlobalPlatformTime(platform);
 
   for(int n=0;n<Ntests;++n){
+#if 1
     mesh.ogs.GatherScatter(o_q, 1, ogs::Add, ogs::Sym);
+#else
+    mesh.ogs.Gather(o_gq, o_q, 1, ogs::Add, ogs::Sym); //dry run
+    //    mesh.ogs.Scatter(o_q, o_gq, 1, ogs::Sym); //dry run
+    modScatterKernel(N, o_dest, o_gq, o_q);
+#endif
   }
 
   timePoint_t end = GlobalPlatformTime(platform);
@@ -55,6 +98,7 @@ void bs8_t::Run(){
 
   size_t bytesIn=0;
   size_t bytesOut=0;
+  //  bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
   bytesIn += (NgatherGlobal+1)*sizeof(dlong); //row starts
   bytesIn += NtotalGlobal*sizeof(dlong); //local Ids
   bytesIn += NtotalGlobal*sizeof(dfloat); //values
