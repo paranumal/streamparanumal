@@ -29,7 +29,8 @@ SOFTWARE.
 /*------------------------------------------------------------------------------
   The basic gather-scatter kernel
 ------------------------------------------------------------------------------*/
-#if OCCA_USE_DPCPP!=1
+#if 0
+//OCCA_USE_DPCPP!=1
 @kernel void gatherScatter(const dlong Ngather,
 			   const dlong Nblocks,
                            const int K,

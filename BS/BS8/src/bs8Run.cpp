@@ -37,10 +37,12 @@ void bs8_t::Run(){
   //create occa buffers
   dlong N = mesh.Np*mesh.Nelements;
   deviceMemory<dfloat> o_q = platform.malloc<dfloat>(N);
-  deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(mesh.ogs.Ngather);
 
   mesh.ogs.ReorderGatherScatter();
-  
+
+#if 0
+  deviceMemory<dfloat> o_gq = platform.malloc<dfloat>(mesh.ogs.Ngather);
+
   memory<int32_t> h_dest(N, -1);
   memory<int32_t> h_source(mesh.ogs.Ngather);
   
@@ -55,12 +57,12 @@ void bs8_t::Run(){
   deviceMemory<int32_t> o_source = platform.malloc<int32_t>(h_source);
   
   mesh.ogs.Scatter(o_dest, o_source, 1, ogs::NoTrans);
-  
+
   // OCCA build stuff
   properties_t kernelInfo = platform.props(); //copy base occa properties
   kernelInfo["defines/" "p_blockSize"] = (int)256;
   occa::kernel modScatterKernel = platform.buildKernel(DBS8 "/../BS7/okl/bs7.okl", "bs7", kernelInfo);
-  
+#endif  
 
   
   /* Warmup */

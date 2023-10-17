@@ -367,6 +367,7 @@ void ogsOperator_t::GatherScatter(U<T> v, const int K,
   dlong *__restrict__ sRowStarts, *__restrict__ sColIds;
 
   if (trans==Trans) {
+    std::cout << "UH OH Trans OP" << std::endl;
     Nrows = NrowsN;
     gRowStarts = rowStartsT.ptr();
     gColIds    = colIdsT.ptr();
@@ -487,7 +488,7 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
                                      o_colIdsN,
                                      o_v);
   } else if (trans==Sym) {
-    if (NrowBlocksT)
+    if (NrowBlocksT){
       gatherScatterKernel[type][Add](Nrows,
 				     NrowBlocksT,
                                      k,
@@ -497,6 +498,7 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
                                      o_rowStartsT,
                                      o_colIdsT,
                                      o_v);
+    }
   } else {
     if (NrowBlocksT)
       gatherScatterKernel[type][Add](Nrows,

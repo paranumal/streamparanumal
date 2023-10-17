@@ -864,7 +864,7 @@ typedef struct{
       minDegree = std::min(deg, minDegree);
       if(deg==1) ++Nsingletons;
     }
-
+    
     std::cout << "Nrows=" << Nrows <<
       ", minDegree=" << minDegree <<
       ", maxDegree=" << maxDegree <<
@@ -872,7 +872,7 @@ typedef struct{
       std::endl;
     
     list_t *blob = new list_t[Nrows];
-
+    
     int cnt = 0;
     for(int n=0;n<Nrows;++n){
       dlong start = gatherLocal->rowStartsT[n];
@@ -880,14 +880,14 @@ typedef struct{
       int deg = end-start;
       if(deg>1){
 	blob[cnt].degree = deg;
-	blob[cnt].ids = (deg>0) ? new dlong[deg]: NULL;
+	blob[cnt].ids = new dlong[deg];
 	for(int m=start;m<end;++m){
 	  blob[cnt].ids[m-start] = gatherLocal->colIdsT[m];
 	}
 	++cnt;
       }
     }
-
+    
 #if 0
     // failed experiment to reorder nodes in each gather list
     // neutral on perforamnce (probably preordered)
@@ -914,7 +914,7 @@ typedef struct{
     std::cout << "gatherScatter reorder: Nrows was " << gatherLocal->NrowsT << " and after singletons is " << cnt << std::endl;
     gatherLocal->NrowsT = cnt;    
     gatherLocal->rowStartsT.realloc(cnt+1);
-
+    
     gatherLocal->rowStartsT[0] = 0;
     for(int n=1;n<=cnt;++n){
       gatherLocal->rowStartsT[n] = gatherLocal->rowStartsT[n-1] + blob[n-1].degree;
@@ -923,13 +923,15 @@ typedef struct{
     gatherLocal->colIdsT.realloc(gatherLocal->rowStartsT[cnt]);
     
     for(int n=0;n<cnt;++n){
-      for(int m=gatherLocal->rowStartsT[n];m<gatherLocal->rowStartsT[n+1];++m){
-	gatherLocal->colIdsT[m] = blob[n].ids[m-gatherLocal->rowStartsT[n]];
+      dlong start = gatherLocal->rowStartsT[n];
+      dlong end   = gatherLocal->rowStartsT[n+1];
+      for(int m=start;m<end;++m){
+	gatherLocal->colIdsT[m] = blob[n].ids[m-start];
       }
     }
     
     gatherLocal->o_rowStartsT = platform.malloc<dlong>(gatherLocal->rowStartsT);
-    gatherLocal->o_colIdsT = platform.malloc<dlong>(gatherLocal->colIdsT);
+    gatherLocal->o_colIdsT    = platform.malloc<dlong>(gatherLocal->colIdsT);
     //    gatherLocal->o_rowStartsT.copyFrom(gatherLocal->rowStartsT);
     //    gatherLocal->o_colIdsT.copyFrom(gatherLocal->colIdsT);
   }
