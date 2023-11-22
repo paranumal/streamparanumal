@@ -73,7 +73,7 @@ endif
 endif
 
 #libraries
-BS6_LIBP_LIBS=mesh ogs core
+BS6_LIBP_LIBS=mesh ogs core prim
 
 #includes
 INCLUDES=${LIBP_INCLUDES} \

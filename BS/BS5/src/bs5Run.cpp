@@ -41,14 +41,12 @@ void bs5_t::Run(){
 
   if(B) Bmax = B;
 
-  int sc = 6*sizeof(dfloat);  // bytes moved per entry
+  int sc = 3*sizeof(dfloat);  // bytes moved per entry
   int Nmin = Bmin/sc;
   int Nmax = Bmax/sc;
   int Nstep = (Bstep/sc > 0) ? Bstep/sc : 1;
 
-  deviceMemory<dfloat> o_p  = platform.malloc<dfloat>(Nmax);
   deviceMemory<dfloat> o_Ap = platform.malloc<dfloat>(Nmax);
-  deviceMemory<dfloat> o_x  = platform.malloc<dfloat>(Nmax);
   deviceMemory<dfloat> o_r  = platform.malloc<dfloat>(Nmax);
 
   deviceMemory<dfloat> o_tmp = platform.malloc<dfloat>(blockSize);
@@ -61,7 +59,7 @@ void bs5_t::Run(){
   int Nblock = (Nmax+blockSize-1)/(blockSize);
   Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
   for(int n=0;n<Nwarm;++n){ //warmup
-    kernel1(Nblock, Nmax, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+    kernel1(Nblock, Nmax, o_Ap, alpha, o_r, o_tmp); //partial reduction
     kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
   }
 
@@ -86,15 +84,15 @@ void bs5_t::Run(){
     Nblock = (N+blockSize-1)/blockSize;
     Nblock = (Nblock>blockSize) ? blockSize : Nblock; //limit to blockSize entries
     for(int n=0;n<Ntests;++n){ //warmup
-      kernel1(Nblock, N, o_p, o_Ap, alpha, o_x, o_r, o_tmp); //partial reduction
+      kernel1(Nblock, N, o_Ap, alpha, o_r, o_tmp); //partial reduction
       kernel2(Nblock, o_tmp, o_rdotr); //finish reduction
     }
 
     timePoint_t end = GlobalPlatformTime(platform);
     double elapsedTime = ElapsedTime(start, end)/Ntests;
 
-    size_t bytesIn  = 4*N*sizeof(dfloat);
-    size_t bytesOut = 2*N*sizeof(dfloat);
+    size_t bytesIn  = 2*N*sizeof(dfloat);
+    size_t bytesOut = 1*N*sizeof(dfloat);
     size_t bytes = bytesIn + bytesOut;
 
     printf("%d %5.4e %5.4e %6.2f",
