@@ -82,7 +82,7 @@ endif
 endif
 
 #libraries
-STREAM_LIBP_LIBS=mesh ogs core
+STREAM_LIBP_LIBS=mesh ogs core prim
 
 .PHONY: all BS libp_libs \
 				BS0 BS1 BS2 BS3 BS4 BS5 BS6 BS7 BS8 \

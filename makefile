@@ -73,7 +73,7 @@ endif
 endif
 
 #libraries
-STREAM_LIBP_LIBS=mesh ogs core
+STREAM_LIBP_LIBS=mesh prim ogs core
 
 .PHONY: all BS libp_libs \
 		clean clean-libs clean-kernels \
