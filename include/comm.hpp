@@ -64,33 +64,6 @@ TYPE(float,  MPI_FLOAT);
 TYPE(double, MPI_DOUBLE);
 #undef TYPE
 
-class comm_t;
-
-namespace Comm {
-
-  using request_t = MPI_Request;
-
-  /*Predefined ops*/
-  using op_t = MPI_Op;
-  static constexpr op_t Max  = MPI_MAX;
-  static constexpr op_t Min  = MPI_MIN;
-  static constexpr op_t Sum  = MPI_SUM;
-  static constexpr op_t Prod = MPI_PROD;
-  static constexpr op_t And  = MPI_LAND;
-  static constexpr op_t Or   = MPI_LOR;
-  static constexpr op_t Xor  = MPI_LXOR;
-
-  /*MPI_Init and MPI_Finalize*/
-  void Init(int &argc, char** &argv);
-  void Finalize();
-
-  /*handle to MPI_COMM_WORLD*/
-  comm_t World();
-
-  void GetProcessorName(char* name, int &namelen);
-
-} //namespace Comm
-
 /*Communicator class*/
 class comm_t {
 
@@ -98,11 +71,19 @@ class comm_t {
   std::shared_ptr<MPI_Comm> comm_ptr;
   int _rank=0;
   int _size=0;
+  bool _gpuAware=false;
 
  public:
   comm_t() = default;
   comm_t(const comm_t &c) = default;
   comm_t& operator = (const comm_t &c)=default;
+
+  /*Static MPI_Init and MPI_Finalize*/
+  static void Init(int &argc, char** &argv);
+  static void Finalize();
+
+  /*Static handle to MPI_COMM_WORLD*/
+  static comm_t world();
 
   /*MPI_Comm_dup and MPI_Comm_delete*/
   comm_t Dup() const;
@@ -115,6 +96,12 @@ class comm_t {
 
   /*MPI_Comm getter*/
   MPI_Comm comm() const;
+
+  /*GPU-aware setter*/
+  void setGpuAware(const bool flag);
+
+  /*GPU-aware getter*/
+  const bool gpuAware() const;
 
   using request_t = MPI_Request;
 
@@ -178,7 +165,7 @@ class comm_t {
              const int dest,
              const int count,
              const int tag,
-             Comm::request_t &request) const {
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Isend(m.ptr(), count, type, dest, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -190,7 +177,7 @@ class comm_t {
              const int source,
              const int count,
              const int tag,
-             Comm::request_t &request) const {
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Irecv(m.ptr(), count, type, source, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -201,7 +188,7 @@ class comm_t {
   void Isend(T& val,
              const int dest,
              const int tag,
-             Comm::request_t &request) const {
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Isend(&val, 1, type, dest, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -212,7 +199,7 @@ class comm_t {
   void Irecv(T& val,
              const int source,
              const int tag,
-             Comm::request_t &request) const {
+             request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Irecv(&val, 1, type, source, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -243,7 +230,7 @@ class comm_t {
   void Reduce(const mem<T> snd,
                     mem<T> rcv,
               const int root,
-              const Comm::op_t op = Comm::Sum,
+              const op_t op = Sum,
               const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
@@ -255,7 +242,7 @@ class comm_t {
   template <template<typename> class mem, typename T>
   void Reduce(mem<T> m,
               const int root,
-              const Comm::op_t op = Comm::Sum,
+              const op_t op = Sum,
               const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
@@ -272,7 +259,7 @@ class comm_t {
   void Reduce(const T& snd,
                     T& rcv,
               const int root,
-              const Comm::op_t op = Comm::Sum) const {
+              const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Reduce(&snd, &rcv, 1, type, op, root, comm());
     mpiType<T>::freeMpiType(type);
@@ -280,7 +267,7 @@ class comm_t {
   template <typename T>
   void Reduce(T& val,
               const int root,
-              const Comm::op_t op = Comm::Sum) const {
+              const op_t op = Sum) const {
     T rcv=val;
     Reduce(val, rcv, root, op);
     if (rank()==root) val=rcv;
@@ -290,7 +277,7 @@ class comm_t {
   template <template<typename> class mem, typename T>
   void Allreduce(const mem<T> snd,
                        mem<T> rcv,
-                 const Comm::op_t op = Comm::Sum,
+                 const op_t op = Sum,
                  const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
@@ -301,7 +288,7 @@ class comm_t {
   /*libp::memory in-place allreduce*/
   template <template<typename> class mem, typename T>
   void Allreduce(mem<T> m,
-                 const Comm::op_t op = Comm::Sum,
+                 const op_t op = Sum,
                  const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
@@ -313,14 +300,14 @@ class comm_t {
   template <typename T>
   void Allreduce(const T& snd,
                        T& rcv,
-                 const Comm::op_t op = Comm::Sum) const {
+                 const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allreduce(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
   }
   template <typename T>
   void Allreduce(T& val,
-                 const Comm::op_t op = Comm::Sum) const {
+                 const op_t op = Sum) const {
     T rcv=val;
     Allreduce(val, rcv, op);
     val = rcv;
@@ -330,9 +317,9 @@ class comm_t {
   template <template<typename> class mem, typename T>
   void Iallreduce(const mem<T> snd,
                         mem<T> rcv,
-                  const Comm::op_t op,
+                  const op_t op,
                   const int count,
-                  Comm::request_t &request) const {
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(snd.ptr(), rcv.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -341,9 +328,10 @@ class comm_t {
   /*libp::memory non-blocking in-place allreduce*/
   template <template<typename> class mem, typename T>
   void Iallreduce(mem<T> m,
-                  const Comm::op_t op,
+                  const int root,
+                  const op_t op,
                   const int count,
-                  Comm::request_t &request) const {
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(MPI_IN_PLACE, m.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -353,8 +341,8 @@ class comm_t {
   template <template<typename> class mem, typename T>
   void Iallreduce(const T& snd,
                         T& rcv,
-                  const Comm::op_t op,
-                  Comm::request_t &request) const {
+                  const op_t op,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(&snd, &rcv, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -362,8 +350,8 @@ class comm_t {
   /*scalar non-blocking in-place allreduce*/
   template <template<typename> class mem, typename T>
   void Iallreduce(T& val,
-                  const Comm::op_t op,
-                  Comm::request_t &request) const {
+                  const op_t op,
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(MPI_IN_PLACE, &val, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
@@ -373,7 +361,7 @@ class comm_t {
   template <template<typename> class mem, typename T>
   void Scan(const mem<T> snd,
                   mem<T> rcv,
-            const Comm::op_t op = Comm::Sum,
+            const op_t op = Sum,
             const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
@@ -384,7 +372,7 @@ class comm_t {
   /*libp::memory in-place scan*/
   template <template<typename> class mem, typename T>
   void Scan(mem<T> m,
-            const Comm::op_t op = Comm::Sum,
+            const op_t op = Sum,
             const int count=-1) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
@@ -396,7 +384,7 @@ class comm_t {
   template <typename T>
   void Scan(const T& snd,
                   T& rcv,
-            const Comm::op_t op = Comm::Sum) const {
+            const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Scan(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
@@ -557,7 +545,7 @@ class comm_t {
                         mem<T> rcv,
                   const memory<int> recvCounts,
                   const memory<int> recvOffsets,
-                  Comm::request_t &request) const {
+                  request_t &request) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Ialltoallv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                   rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
@@ -565,13 +553,14 @@ class comm_t {
     mpiType<T>::freeMpiType(type);
   }
 
-
   void Wait(request_t &request) const;
   void Waitall(const int count, memory<request_t> &requests) const;
   void Waitall(const int count, request_t* requests) const;
   void Barrier() const;
 
-  friend comm_t Comm::World();
+  static void GetProcessorName(char* name, int &namelen) {
+    MPI_Get_processor_name(name,&namelen);
+  }
 };
 
 } //namespace libp

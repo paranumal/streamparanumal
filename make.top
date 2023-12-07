@@ -28,17 +28,16 @@
 LIBP_ARCH=GNU
 
 #absolute path to StreamParanumal
-export STREAM_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-export LIBP_DIR=${STREAM_DIR}
+export LIBP_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
-export LIBP_INCLUDE_DIR=${STREAM_DIR}/include
-export LIBP_LIBS_DIR=${STREAM_DIR}/libs
+export LIBP_INCLUDE_DIR=${LIBP_DIR}/include
+export LIBP_LIBS_DIR=${LIBP_DIR}/libs
 
 export LIBP_BLAS_DIR?=/usr/lib/x86_64-linux-gnu
 export LIBP_BLAS_LIB=-L${LIBP_BLAS_DIR} -lopenblas
 
 #include OCCA
-export OCCA_DIR=${STREAM_DIR}/occa
+export OCCA_DIR=${LIBP_DIR}/occa
 
 #compilers to use for C/C++
 export LIBP_CC = mpicc

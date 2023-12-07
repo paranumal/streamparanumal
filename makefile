@@ -24,7 +24,7 @@
 #
 #####################################################################################
 
-define STREAM_HELP_MSG
+define LIBP_HELP_MSG
 
 streamParanumal Benchmarks makefile targets:
 
@@ -39,7 +39,7 @@ streamParanumal Benchmarks makefile targets:
 Usage:
 
 make all
-	 Builds all benchmark executables.
+	 Builds the benchmark.
 make clean
 	 Cleans all executables and object files.
 make clean-libs
@@ -57,10 +57,10 @@ Can use "make verbose=true" for verbose output.
 
 endef
 
-ifeq (,$(filter all clean clean-libs \
+ifeq (,$(filter all clean clean-libs clean-kernels \
 				realclean info help,$(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
-$(error ${STREAM_HELP_MSG})
+$(error ${LIBP_HELP_MSG})
 endif
 endif
 
@@ -73,51 +73,86 @@ endif
 endif
 
 #libraries
-STREAM_LIBP_LIBS=mesh prim ogs core
+CORE_LIBS=mesh ogs prim core
 
-.PHONY: all BS libp_libs \
-		clean clean-libs clean-kernels \
+#includes
+INCLUDES=${LIBP_INCLUDES} \
+         -I.
+
+#defines
+DEFINES =${LIBP_DEFINES} \
+         -DLIBP_DIR='"${LIBP_DIR}"'
+
+#.cpp compilation flags
+BS_CXXFLAGS=${LIBP_CXXFLAGS} ${DEFINES} ${INCLUDES}
+
+#link libraries
+LIBS=-L${LIBP_LIBS_DIR} $(addprefix -l,$(CORE_LIBS)) \
+     ${LIBP_LIBS}
+
+#link flags
+LFLAGS=${BS_CXXFLAGS} ${LIBS}
+
+#object dependancies
+DEPS=$(wildcard src/*.hpp) \
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.h) \
+     $(wildcard $(LIBP_INCLUDE_DIR)/*.hpp)
+
+SRC =$(wildcard src/*.cpp)
+
+OBJS=$(SRC:.cpp=.o)
+
+.PHONY: all clean clean-libs clean-kernels \
 		realclean info help
 
 all: BS
 
-libp_libs: ${OCCA_DIR}/lib/libocca.so
-ifneq (,${verbose})
-	${MAKE} -C ${LIBP_LIBS_DIR} $(STREAM_LIBP_LIBS) verbose=${verbose}
-else
-	@${MAKE} -C ${LIBP_LIBS_DIR} $(STREAM_LIBP_LIBS) --no-print-directory
-endif
-
-BS: libp_libs
-ifneq (,${verbose})
-	${MAKE} -C $(@F) verbose=${verbose}
-else
-	@printf "%b" "$(SOL_COLOR)Building $(@F) benchmark $(NO_COLOR)\n";
-	@${MAKE} -C $(@F) --no-print-directory
-endif
-
 ${OCCA_DIR}/lib/libocca.so:
 	${MAKE} -C ${OCCA_DIR}
 
+libp_libs: ${OCCA_DIR}/lib/libocca.so
+ifneq (,${verbose})
+	${MAKE} -C ${LIBP_LIBS_DIR} $(CORE_LIBS) verbose=${verbose}
+else
+	@${MAKE} -C ${LIBP_LIBS_DIR} $(CORE_LIBS) --no-print-directory
+endif
+
+BS:$(OBJS) libp_libs | libp_libs
+ifneq (,${verbose})
+	$(LIBP_LD) -o BS $(OBJS) $(LFLAGS)
+else
+	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
+	@$(LIBP_LD) -o BS $(OBJS) $(LFLAGS)
+endif
+
+# rule for .cpp files
+%.o: %.cpp $(DEPS) | libp_libs
+ifneq (,${verbose})
+	$(LIBP_CXX) -o $*.o -c $*.cpp $(BS_CXXFLAGS)
+else
+	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
+	@$(LIBP_CXX) -o $*.o -c $*.cpp $(BS_CXXFLAGS)
+endif
+
 #cleanup
 clean:
-	${MAKE} -C BS clean
+	rm -f src/*.o BS
 
 clean-libs: clean
 	${MAKE} -C ${LIBP_LIBS_DIR} clean
 
 clean-kernels: clean-libs
-	rm -rf ${STREAM_DIR}/.occa/
+	rm -rf ${LIBP_DIR}/.occa/
 
 realclean: clean-kernels
 	${MAKE} -C ${OCCA_DIR} clean
 
 help:
-	$(info $(value STREAM_HELP_MSG))
+	$(info $(value LIBP_HELP_MSG))
 	@true
 
 info:
-	$(info STREAM_DIR  = $(STREAM_DIR))
+	$(info LIBP_DIR  = $(LIBP_DIR))
 	$(info OCCA_DIR  = $(OCCA_DIR))
 	$(info LIBP_ARCH = $(LIBP_ARCH))
 	$(info LIBP_CXXFLAGS  = $(LIBP_CXXFLAGS))

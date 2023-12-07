@@ -1,14 +1,19 @@
 /*
+
 The MIT License (MIT)
+
 Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -16,6 +21,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
 */
 
 #include "settings.hpp"
@@ -27,11 +33,12 @@ using std::string;
 
 setting_t::setting_t(string shortkey_, string longkey_,
                      string name_, string val_,
-                     string description_, vector<string> options_)
+                     string description_, vector<string> options_,
+                     bool isToggle_)
   : shortkey{shortkey_}, longkey{longkey_},
     name{name_}, val{val_},
     description{description_}, options{options_},
-    check{0} {}
+    isToggle{isToggle_}, check{0} {}
 
 void setting_t::updateVal(const string newVal){
   if (!options.size()) {
@@ -102,6 +109,28 @@ std::ostream& operator<<(std::ostream& os, const setting_t& setting) {
 settings_t::settings_t(comm_t _comm):
   comm(_comm) {}
 
+void settings_t::newToggle(const string shortkey, const string longkey,
+                           const string name, const string val,
+                           const string description) {
+
+  for(auto it = settings.begin(); it != settings.end(); ++it) {
+    setting_t &setting = it->second;
+    LIBP_ABORT("Setting with key: [" << shortkey << "] already exists.",
+                  !setting.shortkey.compare(shortkey));
+    LIBP_ABORT("Setting with key: [" << longkey << "] already exists.",
+                  !setting.longkey.compare(longkey));
+  }
+
+  auto search = settings.find(name);
+  if (search == settings.end()) {
+    settings[name] = setting_t(shortkey, longkey, name, val, description,
+                               {}, true);
+    insertOrder.push_back(name);
+  } else {
+    LIBP_FORCE_ABORT("Setting with name: [" << name << "] already exists.");
+  }
+}
+
 void settings_t::newSetting(const string shortkey, const string longkey,
                             const string name, const string val,
                             const string description,
@@ -110,9 +139,9 @@ void settings_t::newSetting(const string shortkey, const string longkey,
   for(auto it = settings.begin(); it != settings.end(); ++it) {
     setting_t &setting = it->second;
     LIBP_ABORT("Setting with key: [" << shortkey << "] already exists.",
-               !setting.shortkey.compare(shortkey));
+                  !setting.shortkey.compare(shortkey));
     LIBP_ABORT("Setting with key: [" << longkey << "] already exists.",
-               !setting.longkey.compare(longkey));
+                  !setting.longkey.compare(longkey));
   }
 
   auto search = settings.find(name);
@@ -137,32 +166,37 @@ void settings_t::changeSetting(const string name, const string newVal) {
 void settings_t::parseSettings(const int argc, char** argv) {
 
   for (int i = 1; i < argc; ) {
-    if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
-    {
-       PrintUsage();
-       MPI_Abort(MPI_COMM_WORLD,LIBP_ERROR);
-       return;
+    if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+      if (comm.rank()==0) PrintUsage();
+      comm.Barrier();
+      comm_t::Finalize();
+      std::exit(LIBP_SUCCESS);
+      return;
     }
 
-    for(auto it = settings.begin(); it != settings.end(); ++it) {
+    auto it = settings.begin();
+    for(; it != settings.end(); ++it) {
       setting_t &setting = it->second;
       if (strcmp(argv[i], setting.shortkey.c_str()) == 0 ||
           strcmp(argv[i], setting.longkey.c_str()) == 0) {
         if (setting.check!=0) {
           LIBP_FORCE_ABORT("Cannot set setting [" << setting.name << "] twice in run command.");
-        } else {
-          if (strcmp(argv[i], "-v") == 0 ||
-              strcmp(argv[i], "--verbose") == 0) {
-            changeSetting("VERBOSE", "TRUE");
-            i++;
-          } else {
-            changeSetting(setting.name, string(argv[i+1]));
-            i+=2;
-          }
-          setting.check=1;
-          break;
         }
+
+        if (setting.isToggle) {
+          changeSetting(setting.name, "TRUE");
+          i++;
+        } else {
+          changeSetting(setting.name, string(argv[i+1]));
+          i+=2;
+        }
+        setting.check=1;
+        break;
       }
+    }
+
+    if (it == settings.end()) {
+      LIBP_FORCE_ABORT("Unrecognized setting [" << argv[i] << "]");
     }
   }
 }

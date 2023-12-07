@@ -409,7 +409,7 @@ void ogsBase_t::FindSharedGroups(const dlong Nids,
   }
 
   //shared the unique node check so we know if the gather operation is well-defined
-  comm.Allreduce(is_unique, Comm::Min);
+  comm.Allreduce(is_unique, comm_t::Min);
   gather_defined = (is_unique==1);
 
 
