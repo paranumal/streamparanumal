@@ -45,19 +45,19 @@ SOFTWARE.
     }
 
 #if DOT_BLOCKSIZE>512
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<512) s_ddot[t] += s_ddot[t+512];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+512];
 #endif
 #if DOT_BLOCKSIZE>256
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<256) s_ddot[t] += s_ddot[t+256];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+256];
 #endif
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<128) s_ddot[t] += s_ddot[t+128];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 64) s_ddot[t] += s_ddot[t+ 64];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 32) s_ddot[t] += s_ddot[t+ 32];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 16) s_ddot[t] += s_ddot[t+ 16];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  8) s_ddot[t] += s_ddot[t+  8];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  4) s_ddot[t] += s_ddot[t+  4];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  2) s_ddot[t] += s_ddot[t+  2];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  1) ddot[b] = s_ddot[0] + s_ddot[1];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+128];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 64];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 32];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 16];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  8];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  4];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  2];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<DOT_BLOCKSIZE) ddot[b] = s_ddot[0] + s_ddot[1];
   }
 
   for(dlong b=0;b<1;++b;@outer(0)){
@@ -75,18 +75,18 @@ SOFTWARE.
     }
 
 #if DOT_BLOCKSIZE>512
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<512) s_ddot[t] += s_ddot[t+512];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+512];
 #endif
 #if DOT_BLOCKSIZE>256
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<256) s_ddot[t] += s_ddot[t+256];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+256];
 #endif
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<128) s_ddot[t] += s_ddot[t+128];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 64) s_ddot[t] += s_ddot[t+ 64];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 32) s_ddot[t] += s_ddot[t+ 32];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 16) s_ddot[t] += s_ddot[t+ 16];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  8) s_ddot[t] += s_ddot[t+  8];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  4) s_ddot[t] += s_ddot[t+  4];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  2) s_ddot[t] += s_ddot[t+  2];
-    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  1) ddot[b] = s_ddot[0] + s_ddot[1];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+128];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 64];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 32];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+ 16];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  8];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  4];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<DOT_BLOCKSIZE) s_ddot[t] += s_ddot[t+  2];
+    for(int t=0;t<DOT_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<DOT_BLOCKSIZE) ddot[b] = s_ddot[0] + s_ddot[1];
   }
 }

@@ -44,19 +44,19 @@ SOFTWARE.
     }
 
 #if NORM_BLOCKSIZE>512
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512) s_norm[t] += s_norm[t+512];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+512];
 #endif
 #if NORM_BLOCKSIZE>256
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256) s_norm[t] += s_norm[t+256];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+256];
 #endif
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128) s_norm[t] += s_norm[t+128];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64) s_norm[t] += s_norm[t+ 64];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32) s_norm[t] += s_norm[t+ 32];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16) s_norm[t] += s_norm[t+ 16];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8) s_norm[t] += s_norm[t+  8];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4) s_norm[t] += s_norm[t+  4];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2) s_norm[t] += s_norm[t+  2];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1) norm[b] = s_norm[0] + s_norm[1];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+128];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 64];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 32];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 16];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  8];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  4];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  2];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<NORM_BLOCKSIZE) norm[b] = s_norm[0] + s_norm[1];
   }
 
 
@@ -75,18 +75,18 @@ SOFTWARE.
     }
 
 #if NORM_BLOCKSIZE>512
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512) s_norm[t] += s_norm[t+512];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+512];
 #endif
 #if NORM_BLOCKSIZE>256
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256) s_norm[t] += s_norm[t+256];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+256];
 #endif
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128) s_norm[t] += s_norm[t+128];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64) s_norm[t] += s_norm[t+ 64];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32) s_norm[t] += s_norm[t+ 32];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16) s_norm[t] += s_norm[t+ 16];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8) s_norm[t] += s_norm[t+  8];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4) s_norm[t] += s_norm[t+  4];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2) s_norm[t] += s_norm[t+  2];
-    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1) norm[0] = s_norm[0] + s_norm[1];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+128];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 64];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 32];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 16];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  8];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  4];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  2];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<NORM_BLOCKSIZE) norm[0] = s_norm[0] + s_norm[1];
   }
 }
