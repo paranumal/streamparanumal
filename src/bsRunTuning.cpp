@@ -67,6 +67,8 @@ void bs_t::RunTuning(){
 
     properties_t props = kernelInfo;
     props["defines/"+parameterName] = bs;
+    blockSize = bs;
+
     BuildKernel(props);
 
     int Nwarmup=20;
