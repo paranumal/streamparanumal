@@ -1,2 +1,7 @@
 //Default
 {"Name":"bs.okl","keys":{},"props":{"COPY_BLOCKSIZE":256,"AXPY_BLOCKSIZE":256,"NORM_BLOCKSIZE":256,"DOT_BLOCKSIZE":256,"AXPYDOT_BLOCKSIZE":256}}
+
+//HIP mode, tuned on MI200
+{"Name":"bs.okl","keys":{"mode":"HIP","dfloat":"double"},"props":{"COPY_BLOCKSIZE":448,"AXPY_BLOCKSIZE":192,"NORM_BLOCKSIZE":768,"DOT_BLOCKSIZE":768,"AXPYDOT_BLOCKSIZE":256}}
+{"Name":"bs.okl","keys":{"mode":"HIP","dfloat":"float"},"props":{"COPY_BLOCKSIZE":1024,"AXPY_BLOCKSIZE":960,"NORM_BLOCKSIZE":1024,"DOT_BLOCKSIZE":256,"AXPYDOT_BLOCKSIZE":832}}
+
