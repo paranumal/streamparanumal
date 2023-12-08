@@ -6,7 +6,7 @@
 {"Name":"bs.okl","keys":{"mode":"HIP","dfloat":"float"},"props":{"COPY_BLOCKSIZE":1024,"AXPY_BLOCKSIZE":960,"NORM_BLOCKSIZE":1024,"DOT_BLOCKSIZE":256,"AXPYDOT_BLOCKSIZE":832}}
 
 //HIP mode, MI300
-{"Name":"bs.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942","dfloat":"double"},"props":{"COPY_BLOCKSIZE":256,"AXPY_BLOCKSIZE":448,"NORM_BLOCKSIZE":896,"DOT_BLOCKSIZE":768,"AXPYDOT_BLOCKSIZE":384}}
+{"Name":"bs.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942","dfloat":"double"},"props":{"COPY_BLOCKSIZE":256,"AXPY_BLOCKSIZE":640,"NORM_BLOCKSIZE":896,"DOT_BLOCKSIZE":768,"AXPYDOT_BLOCKSIZE":768}}
 {"Name":"bs.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942","dfloat":"float"},"props":{"COPY_BLOCKSIZE":256,"AXPY_BLOCKSIZE":256,"NORM_BLOCKSIZE":896,"DOT_BLOCKSIZE":896,"AXPYDOT_BLOCKSIZE":896}}
 
 //CUDA mode, tuned on A100 (sm_80)
