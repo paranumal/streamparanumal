@@ -42,6 +42,15 @@ kernel_t ogsOperator_t::scatterKernel[4];
 
 kernel_t ogsExchange_t::extractKernel[4];
 
+//defaults
+int gsblockSize = 256;
+int gblockSize = 256;
+int sblockSize = 256;
+int eblockSize = 256;
+
+int gsNodesPerBlock = 512;
+int gNodesPerBlock = 512;
+int sNodesPerBlock = 512;
 
 void InitializeKernels(platform_t& platform, const Type type, const Op op) {
 
@@ -50,8 +59,14 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
 
     properties_t kernelInfo = platform.props();
 
-    kernelInfo["defines/p_blockSize"] = ogs::blockSize;
-    kernelInfo["defines/p_gatherNodesPerBlock"] = ogs::gatherNodesPerBlock;
+    kernelInfo["defines/GS_BLOCKSIZE"] = ogs::gsblockSize;
+    kernelInfo["defines/G_BLOCKSIZE"]  = ogs::gblockSize;
+    kernelInfo["defines/S_BLOCKSIZE"]  = ogs::sblockSize;
+    kernelInfo["defines/EXTRACT_BLOCKSIZE"] = ogs::eblockSize;
+
+    kernelInfo["defines/G_NODESPERBLOCK"]  = ogs::gNodesPerBlock;
+    kernelInfo["defines/S_NODESPERBLOCK"]  = ogs::sNodesPerBlock;
+    kernelInfo["defines/GS_NODESPERBLOCK"] = ogs::gsNodesPerBlock;
 
     switch (type) {
       case Float:  kernelInfo["defines/T"] =  "float"; break;
@@ -119,6 +134,18 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
       ogsExchange_t::extractKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
                                                 "extract", kernelInfo);
     }
+  }
+}
+
+void FreeKernels() {
+  /*Destroy current kernels*/
+  for (int j=0;j<4;++j) {
+    for (int i=0;i<4;++i) {
+      ogsOperator_t::gatherScatterKernel[j][i].free();
+      ogsOperator_t::gatherKernel[j][i].free();
+    }
+    ogsOperator_t::scatterKernel[j].free();
+    ogsExchange_t::extractKernel[j].free();
   }
 }
 

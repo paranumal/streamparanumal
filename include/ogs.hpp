@@ -211,6 +211,7 @@ namespace ogs {
 
 //pre-build kernels
 void InitializeKernels(platform_t& platform, const Type type, const Op op);
+void FreeKernels();
 
 // OCCA Gather Scatter
 class ogs_t : public ogsBase_t {
@@ -228,6 +229,8 @@ public:
              platform_t& _platform);
 
   void SetupGlobalToLocalMapping(memory<dlong> GlobalToLocal);
+
+  void SetBlockSize(int blockSize, int NodesPerBlock);
 
   // Synchronous host versions
   template<typename T>

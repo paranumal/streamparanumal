@@ -822,6 +822,14 @@ void ogsCrystalRouter_t::AllocBuffer(size_t Nbytes) {
   }
 }
 
+void ogsCrystalRouter_t::SetBlockSize(int blockSize, int NodesPerBlock) {
+  for (int l=0;l<Nlevels;++l) {
+    data[Sym].levels[l].gather.SetBlockSize(blockSize, NodesPerBlock);
+    data[Trans].levels[l].gather.SetBlockSize(blockSize, NodesPerBlock);
+    data[NoTrans].levels[l].gather.SetBlockSize(blockSize, NodesPerBlock);
+  }
+}
+
 } //namespace ogs
 
 } //namespace libp

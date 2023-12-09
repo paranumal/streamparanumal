@@ -848,6 +848,25 @@ void ogs_t::SetupGlobalToLocalMapping(memory<dlong> GlobalToLocal) {
                        1, NoTrans);
 }
 
+void ogs_t::SetBlockSize(int blockSize, int NodesPerBlock) {
+
+  /*Destroy current kernels*/
+  ogs::FreeKernels();
+
+  ogs::gsblockSize = blockSize;
+  ogs::gblockSize  = blockSize;
+  ogs::sblockSize  = blockSize;
+  ogs::eblockSize  = blockSize;
+
+  ogs::gsNodesPerBlock = NodesPerBlock;
+  ogs::gNodesPerBlock = NodesPerBlock;
+  ogs::sNodesPerBlock = NodesPerBlock;
+
+  gatherLocal->SetBlockSize(blockSize, NodesPerBlock);
+  gatherHalo->SetBlockSize(blockSize, NodesPerBlock);
+  exchange->SetBlockSize(blockSize, NodesPerBlock);
+}
+
 void halo_t::SetupFromGather(ogs_t& ogs) {
 
   ogs.AssertGatherDefined();

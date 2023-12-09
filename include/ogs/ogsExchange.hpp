@@ -71,7 +71,10 @@ public:
 
   virtual void AllocBuffer(size_t Nbytes)=0;
 
+  virtual void SetBlockSize(int blockSize, int NodesPerBlock) = 0;
+
   friend void InitializeKernels(platform_t& platform, const Type type, const Op op);
+  friend void FreeKernels();
 
 protected:
   pinnedMemory<char> h_workspace, h_sendspace, h_recvspace;
@@ -147,6 +150,8 @@ public:
 
 
   void AllocBuffer(size_t Nbytes) override;
+
+  void SetBlockSize(int blockSize, int NodesPerBlock) override;
 
 private:
   data_t data[3];
@@ -232,6 +237,8 @@ public:
 
   void AllocBuffer(size_t Nbytes) override;
 
+  void SetBlockSize(int blockSize, int NodesPerBlock) override;
+
 private:
   data_t data[3];
 
@@ -313,6 +320,8 @@ public:
 
 
   void AllocBuffer(size_t Nbytes) override;
+
+  void SetBlockSize(int blockSize, int NodesPerBlock) override;
 
 private:
   int Nlevels=0;

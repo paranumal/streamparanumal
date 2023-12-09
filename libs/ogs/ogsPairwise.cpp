@@ -401,6 +401,12 @@ void ogsPairwise_t::AllocBuffer(size_t Nbytes) {
   }
 }
 
+void ogsPairwise_t::SetBlockSize(int blockSize, int NodesPerBlock) {
+  data[Sym].postmpi.SetBlockSize(blockSize, NodesPerBlock);
+  data[Trans].postmpi.SetBlockSize(blockSize, NodesPerBlock);
+  data[NoTrans].postmpi.SetBlockSize(blockSize, NodesPerBlock);
+}
+
 } //namespace ogs
 
 } //namespace libp

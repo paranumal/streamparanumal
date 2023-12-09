@@ -520,6 +520,7 @@ static dlong upperBound(dlong first,
 }
 
 static void blockRows(const dlong Nrows,
+                      const int NodesPerBlock,
                       const memory<dlong> rowStarts,
                       dlong& Nblocks,
                       memory<dlong>& blockStarts) {
@@ -532,8 +533,8 @@ static void blockRows(const dlong Nrows,
   dlong maxRowSize = prim::max(Nrows, rowSizes);
   rowSizes.free();
 
-  LIBP_ABORT("Multiplicity of a global node in ogsOperator_t::setupRowBlocks is too large.",
-             maxRowSize > gatherNodesPerBlock);
+  LIBP_ABORT("Multiplicity of a global node in ogsOperator_t::setupRowBlocks is larger than requested blocking factor: " << NodesPerBlock,
+             maxRowSize > NodesPerBlock);
 
   // We're going to resursively bisect the list of rows into blocks,
   //  so we need the scratch space to be some power of 2.
@@ -554,16 +555,16 @@ static void blockRows(const dlong Nrows,
   blockSizes[0] = rowStarts[Nrows];
   dlong maxSize = blockSizes[0];
 
-  while (maxSize > gatherNodesPerBlock) {
+  while (maxSize > NodesPerBlock) {
     blockStartsNew[2*Nblocks] = Nrows;
-    /*Recursively bisect the list of rows until the max block size is < gatherNodesPerBlock*/
+    /*Recursively bisect the list of rows until the max block size is < NodesPerBlock*/
     #pragma omp parallel for
     for (dlong n=0;n<Nblocks;++n) {
       const dlong start = blockStartsOld[n];
       const dlong end   = blockStartsOld[n+1];
       const dlong rowBlockSize = rowStarts[end] - rowStarts[start];
 
-      if (rowBlockSize > gatherNodesPerBlock) {
+      if (rowBlockSize > NodesPerBlock) {
         //Find the index ~middle of this block
         const dlong midSize = rowStarts[start] + (rowBlockSize + 1)/2;
         dlong mid = upperBound(start, end, rowStarts.ptr(), midSize);
@@ -651,11 +652,27 @@ ogsOperator_t::ogsOperator_t(platform_t &platform_,
 
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approximately an equal amount of data
-  blockRows(NrowsT, rowStartsT, NrowBlocksT, blockRowStartsT);
+  blockRows(NrowsT, gsNodesPerBlock, rowStartsT, NrowBlocksT, blockRowStartsT);
   o_blockRowStartsT = platform.malloc(blockRowStartsT);
 
   if (kind==Signed) {
-    blockRows(NrowsN, rowStartsN, NrowBlocksN, blockRowStartsN);
+    blockRows(NrowsN, gsNodesPerBlock, rowStartsN, NrowBlocksN, blockRowStartsN);
+    o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  } else {
+    NrowBlocksN = NrowBlocksT;
+    blockRowStartsN = blockRowStartsT;
+    o_blockRowStartsN = o_blockRowStartsT;
+  }
+}
+
+void ogsOperator_t::SetBlockSize(int blockSize, int NodesPerBlock) {
+  //divide the list of colIds into roughly equal sized blocks so that each
+  // threadblock loads approximately an equal amount of data
+  blockRows(NrowsT, gsNodesPerBlock, rowStartsT, NrowBlocksT, blockRowStartsT);
+  o_blockRowStartsT = platform.malloc(blockRowStartsT);
+
+  if (kind==Signed) {
+    blockRows(NrowsN, gsNodesPerBlock, rowStartsN, NrowBlocksN, blockRowStartsN);
     o_blockRowStartsN = platform.malloc(blockRowStartsN);
   } else {
     NrowBlocksN = NrowBlocksT;

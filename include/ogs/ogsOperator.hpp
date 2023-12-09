@@ -33,9 +33,14 @@ namespace libp {
 
 namespace ogs {
 
-//NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
-constexpr int blockSize = 256;
-constexpr int gatherNodesPerBlock = 512; //should be a multiple of blockSize for good unrolling
+extern int gsblockSize;
+extern int gblockSize;
+extern int sblockSize;
+extern int eblockSize;
+
+extern int gsNodesPerBlock;
+extern int gNodesPerBlock;
+extern int sNodesPerBlock;
 
 
 // The Z operator class is essentially a sparse CSR matrix,
@@ -80,6 +85,8 @@ public:
                 memory<hlong> baseIds,
                 memory<dlong> rows,
                 memory<dlong> cols);
+
+  void SetBlockSize(int blockSize, int NodesPerBlock);
 
   void Free();
 
@@ -135,6 +142,7 @@ private:
   static kernel_t scatterKernel[4];
 
   friend void InitializeKernels(platform_t& platform, const Type type, const Op op);
+  friend void FreeKernels();
 };
 
 template <template<typename> class U,
