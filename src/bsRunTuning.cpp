@@ -143,7 +143,7 @@ void bs_t::RunTuning(){
 
     for (int bs=wavesize;bs<=1024;bs+=wavesize) {
 
-      for (int npb=bs;npb<=1024;npb+=wavesize) {
+      for (int npb=bs;npb<=4096;npb+=bs) {
 
         mesh.ogs.SetBlockSize(bs, npb);
 
@@ -202,7 +202,7 @@ void bs_t::RunTuning(){
       param["keys"] = keys;
       param["props"] = props;
 
-      std::cout << name << ":" << parameters_t::toString(param) << std::endl;
+      std::cout << name << ":" << parameters_t::toString(param) << " BW = " << maxBW << " GB/s" << std::endl;
     }
 
   }
