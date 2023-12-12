@@ -183,19 +183,19 @@ void ogsOperator_t::Gather(deviceMemory<T> o_gv,
   InitializeKernels(platform, type, op);
 
   if (trans==NoTrans) {
-    if (NrowBlocksN)
-      gatherKernel[type][op](NrowBlocksN,
+    if (gBlocking.NrowBlocksN)
+      gatherKernel[type][op](gBlocking.NrowBlocksN,
                               k,
-                              o_blockRowStartsN,
+                              gBlocking.o_blockRowStartsN,
                               o_rowStartsN,
                               o_colIdsN,
                               o_v,
                               o_gv);
   } else {
-    if (NrowBlocksT)
-      gatherKernel[type][op](NrowBlocksT,
+    if (gBlocking.NrowBlocksT)
+      gatherKernel[type][op](gBlocking.NrowBlocksT,
                               k,
-                              o_blockRowStartsT,
+                              gBlocking.o_blockRowStartsT,
                               o_rowStartsT,
                               o_colIdsT,
                               o_v,
@@ -301,19 +301,19 @@ void ogsOperator_t::Scatter(deviceMemory<T> o_v,
   InitializeKernels(platform, type, Add);
 
   if (trans==Trans) {
-    if (NrowBlocksN)
-      scatterKernel[type](NrowBlocksN,
+    if (sBlocking.NrowBlocksN)
+      scatterKernel[type](sBlocking.NrowBlocksN,
                           k,
-                          o_blockRowStartsN,
+                          sBlocking.o_blockRowStartsN,
                           o_rowStartsN,
                           o_colIdsN,
                           o_gv,
                           o_v);
   } else {
-    if (NrowBlocksT)
-      scatterKernel[type](NrowBlocksT,
+    if (sBlocking.NrowBlocksT)
+      scatterKernel[type](sBlocking.NrowBlocksT,
                           k,
-                          o_blockRowStartsT,
+                          sBlocking.o_blockRowStartsT,
                           o_rowStartsT,
                           o_colIdsT,
                           o_gv,
@@ -448,30 +448,30 @@ void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
   InitializeKernels(platform, type, Add);
 
   if (trans==Trans) {
-    if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+    if (gsBlocking.NrowBlocksT)
+      gatherScatterKernel[type][Add](gsBlocking.NrowBlocksT,
                                      k,
-                                     o_blockRowStartsT,
+                                     gsBlocking.o_blockRowStartsT,
                                      o_rowStartsT,
                                      o_colIdsT,
                                      o_rowStartsN,
                                      o_colIdsN,
                                      o_v);
   } else if (trans==Sym) {
-    if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+    if (gsBlocking.NrowBlocksT)
+      gatherScatterKernel[type][Add](gsBlocking.NrowBlocksT,
                                      k,
-                                     o_blockRowStartsT,
+                                     gsBlocking.o_blockRowStartsT,
                                      o_rowStartsT,
                                      o_colIdsT,
                                      o_rowStartsT,
                                      o_colIdsT,
                                      o_v);
   } else {
-    if (NrowBlocksT)
-      gatherScatterKernel[type][Add](NrowBlocksT,
+    if (gsBlocking.NrowBlocksT)
+      gatherScatterKernel[type][Add](gsBlocking.NrowBlocksT,
                                      k,
-                                     o_blockRowStartsT,
+                                     gsBlocking.o_blockRowStartsT,
                                      o_rowStartsN,
                                      o_colIdsN,
                                      o_rowStartsT,
@@ -594,6 +594,31 @@ static void blockRows(const dlong Nrows,
   Nblocks = Nunique-1;
 }
 
+//divide the list of colIds into roughly equal sized blocks so that each
+// threadblock loads approximately an equal amount of data
+void ogsOperator_t::createBlocking(const int NodesPerBlock,
+                                   ogsOperator_t::rowBlocking_t& blocking) {
+  blockRows(NrowsT,
+            NodesPerBlock,
+            rowStartsT,
+            blocking.NrowBlocksT,
+            blocking.blockRowStartsT);
+  blocking.o_blockRowStartsT = platform.malloc(blocking.blockRowStartsT);
+
+  if (kind==Signed) {
+    blockRows(NrowsN,
+              NodesPerBlock,
+              rowStartsN,
+              blocking.NrowBlocksN,
+              blocking.blockRowStartsN);
+    blocking.o_blockRowStartsN = platform.malloc(blocking.blockRowStartsN);
+  } else {
+    blocking.NrowBlocksN = blocking.NrowBlocksT;
+    blocking.blockRowStartsN = blocking.blockRowStartsT;
+    blocking.o_blockRowStartsN = blocking.o_blockRowStartsT;
+  }
+}
+
 //Make gather operator using nodes list. List of non-zeros must be sorted by row index
 ogsOperator_t::ogsOperator_t(platform_t &platform_,
                              Kind kind_,
@@ -652,32 +677,41 @@ ogsOperator_t::ogsOperator_t(platform_t &platform_,
 
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approximately an equal amount of data
-  blockRows(NrowsT, gsNodesPerBlock, rowStartsT, NrowBlocksT, blockRowStartsT);
-  o_blockRowStartsT = platform.malloc(blockRowStartsT);
+  createBlocking(gNodesPerBlock, gBlocking);
 
-  if (kind==Signed) {
-    blockRows(NrowsN, gsNodesPerBlock, rowStartsN, NrowBlocksN, blockRowStartsN);
-    o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  if (gNodesPerBlock==sNodesPerBlock) {
+    sBlocking = gBlocking;
   } else {
-    NrowBlocksN = NrowBlocksT;
-    blockRowStartsN = blockRowStartsT;
-    o_blockRowStartsN = o_blockRowStartsT;
+    createBlocking(sNodesPerBlock, sBlocking);
   }
+
+  if (gsNodesPerBlock==gNodesPerBlock) {
+    gsBlocking = gBlocking;
+  } else if (gsNodesPerBlock==sNodesPerBlock) {
+    gsBlocking = sBlocking;
+  } else {
+    createBlocking(gsNodesPerBlock, gsBlocking);
+  }
+
 }
 
 void ogsOperator_t::SetBlockSize(int blockSize, int NodesPerBlock) {
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approximately an equal amount of data
-  blockRows(NrowsT, gsNodesPerBlock, rowStartsT, NrowBlocksT, blockRowStartsT);
-  o_blockRowStartsT = platform.malloc(blockRowStartsT);
+  createBlocking(gNodesPerBlock, gBlocking);
 
-  if (kind==Signed) {
-    blockRows(NrowsN, gsNodesPerBlock, rowStartsN, NrowBlocksN, blockRowStartsN);
-    o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  if (gNodesPerBlock==sNodesPerBlock) {
+    sBlocking = gBlocking;
   } else {
-    NrowBlocksN = NrowBlocksT;
-    blockRowStartsN = blockRowStartsT;
-    o_blockRowStartsN = o_blockRowStartsT;
+    createBlocking(sNodesPerBlock, sBlocking);
+  }
+
+  if (gsNodesPerBlock==gNodesPerBlock) {
+    gsBlocking = gBlocking;
+  } else if (gsNodesPerBlock==sNodesPerBlock) {
+    gsBlocking = sBlocking;
+  } else {
+    createBlocking(gsNodesPerBlock, gsBlocking);
   }
 }
 
@@ -692,18 +726,33 @@ void ogsOperator_t::Free() {
   o_rowStartsN.free();
   o_colIdsN.free();
 
-  blockRowStartsT.free();
-  blockRowStartsN.free();
-  o_blockRowStartsN.free();
-  o_blockRowStartsT.free();
+  gBlocking.blockRowStartsT.free();
+  gBlocking.blockRowStartsN.free();
+  gBlocking.o_blockRowStartsN.free();
+  gBlocking.o_blockRowStartsT.free();
+
+  sBlocking.blockRowStartsT.free();
+  sBlocking.blockRowStartsN.free();
+  sBlocking.o_blockRowStartsN.free();
+  sBlocking.o_blockRowStartsT.free();
+
+  gsBlocking.blockRowStartsT.free();
+  gsBlocking.blockRowStartsN.free();
+  gsBlocking.o_blockRowStartsN.free();
+  gsBlocking.o_blockRowStartsT.free();
 
   nnzN=0;
   nnzT=0;
   NrowsN=0;
   NrowsT=0;
   Ncols=0;
-  NrowBlocksN=0;
-  NrowBlocksT=0;
+
+  gBlocking.NrowBlocksN=0;
+  gBlocking.NrowBlocksT=0;
+  sBlocking.NrowBlocksN=0;
+  sBlocking.NrowBlocksT=0;
+  gsBlocking.NrowBlocksN=0;
+  gsBlocking.NrowBlocksT=0;
 }
 
 

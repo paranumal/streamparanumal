@@ -163,6 +163,8 @@ SOFTWARE.
   }
 }
 
+#define EXTRACT_BLOCKSIZE 256
+
 //extract sparse entries from vector
 @kernel void extract(const dlong N,
                      const int K,

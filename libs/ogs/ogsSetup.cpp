@@ -108,6 +108,8 @@ void ogsBase_t::Setup(const dlong _N,
   kind = _kind;
   unique = _unique;
 
+  InitializeParams(platform, comm, verbose);
+
   // Seed RNG
   int rank = comm.rank();
   prim::seedRNG(rank);
@@ -856,7 +858,6 @@ void ogs_t::SetBlockSize(int blockSize, int NodesPerBlock) {
   ogs::gsblockSize = blockSize;
   ogs::gblockSize  = blockSize;
   ogs::sblockSize  = blockSize;
-  ogs::eblockSize  = blockSize;
 
   ogs::gsNodesPerBlock = NodesPerBlock;
   ogs::gNodesPerBlock = NodesPerBlock;

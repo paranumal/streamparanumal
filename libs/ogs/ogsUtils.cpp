@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include <limits>
+#include "parameters.hpp"
 #include "ogs.hpp"
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
@@ -46,11 +47,56 @@ kernel_t ogsExchange_t::extractKernel[4];
 int gsblockSize = 256;
 int gblockSize = 256;
 int sblockSize = 256;
-int eblockSize = 256;
 
 int gsNodesPerBlock = 512;
 int gNodesPerBlock = 512;
 int sNodesPerBlock = 512;
+
+void InitializeParams(platform_t& platform,
+                      comm_t& comm,
+                      const bool verbose) {
+  static bool isInitialized = false;
+
+  if (isInitialized) return;
+
+  parameters_t tuningParameters;
+
+  std::string filename = std::string(LIBP_DIR) + "/json/ogs.json";
+
+  properties_t keys;
+  keys["mode"] = platform.device.mode();
+
+  std::string arch = platform.device.arch();
+  if (platform.device.mode()=="HIP") {
+    arch = arch.substr(0,arch.find(":")); //For HIP mode, remove the stuff after the :
+  }
+  keys["arch"] = arch;
+
+  std::string name = "ogsKernels.okl";
+
+  if (verbose && comm.rank()==0) {
+    std::cout << "Loading Tuning Parameters, looking for match for Name:'" << name << "', keys:" << tuningParameters.toString(keys) << std::endl;
+  }
+
+  tuningParameters.load(filename, comm);
+
+  properties_t matchProps = tuningParameters.findProperties(name, keys);
+
+  if (verbose && comm.rank()==0) {
+    std::cout << "Found best match = " << tuningParameters.toString(matchProps) << std::endl;
+  }
+
+  /*Read blocksizes from properties*/
+  gblockSize  = static_cast<int>(matchProps["props/G_BLOCKSIZE"]);
+  sblockSize  = static_cast<int>(matchProps["props/S_BLOCKSIZE"]);
+  gsblockSize = static_cast<int>(matchProps["props/GS_BLOCKSIZE"]);
+
+  gNodesPerBlock  = static_cast<int>(matchProps["props/G_NODESPERBLOCK"]);
+  sNodesPerBlock  = static_cast<int>(matchProps["props/S_NODESPERBLOCK"]);
+  gsNodesPerBlock = static_cast<int>(matchProps["props/GS_NODESPERBLOCK"]);
+
+  isInitialized = true;
+}
 
 void InitializeKernels(platform_t& platform, const Type type, const Op op) {
 
@@ -62,7 +108,6 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
     kernelInfo["defines/GS_BLOCKSIZE"] = ogs::gsblockSize;
     kernelInfo["defines/G_BLOCKSIZE"]  = ogs::gblockSize;
     kernelInfo["defines/S_BLOCKSIZE"]  = ogs::sblockSize;
-    kernelInfo["defines/EXTRACT_BLOCKSIZE"] = ogs::eblockSize;
 
     kernelInfo["defines/G_NODESPERBLOCK"]  = ogs::gNodesPerBlock;
     kernelInfo["defines/S_NODESPERBLOCK"]  = ogs::sNodesPerBlock;

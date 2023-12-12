@@ -36,7 +36,6 @@ namespace ogs {
 extern int gsblockSize;
 extern int gblockSize;
 extern int sblockSize;
-extern int eblockSize;
 
 extern int gsNodesPerBlock;
 extern int gNodesPerBlock;
@@ -66,12 +65,16 @@ public:
   deviceMemory<dlong> o_colIdsN;
   deviceMemory<dlong> o_colIdsT;
 
-  dlong NrowBlocksN=0;
-  dlong NrowBlocksT=0;
-  memory<dlong> blockRowStartsN;
-  memory<dlong> blockRowStartsT;
-  deviceMemory<dlong> o_blockRowStartsN;
-  deviceMemory<dlong> o_blockRowStartsT;
+  struct rowBlocking_t {
+    dlong NrowBlocksN=0;
+    dlong NrowBlocksT=0;
+    memory<dlong> blockRowStartsN;
+    memory<dlong> blockRowStartsT;
+    deviceMemory<dlong> o_blockRowStartsN;
+    deviceMemory<dlong> o_blockRowStartsT;
+  };
+
+  rowBlocking_t gBlocking, sBlocking, gsBlocking;
 
   Kind kind;
 
@@ -134,6 +137,8 @@ private:
             typename T>
   void GatherScatter(U<T> v, const int K,
                      const Transpose trans);
+
+  void createBlocking(const int NodesPerBlock, rowBlocking_t& blocking);
 
   //4 types - Float, Double, Int32, Int64
   //4 ops - Add, Mul, Max, Min
