@@ -141,9 +141,12 @@ void bs_t::RunTuning(){
     int bestBlockSize = 0;
     int bestNodesPerBlock = 0;
 
+    int nodePerBlockLimit = 2048;
+    if (platform.device.mode()=="HIP") nodePerBlockLimit=4096;
+
     for (int bs=wavesize;bs<=1024;bs+=wavesize) {
 
-      for (int npb=bs;npb<=4096;npb+=bs) {
+      for (int npb=bs;npb<=nodePerBlockLimit;npb+=bs) {
 
         mesh.ogs.SetBlockSize(bs, npb);
 
