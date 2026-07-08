@@ -72,13 +72,13 @@ namespace Comm {
 
   /*Predefined ops*/
   using op_t = MPI_Op;
-  static constexpr op_t Max  = MPI_MAX;
-  static constexpr op_t Min  = MPI_MIN;
-  static constexpr op_t Sum  = MPI_SUM;
-  static constexpr op_t Prod = MPI_PROD;
-  static constexpr op_t And  = MPI_LAND;
-  static constexpr op_t Or   = MPI_LOR;
-  static constexpr op_t Xor  = MPI_LXOR;
+  static const op_t Max  = MPI_MAX;
+  static const op_t Min  = MPI_MIN;
+  static const op_t Sum  = MPI_SUM;
+  static const op_t Prod = MPI_PROD;
+  static const op_t And  = MPI_LAND;
+  static const op_t Or   = MPI_LOR;
+  static const op_t Xor  = MPI_LXOR;
 
   /*MPI_Init and MPI_Finalize*/
   void Init(int &argc, char** &argv);
